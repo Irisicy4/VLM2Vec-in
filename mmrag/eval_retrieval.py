@@ -44,6 +44,7 @@ def encode_corpus(enc, corpus, bs, cache_path=None):
             print(f"  corpus {i + len(e)}/{len(corpus)}", flush=True)
     embs = torch.cat(embs)
     if cache_path:
+        os.makedirs(os.path.dirname(os.path.abspath(cache_path)), exist_ok=True)
         torch.save(embs, cache_path)
     return embs
 

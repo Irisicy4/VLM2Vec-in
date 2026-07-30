@@ -1,0 +1,251 @@
+"""Indirect-RL training mode ("Ours"): online PPO/GRPO on the multimodal retriever's LoRA adapters,
+rewarded by a frozen VLM reader's answer success — multimodal port of ../rag/train_online_v2.py +
+trl.experimental.embedding_ppo (single-hop).
+
+Each step:
+  1. sample B (image, question, answer, gold-passage) rows
+  2. encode queries with the current policy; retrieve top-(N-1) passages from the RL corpus
+     (+ force-include the gold passage at slot 0 as the InfoNCE positive, unless --no_force_gold)
+  3. frozen VLM reader scores each candidate: logP(answer | image, question, passage) [logit] or
+     sampled answer accuracy [judge]; per-pool z-score
+  4. PPO-clip policy gradient over softmax(sim/temperature) pools (+ critic V(q), or GRPO with
+     group-relative advantages and no critic) + InfoNCE anchor against collapse
+Corpus embeddings are re-encoded with the current policy every --refresh_steps.
+
+    python3 mmrag/train_rl.py --output_dir runs/rl-2b --algo grpo --reward judge \
+        --batch_size 4 --num_candidates 8 --max_steps 500 --reader_device cuda:1
+"""
+
+import argparse
+import json
+import os
+import random
+import sys
+import time
+
+import torch
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from mmrag.encoder import MMRagEncoder, QUERY_INSTRUCTION  # noqa: E402
+from mmrag.image_store import TarImageStore  # noqa: E402
+from mmrag.reader_vlm import LiveVLMReader  # noqa: E402
+from mmrag.rl_core import (  # noqa: E402
+    ValueHead, compute_advantages_and_targets, embedding_ppo_loss, infonce_loss, pool_logps,
+)
+
+
+def build_rl_corpus(data_dir, corpus_file, rows, n_distractor_articles, seed=0):
+    """RL corpus = all passages of the train queries' gold entities + N distractor articles,
+    filtered out of the prebuilt corpus (keeps pids consistent with eval corpora)."""
+    gold_urls = {r["entity_url"] for r in rows}
+    by_url = {}
+    with open(os.path.join(data_dir, corpus_file)) as f:
+        for line in f:
+            p = json.loads(line)
+            by_url.setdefault(p["url"], []).append(p)
+    distract = sorted(u for u in by_url if u not in gold_urls)
+    random.Random(seed).shuffle(distract)
+    keep = gold_urls | set(distract[:n_distractor_articles])
+    corpus = [p for u in keep if u in by_url for p in by_url[u]]
+    return corpus
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--model", default="Qwen/Qwen2-VL-2B-Instruct")
+    ap.add_argument("--checkpoint", default="TIGER-Lab/VLM2Vec-Qwen2VL-2B")
+    ap.add_argument("--data_dir", default=os.environ.get("MMRAG_DATA", "/lus/lfs1aip2/scratch/u6ko/icywang.u6ko/mmrag_data"))
+    ap.add_argument("--pool", default="built/pool_train.jsonl", help="rows: qid,image_id,question,answer,pos")
+    ap.add_argument("--corpus", default="built/corpus_small.jsonl")
+    ap.add_argument("--image_tars", nargs="+", default=None)
+    ap.add_argument("--output_dir", required=True)
+    # policy / optimization
+    ap.add_argument("--algo", choices=["ppo", "grpo"], default="grpo")
+    ap.add_argument("--temperature", type=float, default=0.02, help="policy softmax temperature")
+    ap.add_argument("--learning_rate", type=float, default=2e-5)
+    ap.add_argument("--batch_size", type=int, default=4)
+    ap.add_argument("--num_candidates", type=int, default=8)
+    ap.add_argument("--max_steps", type=int, default=500)
+    ap.add_argument("--lora_r", type=int, default=32)
+    ap.add_argument("--lora_alpha", type=int, default=64)
+    ap.add_argument("--epsilon", type=float, default=0.2)
+    ap.add_argument("--vf_coef", type=float, default=0.1, help="0 with --algo grpo")
+    ap.add_argument("--value_head_lr", type=float, default=1e-2)
+    ap.add_argument("--value_init", type=float, default=0.3)
+    ap.add_argument("--critic_warmup_steps", type=int, default=20)
+    ap.add_argument("--beta", type=float, default=0.0, help="KL-to-init coefficient (0 = off)")
+    ap.add_argument("--contrastive_coef", type=float, default=0.3)
+    ap.add_argument("--contrastive_temperature", type=float, default=0.03)
+    ap.add_argument("--no_force_gold", action="store_true",
+                    help="annotation-free pools: pure top-N (gold only enters if retrieved). "
+                         "Disables the InfoNCE anchor's labeled positive -> uses top-1 as anchor.")
+    ap.add_argument("--reward_gate_std", type=float, default=0.0,
+                    help="zero the advantage of pools whose raw reward std < this (no signal)")
+    # reward
+    ap.add_argument("--reward", choices=["logit", "judge"], default="logit")
+    ap.add_argument("--reader_model", default="Qwen/Qwen2.5-VL-3B-Instruct")
+    ap.add_argument("--reader_device", default=None, help="default: same as --device")
+    ap.add_argument("--reader_rollouts", type=int, default=4)
+    ap.add_argument("--reader_temperature", type=float, default=0.7)
+    ap.add_argument("--reader_batch_size", type=int, default=16)
+    # corpus
+    ap.add_argument("--n_distractor_articles", type=int, default=3000)
+    ap.add_argument("--refresh_steps", type=int, default=100)
+    ap.add_argument("--encode_bs", type=int, default=64)
+    ap.add_argument("--max_len_doc", type=int, default=512)
+    ap.add_argument("--max_train_rows", type=int, default=0)
+    # misc
+    ap.add_argument("--query_instruction", default=QUERY_INSTRUCTION)
+    ap.add_argument("--device", default="cuda:0")
+    ap.add_argument("--save_steps", type=int, default=100)
+    ap.add_argument("--log_every", type=int, default=5)
+    ap.add_argument("--seed", type=int, default=0)
+    args = ap.parse_args()
+    if args.algo == "grpo":
+        args.vf_coef = 0.0
+    D = args.data_dir
+    rng = random.Random(args.seed)
+    torch.manual_seed(args.seed)
+
+    rows = [json.loads(l) for l in open(os.path.join(D, args.pool))]
+    tars = args.image_tars or [os.path.join(D, "images/Infoseek/infoseek_train_images.tar"),
+                               os.path.join(D, "images/Infoseek/infoseek_val_images.tar")]
+    store = TarImageStore([t for t in tars if os.path.exists(t)])
+    rows = [r for r in rows if r["image_id"] in store and r.get("pos")]
+    if args.max_train_rows:
+        rows = rng.sample(rows, min(args.max_train_rows, len(rows)))
+    print(f"train rows: {len(rows)}", flush=True)
+
+    corpus = build_rl_corpus(D, args.corpus, rows, args.n_distractor_articles, args.seed)
+    corpus_texts = [p["text"] for p in corpus]
+    print(f"RL corpus: {len(corpus)} passages", flush=True)
+
+    enc = MMRagEncoder(args.model, checkpoint_path=args.checkpoint, device=args.device,
+                       max_len=args.max_len_doc, new_lora_r=args.lora_r,
+                       new_lora_alpha=args.lora_alpha, query_instruction=args.query_instruction)
+    enc.gradient_checkpointing_enable()
+    enc.train()
+    # deterministic policy: kill dropout so rollout logps == loss-forward logps (PPO ratio noise)
+    for m in enc.model.modules():
+        if isinstance(m, torch.nn.Dropout):
+            m.p = 0.0
+
+    value_head = ValueHead(enc.hidden_size, init_bias=args.value_init).to(args.device)
+    params = enc.trainable_parameters()
+    print(f"trainable params: {sum(p.numel() for p in params)/1e6:.1f}M", flush=True)
+    opt = torch.optim.AdamW(
+        [{"params": params, "lr": args.learning_rate},
+         {"params": value_head.parameters(), "lr": args.value_head_lr, "weight_decay": 0.0}])
+
+    reader = LiveVLMReader(args.reader_model, device=args.reader_device or args.device,
+                           batch_size=args.reader_batch_size)
+
+    corpus_emb = None
+
+    @torch.no_grad()
+    def refresh_corpus():
+        nonlocal corpus_emb
+        t0 = time.time()
+        embs = []
+        for i in range(0, len(corpus_texts), args.encode_bs):
+            e = enc.encode_docs(corpus_texts[i : i + args.encode_bs], batch_size=args.encode_bs)
+            embs.append(e.float())
+        corpus_emb = torch.cat(embs)  # (C, d) on device fp32
+        print(f"  corpus refreshed in {time.time()-t0:.0f}s", flush=True)
+
+    os.makedirs(args.output_dir, exist_ok=True)
+    json.dump(vars(args), open(os.path.join(args.output_dir, "args.json"), "w"), indent=2)
+    N = args.num_candidates
+    metrics_log = open(os.path.join(args.output_dir, "metrics.jsonl"), "a")
+
+    for step in range(args.max_steps):
+        if corpus_emb is None or (args.refresh_steps and step % args.refresh_steps == 0):
+            refresh_corpus()
+
+        batch = rng.sample(rows, args.batch_size)
+        imgs = [store.get(r["image_id"]) for r in batch]
+        questions = [r["question"] for r in batch]
+
+        # ---- rollout (no grad): retrieve pools, reward, old logps/values ----
+        with torch.no_grad():
+            q_emb = enc.encode_queries(questions, imgs, batch_size=args.batch_size).float()
+            sims = q_emb @ corpus_emb.T                              # (B, C)
+            topk = sims.topk(min(N + 4, sims.shape[1]), dim=1).indices.tolist()
+            pools, triples, gold_hit = [], [], 0
+            for b, r in enumerate(batch):
+                gold = r["pos"][0]
+                retrieved = [corpus_texts[i] for i in topk[b]]
+                gold_hit += float(gold in retrieved[:N])
+                if args.no_force_gold:
+                    cands = retrieved[:N]
+                else:
+                    cands = [gold] + [t for t in retrieved if t != gold][: N - 1]
+                pools.append(cands)
+                triples.extend({"image": imgs[b], "question": r["question"],
+                                "context": c, "answer": r["answer"]} for c in cands)
+
+            if args.reward == "judge":
+                rewards = reader.score_judge(triples, n_rollouts=args.reader_rollouts,
+                                             temperature=args.reader_temperature)
+            else:
+                rewards = reader.score_logit(triples)
+            rewards = torch.tensor(rewards, dtype=torch.float32,
+                                   device=args.device).view(args.batch_size, N)
+            raw_mean, gold_mean = rewards.mean().item(), rewards[:, 0].mean().item()
+            gate = None
+            if args.reward_gate_std > 0:
+                gate = (rewards.std(1, keepdim=True) >= args.reward_gate_std).float()
+            rewards = (rewards - rewards.mean(1, keepdim=True)) / (rewards.std(1, keepdim=True) + 1e-6)
+
+            flat = [c for pool in pools for c in pool]
+            c_emb = enc.encode_docs(flat, batch_size=args.encode_bs).float().view(args.batch_size, N, -1)
+            old_logps, _ = pool_logps(q_emb, c_emb, args.temperature)
+            old_values = value_head(q_emb)
+            if args.algo == "grpo":
+                advantages, value_target = rewards, rewards.new_zeros(args.batch_size)
+            else:
+                advantages, value_target = compute_advantages_and_targets(rewards, old_values, old_logps)
+            if gate is not None:
+                advantages = advantages * gate
+                if args.algo == "ppo":
+                    value_target = value_target * gate.squeeze(1) + old_values * (1 - gate.squeeze(1))
+
+        # ---- loss forward (grad): re-encode the same pools with the trainable policy ----
+        q_emb_g = enc.encode_queries(questions, imgs, batch_size=args.batch_size, grad=True).float()
+        c_emb_g = enc.encode_docs(flat, batch_size=args.encode_bs, grad=True).float().view(args.batch_size, N, -1)
+        logps, _ = pool_logps(q_emb_g, c_emb_g, args.temperature)
+        values = value_head(q_emb_g)
+        loss, m = embedding_ppo_loss(
+            logps=logps, old_logps=old_logps, advantages=advantages,
+            values=values, old_values=old_values, value_target=value_target,
+            epsilon_low=args.epsilon, epsilon_high=args.epsilon, vf_coef=args.vf_coef,
+            disable_policy=(args.algo == "ppo" and step < args.critic_warmup_steps))
+        if args.contrastive_coef > 0:
+            nce = infonce_loss(q_emb_g, c_emb_g, args.contrastive_temperature)
+            loss = loss + args.contrastive_coef * nce
+            m["loss/infonce"] = nce.item()
+
+        loss.backward()
+        torch.nn.utils.clip_grad_norm_(params, 1.0)
+        opt.step()
+        opt.zero_grad()
+
+        m.update({"step": step, "loss": loss.item(), "reward/raw_mean": raw_mean,
+                  "reward/gold_mean": gold_mean, "retrieval/gold_in_topN": gold_hit / args.batch_size})
+        metrics_log.write(json.dumps(m) + "\n")
+        metrics_log.flush()
+        if step % args.log_every == 0:
+            print(f"step {step:>4} loss={loss.item():.4f} R_raw={raw_mean:.3f} "
+                  f"R_gold={gold_mean:.3f} gold@N={gold_hit/args.batch_size:.2f} "
+                  f"pg={m['loss/policy']:.4f} nce={m.get('loss/infonce', 0):.4f}", flush=True)
+        if args.save_steps and step and step % args.save_steps == 0:
+            enc.save_adapters(os.path.join(args.output_dir, f"checkpoint-{step}"))
+            torch.save(value_head.state_dict(), os.path.join(args.output_dir, f"checkpoint-{step}", "value_head.pt"))
+
+    enc.save_adapters(args.output_dir)
+    torch.save(value_head.state_dict(), os.path.join(args.output_dir, "value_head.pt"))
+    print(f"saved -> {args.output_dir}", flush=True)
+
+
+if __name__ == "__main__":
+    main()

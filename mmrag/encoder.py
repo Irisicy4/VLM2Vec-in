@@ -53,7 +53,9 @@ class MMRagEncoder:
         device: str = "cuda:0",
         pooling: str = "last",
         normalize: bool = True,
-        max_len: int = 2048,
+        max_len: int = 512,              # doc-side (text-only) token budget
+        query_max_len: int = 2048,       # query-side budget: image pads (<=1280) + text; truncating
+                                         # image pads breaks the vision-feature count check
         new_lora_r: int = 0,             # >0: attach FRESH trainable LoRA adapters (RL / SFT arm)
         new_lora_alpha: int = 64,
         query_instruction: str = None,
@@ -64,6 +66,7 @@ class MMRagEncoder:
         self.query_instruction = query_instruction or (
             GME_QUERY_INSTRUCTION if style == "gme" else QUERY_INSTRUCTION)
         self.max_len = max_len
+        self.query_max_len = query_max_len
 
         margs = ModelArguments(
             model_name=model_name,
@@ -102,10 +105,10 @@ class MMRagEncoder:
         self.model.eval()
 
     # ---------------- forward path ----------------
-    def _forward(self, texts, images):
+    def _forward(self, texts, images, max_length=None):
         """One processor+encoder pass. images: list of PIL.Image or None (len == len(texts))."""
         inputs = self.process_fn({"text": texts, "images": images}, processor=self.processor,
-                                 max_length=self.max_len)
+                                 max_length=max_length or self.max_len)
         inputs = {k: (v.to(self.device) if isinstance(v, torch.Tensor) else v) for k, v in inputs.items()}
         # MMEBModel.encode_input for qwen2_vl goes through the generic HF branch: strip helper keys
         for k in ("texts", "images"):
@@ -114,14 +117,14 @@ class MMRagEncoder:
         inputs = _merge_visual(inputs, self.device)
         return self.model.encode_input(inputs)  # (B, d), normalized if normalize=True
 
-    def encode(self, texts, images=None, batch_size=16, grad=False, to_cpu=False):
+    def encode(self, texts, images=None, batch_size=16, grad=False, to_cpu=False, max_length=None):
         """Encode raw (text, image) pairs. Returns (N, d) tensor (fp32 on CPU if to_cpu)."""
         images = images if images is not None else [None] * len(texts)
         out = []
         ctx = torch.enable_grad if grad else torch.no_grad
         with ctx():
             for i in range(0, len(texts), batch_size):
-                e = self._forward(texts[i : i + batch_size], images[i : i + batch_size])
+                e = self._forward(texts[i : i + batch_size], images[i : i + batch_size], max_length)
                 out.append(e.float().cpu() if to_cpu else e)
         return torch.cat(out, dim=0)
 
@@ -138,7 +141,8 @@ class MMRagEncoder:
 
     def encode_queries(self, questions, images, batch_size=8, grad=False, to_cpu=False):
         texts = [self.format_query(q) for q in questions]
-        return self.encode(texts, images, batch_size=batch_size, grad=grad, to_cpu=to_cpu)
+        return self.encode(texts, images, batch_size=batch_size, grad=grad, to_cpu=to_cpu,
+                           max_length=self.query_max_len)
 
     def encode_docs(self, docs, batch_size=32, grad=False, to_cpu=False):
         return self.encode([self.format_doc(d) for d in docs], None,

@@ -77,11 +77,17 @@ def main():
     f1s = [squad_f1(p, t["answer"]) for p, t in zip(preds, triples)]
     n = len(kept)
     acc, f1 = sum(accs) / n, sum(f1s) / n
+    by_split = {}
+    for qid, a in zip(kept, accs):
+        s = retr[qid].get("data_split") or "all"
+        by_split.setdefault(s, []).append(a)
+    split_acc = {s: sum(v) / len(v) for s, v in by_split.items()}
     name = os.path.basename(args.retrieval).replace(".retrieval.json", "")
     mode = "noctx" if args.no_context else ("gold" if args.gold_context else f"top{args.k}")
     print(f"[{name}] L2 VQA  reader={os.path.basename(args.reader)} mode={mode} n={n}  "
-          f"acc={acc:.4f}  F1={f1:.4f}")
-    out = {"name": name, "reader": args.reader, "mode": mode, "n": n, "acc": acc, "f1": f1}
+          f"acc={acc:.4f}  F1={f1:.4f}  by_split={ {k: round(v, 4) for k, v in split_acc.items()} }")
+    out = {"name": name, "reader": args.reader, "mode": mode, "n": n, "acc": acc, "f1": f1,
+           "acc_by_split": split_acc}
     fp = args.retrieval.replace(".retrieval.json", f".vqa_{mode}.json")
     json.dump(out, open(fp, "w"), indent=2)
     print(f"wrote {fp}")

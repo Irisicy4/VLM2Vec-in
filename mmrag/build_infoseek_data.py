@@ -157,6 +157,23 @@ def main():
 
     q_train = build_queries("train", args.train_per_entity, args.max_train)
     q_test = build_queries("test", 0, args.max_test)
+
+    # join official InfoSeek val answer aliases + split labels (test == InfoSeek val)
+    val_jsonl = os.path.join(D, "raw", "infoseek_val.jsonl")
+    if os.path.exists(val_jsonl):
+        alias, splits = {}, {}
+        for line in open(val_jsonl):
+            r = json.loads(line)
+            a = r.get("answer_eval") or r.get("answer")
+            alias[r["data_id"]] = a if isinstance(a, list) else [a]
+            splits[r["data_id"]] = r.get("data_split", "")
+        n_hit = 0
+        for q in q_test:
+            al = alias.get(q["qid"])
+            q["answer_aliases"] = al or [q["answer"]]
+            q["data_split"] = splits.get(q["qid"], "")
+            n_hit += bool(al)
+        print(f"alias join on test: {n_hit}/{len(q_test)}", flush=True)
     for name, qs in (("train", q_train), ("test", q_test)):
         with open(os.path.join(out_dir, f"queries_{name}.jsonl"), "w") as f:
             for q in qs:

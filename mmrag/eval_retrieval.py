@@ -100,7 +100,9 @@ def main():
             gold = set(q["gold_pids"])
             ans = set(q["ans_pids"])
             out[q["qid"]] = {"topk": top_pids, "gold_pids": q["gold_pids"], "ans_pids": q["ans_pids"],
-                             "image_id": q["image_id"], "question": q["question"], "answer": q["answer"]}
+                             "image_id": q["image_id"], "question": q["question"],
+                             "answer": q.get("answer_aliases", q["answer"]),
+                             "data_split": q.get("data_split", "")}
             for k in KS:
                 if gold & set(top_pids[:k]):
                     r_at[k] += 1

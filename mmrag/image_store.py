@@ -16,19 +16,20 @@ import tarfile
 from PIL import Image
 
 
-def build_tar_index(tar_path: str, index_path: str = None) -> dict:
-    """Index a tar's file members: basename-without-extension -> (offset_data, size). Saved as JSON."""
+def build_tar_index(tar_path: str, index_path: str = None, key_fn=None) -> dict:
+    """Index a tar's file members: key -> (offset_data, size), saved as JSON.
+    Default key = basename without extension; pass key_fn(member_name) to override."""
     index_path = index_path or tar_path + ".index.json"
     if os.path.exists(index_path):
         with open(index_path) as f:
             return json.load(f)
+    key_fn = key_fn or (lambda n: os.path.splitext(os.path.basename(n))[0])
     index = {}
     with tarfile.open(tar_path) as tf:
         for m in tf:
             if not m.isfile():
                 continue
-            key = os.path.splitext(os.path.basename(m.name))[0]
-            index[key] = (m.offset_data, m.size)
+            index[key_fn(m.name)] = (m.offset_data, m.size)
     tmp = index_path + ".tmp"
     with open(tmp, "w") as f:
         json.dump(index, f)
@@ -68,6 +69,9 @@ def open_stores(data_dir, dataset="infoseek"):
         z = os.path.join(data_dir, "images/EVQA/inat.zip")
         if os.path.exists(z):
             stores.append(ZipImageStore(z))          # keys = member paths (id2name values)
+        v = os.path.join(data_dir, "images/EVQA/inat_val.tar")
+        if os.path.exists(v):                        # iNat-2021 val (M2KR zip only has train/)
+            stores.append(TarImageStore(v, key_fn=lambda n: n.lstrip("./")))
         t = os.path.join(data_dir, "images/EVQA/google-landmark.tar")
         if os.path.exists(t):
             stores.append(TarImageStore(t))          # keys = basename w/o ext = landmark id
@@ -116,13 +120,13 @@ class ZipImageStore:
 
 
 class TarImageStore:
-    def __init__(self, tar_paths):
+    def __init__(self, tar_paths, key_fn=None):
         if isinstance(tar_paths, str):
             tar_paths = [tar_paths]
         self._entries = {}  # key -> (fd_index, offset, size)
         self._fds = []
         for ti, tp in enumerate(tar_paths):
-            idx = build_tar_index(tp)
+            idx = build_tar_index(tp, key_fn=key_fn)
             self._fds.append(os.open(tp, os.O_RDONLY))
             for k, (off, size) in idx.items():
                 self._entries.setdefault(k, (ti, off, size))

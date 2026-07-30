@@ -97,7 +97,8 @@ class LiveVLMReader:
             logits = self.model(**enc).logits[:, :-1]           # (B, L-1, V) bf16
             tgt = enc["input_ids"][:, 1:]
             tok_logit = logits.gather(-1, tgt.unsqueeze(-1)).squeeze(-1).float()
-            tok_logp = tok_logit - torch.logsumexp(logits.float(), dim=-1)   # (B, L-1)
+            # reduce logsumexp in bf16 — a .float() copy of the (B, L, V) tensor is ~10GB at bs16
+            tok_logp = tok_logit - torch.logsumexp(logits, dim=-1).float()   # (B, L-1)
             for j, a in enumerate(answers):
                 n_ans = len(self.tok(a, add_special_tokens=False)["input_ids"])
                 mask = enc["attention_mask"][j, 1:].bool()

@@ -712,7 +712,11 @@ class MMEBModel(nn.Module):
         config = None
 
         if not hasattr(model_args, "model_backbone") or not model_args.model_backbone:
-            config = AutoConfig.from_pretrained(config_source, trust_remote_code=True)
+            try:
+                config = AutoConfig.from_pretrained(config_source, trust_remote_code=True)
+            except ImportError:
+                # e.g. GME's remote code pins transformers<4.52; its config is a plain qwen2_vl.
+                config = AutoConfig.from_pretrained(config_source, trust_remote_code=False)
             model_backbone = get_backbone_name(hf_config=config, model_type=model_args.model_type)
             setattr(model_args, "model_backbone", model_backbone)
 
@@ -755,7 +759,11 @@ class MMEBModel(nn.Module):
         elif model_args.model_backbone in {
             LLAVA_NEXT, QWEN2_VL, QWEN2_5_VL, QWEN2_VL_TOKENSELECTION, QWEN2_5_VL_TOKENSELECTION, QWEN2_5_OMNI, E5_V
         }:
-            config = AutoConfig.from_pretrained(model_args.model_name, trust_remote_code=True)
+            try:
+                config = AutoConfig.from_pretrained(model_args.model_name, trust_remote_code=True)
+            except ImportError:
+                # GME's remote code pins transformers<4.52; the architecture is plain qwen2_vl.
+                config = AutoConfig.from_pretrained(model_args.model_name, trust_remote_code=False)
             try:
                 config._attn_implementation = "flash_attention_2"
                 if hasattr(config, "vision_config"):

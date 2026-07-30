@@ -113,6 +113,8 @@ def main():
     if args.max_train_rows:
         rows = rng.sample(rows, min(args.max_train_rows, len(rows)))
     print(f"train rows: {len(rows)}", flush=True)
+    if len(rows) < args.batch_size:
+        sys.exit(f"SKIP: only {len(rows)} usable rows (image archives missing?) — nothing to train on")
 
     corpus = build_rl_corpus(D, args.corpus, rows, args.n_distractor_articles, args.seed)
     corpus_texts = [p["text"] for p in corpus]

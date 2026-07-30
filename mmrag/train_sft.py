@@ -50,6 +50,8 @@ def main():
              if args.image_tars else open_stores(D, "infoseek"))
     rows = [r for r in rows if r["image_id"] in store and r.get("pos")]
     print(f"train rows with images: {len(rows)}", flush=True)
+    if len(rows) < args.batch_size:
+        sys.exit(f"SKIP: only {len(rows)} usable rows (image archives missing?) — nothing to train on")
 
     enc = MMRagEncoder.from_profile(args.profile, device=args.device,
                                     max_len=args.max_len_doc, new_lora_r=args.lora_r,

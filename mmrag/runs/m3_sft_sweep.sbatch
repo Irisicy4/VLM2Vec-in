@@ -18,6 +18,10 @@ export PYTORCH_ALLOC_CONF=expandable_segments:True TOKENIZERS_PARALLELISM=false
 L=$MMRAG_DATA/logs
 echo "=== node $(hostname) | $(date) ==="
 
+# wait (max 90 min) for the train image tar (login-node download may still be finishing)
+TT=$MMRAG_DATA/images/Infoseek/infoseek_train_images.tar
+for i in $(seq 1 90); do [ -f $TT ] && break; echo "waiting for train tar..."; sleep 60; done
+
 POOL=built/pool_train_negs.jsonl
 [ -f $MMRAG_DATA/$POOL ] || POOL=built/pool_train.jsonl
 echo "pool: $POOL"

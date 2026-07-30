@@ -13,7 +13,7 @@ import random
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from mmrag.image_store import TarImageStore  # noqa: E402
+from mmrag.image_store import open_stores  # noqa: E402
 from mmrag.reader_vlm import LiveVLMReader, answer_correct, squad_f1  # noqa: E402
 
 
@@ -22,8 +22,8 @@ def main():
     ap.add_argument("--retrieval", required=True, help="<name>.retrieval.json from eval_retrieval.py")
     ap.add_argument("--reader", default="Qwen/Qwen2.5-VL-7B-Instruct")
     ap.add_argument("--data_dir", default=os.environ.get("MMRAG_DATA", "/lus/lfs1aip2/scratch/u6ko/icywang.u6ko/mmrag_data"))
-    ap.add_argument("--corpus", default="built/corpus_small.jsonl")
-    ap.add_argument("--image_tars", nargs="+", default=None)
+    ap.add_argument("--dataset", default="infoseek", choices=["infoseek", "evqa"])
+    ap.add_argument("--corpus", default=None, help="default per dataset")
     ap.add_argument("--k", type=int, default=5)
     ap.add_argument("--max-q", type=int, default=2000)
     ap.add_argument("--no-context", action="store_true", help="reader-only baseline (no retrieval)")
@@ -34,6 +34,8 @@ def main():
     args = ap.parse_args()
 
     D = args.data_dir
+    args.corpus = args.corpus or {"infoseek": "built/corpus_small.jsonl",
+                                  "evqa": "built/corpus_evqa.jsonl"}[args.dataset]
     retr = json.load(open(args.retrieval))
     qids = sorted(retr)
     if args.max_q and len(qids) > args.max_q:
@@ -51,9 +53,7 @@ def main():
             if p["pid"] in need:
                 pid2text[p["pid"]] = p["text"]
 
-    tars = args.image_tars or [os.path.join(D, "images/Infoseek/infoseek_val_images.tar"),
-                               os.path.join(D, "images/Infoseek/infoseek_train_images.tar")]
-    store = TarImageStore([t for t in tars if os.path.exists(t)])
+    store = open_stores(D, args.dataset)
     reader = LiveVLMReader(args.reader, device=args.device, batch_size=args.batch_size,
                            max_ctx_chars=args.k * 900)
 

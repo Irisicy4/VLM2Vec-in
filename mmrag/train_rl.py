@@ -27,7 +27,7 @@ import torch
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from mmrag.encoder import ENCODER_PROFILES, MMRagEncoder  # noqa: E402
-from mmrag.image_store import TarImageStore  # noqa: E402
+from mmrag.image_store import TarImageStore, open_stores  # noqa: E402
 from mmrag.reader_vlm import LiveVLMReader  # noqa: E402
 from mmrag.rl_core import (  # noqa: E402
     ValueHead, compute_advantages_and_targets, embedding_ppo_loss, infonce_loss, pool_logps,
@@ -107,9 +107,8 @@ def main():
     torch.manual_seed(args.seed)
 
     rows = [json.loads(l) for l in open(os.path.join(D, args.pool))]
-    tars = args.image_tars or [os.path.join(D, "images/Infoseek/infoseek_train_images.tar"),
-                               os.path.join(D, "images/Infoseek/infoseek_val_images.tar")]
-    store = TarImageStore([t for t in tars if os.path.exists(t)])
+    store = (TarImageStore([t for t in args.image_tars if os.path.exists(t)])
+             if args.image_tars else open_stores(D, "infoseek"))
     rows = [r for r in rows if r["image_id"] in store and r.get("pos")]
     if args.max_train_rows:
         rows = rng.sample(rows, min(args.max_train_rows, len(rows)))

@@ -36,6 +36,85 @@ def build_tar_index(tar_path: str, index_path: str = None) -> dict:
     return index
 
 
+class ChainStore:
+    """First store that contains the key wins."""
+
+    def __init__(self, stores):
+        self.stores = stores
+
+    def __contains__(self, key):
+        return any(key in s for s in self.stores)
+
+    def __len__(self):
+        return sum(len(s) for s in self.stores)
+
+    def get(self, key, **kw):
+        for s in self.stores:
+            if key in s:
+                return s.get(key, **kw)
+        raise KeyError(key)
+
+
+def open_stores(data_dir, dataset="infoseek"):
+    """Image stores for a dataset's query files (only archives that exist are opened)."""
+    import os
+
+    if dataset == "infoseek":
+        paths = [os.path.join(data_dir, "images/Infoseek", f)
+                 for f in ("infoseek_val_images.tar", "infoseek_train_images.tar")]
+        return ChainStore([TarImageStore(p) for p in paths if os.path.exists(p)])
+    if dataset == "evqa":
+        stores = []
+        z = os.path.join(data_dir, "images/EVQA/inat.zip")
+        if os.path.exists(z):
+            stores.append(ZipImageStore(z))          # keys = member paths (id2name values)
+        t = os.path.join(data_dir, "images/EVQA/google-landmark.tar")
+        if os.path.exists(t):
+            stores.append(TarImageStore(t))          # keys = basename w/o ext = landmark id
+        return ChainStore(stores)
+    raise ValueError(dataset)
+
+
+class ZipImageStore:
+    """Same idea for zip archives (zip has a central directory -> native random access).
+    Keys are member paths (e.g. iNat 'train/<category>/<uuid>.jpg'); pass key_fn to remap."""
+
+    def __init__(self, zip_paths, key_fn=None):
+        import zipfile
+
+        if isinstance(zip_paths, str):
+            zip_paths = [zip_paths]
+        self._zfs = [zipfile.ZipFile(p) for p in zip_paths]
+        self._entries = {}
+        for zi, zf in enumerate(self._zfs):
+            for n in zf.namelist():
+                if n.endswith("/"):
+                    continue
+                k = key_fn(n) if key_fn else n
+                self._entries.setdefault(k, (zi, n))
+
+    def __contains__(self, key):
+        return key in self._entries
+
+    def __len__(self):
+        return len(self._entries)
+
+    def get_bytes(self, key):
+        zi, name = self._entries[key]
+        return self._zfs[zi].read(name)
+
+    def get(self, key, min_side=28, max_side=1344):
+        img = Image.open(io.BytesIO(self.get_bytes(key))).convert("RGB")
+        w, h = img.size
+        if min(w, h) < min_side:
+            s = min_side / min(w, h)
+            img = img.resize((max(min_side, int(w * s)), max(min_side, int(h * s))))
+        elif max(w, h) > max_side:
+            s = max_side / max(w, h)
+            img = img.resize((max(min_side, int(w * s)), max(min_side, int(h * s))))
+        return img
+
+
 class TarImageStore:
     def __init__(self, tar_paths):
         if isinstance(tar_paths, str):

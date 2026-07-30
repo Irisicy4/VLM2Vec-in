@@ -17,7 +17,7 @@ import torch
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from mmrag.encoder import ENCODER_PROFILES, MMRagEncoder  # noqa: E402
 from mmrag.eval_retrieval import encode_corpus, load_jsonl  # noqa: E402
-from mmrag.image_store import TarImageStore  # noqa: E402
+from mmrag.image_store import open_stores  # noqa: E402
 
 
 def main():
@@ -38,9 +38,7 @@ def main():
 
     corpus = load_jsonl(os.path.join(D, args.corpus))
     rows = load_jsonl(os.path.join(D, args.pool), args.max_rows)
-    tars = [os.path.join(D, "images/Infoseek/infoseek_train_images.tar"),
-            os.path.join(D, "images/Infoseek/infoseek_val_images.tar")]
-    store = TarImageStore([t for t in tars if os.path.exists(t)])
+    store = open_stores(D, "infoseek")
     rows = [r for r in rows if r["image_id"] in store]
     print(f"rows: {len(rows)}, corpus: {len(corpus)}", flush=True)
 

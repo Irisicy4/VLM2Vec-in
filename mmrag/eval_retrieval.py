@@ -20,7 +20,7 @@ import torch
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from mmrag.encoder import ENCODER_PROFILES, MMRagEncoder  # noqa: E402
-from mmrag.image_store import TarImageStore  # noqa: E402
+from mmrag.image_store import open_stores  # noqa: E402
 
 KS = (1, 5, 10, 20, 50)
 
@@ -55,9 +55,9 @@ def main():
                     help="LoRA adapter dir to eval; default = the profile's own adapter (zero-shot)")
     ap.add_argument("--name", required=True)
     ap.add_argument("--data_dir", default=os.environ.get("MMRAG_DATA", "/lus/lfs1aip2/scratch/u6ko/icywang.u6ko/mmrag_data"))
-    ap.add_argument("--corpus", default="built/corpus_small.jsonl")
-    ap.add_argument("--queries", default="built/queries_test.jsonl")
-    ap.add_argument("--image_tars", nargs="+", default=None)
+    ap.add_argument("--dataset", default="infoseek", choices=["infoseek", "evqa"])
+    ap.add_argument("--corpus", default=None, help="default per dataset")
+    ap.add_argument("--queries", default=None, help="default per dataset")
     ap.add_argument("--max-q", type=int, default=5000)
     ap.add_argument("--topk", type=int, default=100)
     ap.add_argument("--corpus_bs", type=int, default=int(os.environ.get("ENCODE_BS", 64)))
@@ -70,11 +70,13 @@ def main():
     args = ap.parse_args()
 
     D = args.data_dir
-    corpus = load_jsonl(os.path.join(D, args.corpus))
-    queries = load_jsonl(os.path.join(D, args.queries), args.max_q)
-    tars = args.image_tars or [os.path.join(D, "images/Infoseek/infoseek_val_images.tar"),
-                               os.path.join(D, "images/Infoseek/infoseek_train_images.tar")]
-    store = TarImageStore([t for t in tars if os.path.exists(t)])
+    defaults = {"infoseek": ("built/corpus_small.jsonl", "built/queries_test.jsonl"),
+                "evqa": ("built/corpus_evqa.jsonl", "built/queries_evqa.jsonl")}
+    corpus_file = args.corpus or defaults[args.dataset][0]
+    queries_file = args.queries or defaults[args.dataset][1]
+    corpus = load_jsonl(os.path.join(D, corpus_file))
+    queries = load_jsonl(os.path.join(D, queries_file), args.max_q)
+    store = open_stores(D, args.dataset)
     n0 = len(queries)
     queries = [q for q in queries if q["image_id"] in store]
     print(f"queries with image available: {len(queries)}/{n0}; corpus: {len(corpus)}", flush=True)

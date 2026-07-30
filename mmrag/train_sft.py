@@ -20,7 +20,7 @@ import torch.nn.functional as F
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from mmrag.encoder import ENCODER_PROFILES, MMRagEncoder  # noqa: E402
-from mmrag.image_store import TarImageStore  # noqa: E402
+from mmrag.image_store import TarImageStore, open_stores  # noqa: E402
 
 
 def main():
@@ -46,9 +46,8 @@ def main():
     D = args.data_dir
 
     rows = [json.loads(l) for l in open(os.path.join(D, args.pool))]
-    tars = args.image_tars or [os.path.join(D, "images/Infoseek/infoseek_train_images.tar"),
-                               os.path.join(D, "images/Infoseek/infoseek_val_images.tar")]
-    store = TarImageStore([t for t in tars if os.path.exists(t)])
+    store = (TarImageStore([t for t in args.image_tars if os.path.exists(t)])
+             if args.image_tars else open_stores(D, "infoseek"))
     rows = [r for r in rows if r["image_id"] in store and r.get("pos")]
     print(f"train rows with images: {len(rows)}", flush=True)
 

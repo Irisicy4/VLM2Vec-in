@@ -15,15 +15,14 @@ import sys
 import torch
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from mmrag.encoder import MMRagEncoder, QUERY_INSTRUCTION  # noqa: E402
+from mmrag.encoder import ENCODER_PROFILES, MMRagEncoder  # noqa: E402
 from mmrag.eval_retrieval import encode_corpus, load_jsonl  # noqa: E402
 from mmrag.image_store import TarImageStore  # noqa: E402
 
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--model", default="Qwen/Qwen2-VL-2B-Instruct")
-    ap.add_argument("--checkpoint", default="TIGER-Lab/VLM2Vec-Qwen2VL-2B")
+    ap.add_argument("--profile", default="gme2b", choices=list(ENCODER_PROFILES))
     ap.add_argument("--data_dir", default=os.environ.get("MMRAG_DATA", "/lus/lfs1aip2/scratch/u6ko/icywang.u6ko/mmrag_data"))
     ap.add_argument("--corpus", default="built/corpus_small.jsonl")
     ap.add_argument("--pool", default="built/pool_train.jsonl")
@@ -45,8 +44,7 @@ def main():
     rows = [r for r in rows if r["image_id"] in store]
     print(f"rows: {len(rows)}, corpus: {len(corpus)}", flush=True)
 
-    enc = MMRagEncoder(args.model, checkpoint_path=args.checkpoint, device=args.device,
-                       max_len=512, query_instruction=QUERY_INSTRUCTION)
+    enc = MMRagEncoder.from_profile(args.profile, device=args.device, max_len=512)
     cache = args.cache_corpus and os.path.join(D, args.cache_corpus)
     p_emb = encode_corpus(enc, corpus, args.corpus_bs, cache)
     p_emb_gpu = p_emb.to(args.device, dtype=torch.float16)

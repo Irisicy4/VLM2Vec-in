@@ -21,6 +21,27 @@ from src.model.processor import (
 QUERY_INSTRUCTION = "Represent the given image with the following question: {q}"
 DOC_INSTRUCTION = "{d}"
 
+# GME (Alibaba-NLP/gme-Qwen2-VL-*) embeds everything through a fixed chat wrapper and pools the
+# final <|endoftext|> token (see src/model/baseline_backbone/gme/gme_inference.py::embed). Image
+# comes FIRST inside the user turn; documents use the default instruction.
+GME_TEMPLATE = ("<|im_start|>system\n{instr}<|im_end|>\n"
+                "<|im_start|>user\n{content}<|im_end|>\n<|im_start|>assistant\n<|endoftext|>")
+GME_DEFAULT_INSTRUCTION = "You are a helpful assistant."
+GME_QUERY_INSTRUCTION = "Find a Wikipedia paragraph that answers the question about the image."
+GME_IMAGE_TOKENS = "<|vision_start|><|image_pad|><|vision_end|>"
+
+# Named encoder profiles: (base model, adapter checkpoint, text-format style).
+# 7B bases live in plain local dirs (login-node killer OOM-kills python hub downloads; curl-fetched).
+_MODELS_DIR = "/lus/lfs1aip2/scratch/u6ko/icywang.u6ko/mmrag_data/models"
+ENCODER_PROFILES = {
+    "gme2b": {"model": "Alibaba-NLP/gme-Qwen2-VL-2B-Instruct", "checkpoint": None, "style": "gme"},
+    "gme7b": {"model": f"{_MODELS_DIR}/gme-Qwen2-VL-7B-Instruct", "checkpoint": None, "style": "gme"},
+    "vlm2vec2b": {"model": "Qwen/Qwen2-VL-2B-Instruct",
+                  "checkpoint": "TIGER-Lab/VLM2Vec-Qwen2VL-2B", "style": "vlm2vec"},
+    "vlm2vec7b": {"model": f"{_MODELS_DIR}/Qwen2-VL-7B-Instruct",
+                  "checkpoint": "TIGER-Lab/VLM2Vec-Qwen2VL-7B", "style": "vlm2vec"},
+}
+
 _LORA_TARGETS = ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]
 
 
@@ -35,10 +56,13 @@ class MMRagEncoder:
         max_len: int = 2048,
         new_lora_r: int = 0,             # >0: attach FRESH trainable LoRA adapters (RL / SFT arm)
         new_lora_alpha: int = 64,
-        query_instruction: str = QUERY_INSTRUCTION,
+        query_instruction: str = None,
+        style: str = "vlm2vec",          # text-format convention: "vlm2vec" | "gme"
     ):
         self.device = device
-        self.query_instruction = query_instruction
+        self.style = style
+        self.query_instruction = query_instruction or (
+            GME_QUERY_INSTRUCTION if style == "gme" else QUERY_INSTRUCTION)
         self.max_len = max_len
 
         margs = ModelArguments(
@@ -102,14 +126,31 @@ class MMRagEncoder:
         return torch.cat(out, dim=0)
 
     def format_query(self, question):
+        if self.style == "gme":
+            return GME_TEMPLATE.format(instr=self.query_instruction,
+                                       content=GME_IMAGE_TOKENS + question)
         return f"{self.image_token} {self.query_instruction.format(q=question)}"
+
+    def format_doc(self, doc):
+        if self.style == "gme":
+            return GME_TEMPLATE.format(instr=GME_DEFAULT_INSTRUCTION, content=doc)
+        return doc
 
     def encode_queries(self, questions, images, batch_size=8, grad=False, to_cpu=False):
         texts = [self.format_query(q) for q in questions]
         return self.encode(texts, images, batch_size=batch_size, grad=grad, to_cpu=to_cpu)
 
     def encode_docs(self, docs, batch_size=32, grad=False, to_cpu=False):
-        return self.encode(list(docs), None, batch_size=batch_size, grad=grad, to_cpu=to_cpu)
+        return self.encode([self.format_doc(d) for d in docs], None,
+                           batch_size=batch_size, grad=grad, to_cpu=to_cpu)
+
+    @classmethod
+    def from_profile(cls, profile: str, checkpoint_path="__profile__", **kwargs):
+        """Build from a named profile ('gme2b', 'vlm2vec2b', ...). Pass checkpoint_path explicitly
+        (e.g. a trained adapter dir) to override the profile's default adapter."""
+        p = ENCODER_PROFILES[profile]
+        ckpt = p["checkpoint"] if checkpoint_path == "__profile__" else checkpoint_path
+        return cls(p["model"], checkpoint_path=ckpt, style=p["style"], **kwargs)
 
     # ---------------- training helpers ----------------
     def trainable_parameters(self):

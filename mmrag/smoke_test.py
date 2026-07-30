@@ -55,23 +55,24 @@ with open(os.path.join(D, "built/corpus_small.jsonl")) as f:
 corpus += distract[:300]
 print(f"mini corpus: {len(corpus)} passages", flush=True)
 
-enc = MMRagEncoder("Qwen/Qwen2-VL-2B-Instruct", checkpoint_path="TIGER-Lab/VLM2Vec-Qwen2VL-2B",
-                   device=DEV, max_len=512)
-p_emb = enc.encode_docs([p["text"] for p in corpus], batch_size=32)
-q_emb = enc.encode_queries([q["question"] for q in qs], imgs, batch_size=8)
-print("emb shapes:", tuple(q_emb.shape), tuple(p_emb.shape), "norms:",
-      q_emb.norm(dim=-1).mean().item(), p_emb.norm(dim=-1).mean().item(), flush=True)
-sims = q_emb.float() @ p_emb.float().T
-top5 = sims.topk(5, dim=1).indices.tolist()
-hit = sum(any(corpus[i]["url"] == q["entity_url"] for i in t) for q, t in zip(qs, top5))
-print(f"gold-entity in top-5: {hit}/24 (chance would be ~{24*5*len([c for c in corpus if c['url'] in gold_urls])//len(corpus)/24:.1f})", flush=True)
-for j in range(2):
-    print(" Q:", qs[j]["question"][:80], "| top1:", corpus[top5[j][0]]["title"][:60],
-          "| gold:", qs[j]["entity_title"][:60], flush=True)
-assert hit >= 8, f"zero-shot top-5 entity hit rate too low: {hit}/24"
-
-del enc, p_emb, q_emb
-torch.cuda.empty_cache()
+hits = {}
+for prof in ("gme2b", "vlm2vec2b"):
+    enc = MMRagEncoder.from_profile(prof, device=DEV, max_len=512)
+    p_emb = enc.encode_docs([p["text"] for p in corpus], batch_size=32)
+    q_emb = enc.encode_queries([q["question"] for q in qs], imgs, batch_size=8)
+    print(f"[{prof}] emb shapes:", tuple(q_emb.shape), tuple(p_emb.shape), "norms:",
+          q_emb.norm(dim=-1).mean().item(), p_emb.norm(dim=-1).mean().item(), flush=True)
+    sims = q_emb.float() @ p_emb.float().T
+    top5 = sims.topk(5, dim=1).indices.tolist()
+    hit = sum(any(corpus[i]["url"] == q["entity_url"] for i in t) for q, t in zip(qs, top5))
+    hits[prof] = hit
+    print(f"[{prof}] gold-entity in top-5: {hit}/24", flush=True)
+    for j in range(2):
+        print(" Q:", qs[j]["question"][:80], "| top1:", corpus[top5[j][0]]["title"][:60],
+              "| gold:", qs[j]["entity_title"][:60], flush=True)
+    del enc, p_emb, q_emb
+    torch.cuda.empty_cache()
+assert max(hits.values()) >= 8, f"zero-shot top-5 entity hit rate too low: {hits}"
 
 print("=== 3. reader sanity", flush=True)
 reader = LiveVLMReader("Qwen/Qwen2.5-VL-3B-Instruct", device=DEV, batch_size=4)

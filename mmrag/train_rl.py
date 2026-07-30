@@ -26,7 +26,7 @@ import time
 import torch
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from mmrag.encoder import MMRagEncoder, QUERY_INSTRUCTION  # noqa: E402
+from mmrag.encoder import ENCODER_PROFILES, MMRagEncoder  # noqa: E402
 from mmrag.image_store import TarImageStore  # noqa: E402
 from mmrag.reader_vlm import LiveVLMReader  # noqa: E402
 from mmrag.rl_core import (  # noqa: E402
@@ -52,8 +52,7 @@ def build_rl_corpus(data_dir, corpus_file, rows, n_distractor_articles, seed=0):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--model", default="Qwen/Qwen2-VL-2B-Instruct")
-    ap.add_argument("--checkpoint", default="TIGER-Lab/VLM2Vec-Qwen2VL-2B")
+    ap.add_argument("--profile", default="gme2b", choices=list(ENCODER_PROFILES))
     ap.add_argument("--data_dir", default=os.environ.get("MMRAG_DATA", "/lus/lfs1aip2/scratch/u6ko/icywang.u6ko/mmrag_data"))
     ap.add_argument("--pool", default="built/pool_train.jsonl", help="rows: qid,image_id,question,answer,pos")
     ap.add_argument("--corpus", default="built/corpus_small.jsonl")
@@ -95,7 +94,7 @@ def main():
     ap.add_argument("--max_len_doc", type=int, default=512)
     ap.add_argument("--max_train_rows", type=int, default=0)
     # misc
-    ap.add_argument("--query_instruction", default=QUERY_INSTRUCTION)
+    ap.add_argument("--query_instruction", default=None)
     ap.add_argument("--device", default="cuda:0")
     ap.add_argument("--save_steps", type=int, default=100)
     ap.add_argument("--log_every", type=int, default=5)
@@ -120,9 +119,10 @@ def main():
     corpus_texts = [p["text"] for p in corpus]
     print(f"RL corpus: {len(corpus)} passages", flush=True)
 
-    enc = MMRagEncoder(args.model, checkpoint_path=args.checkpoint, device=args.device,
-                       max_len=args.max_len_doc, new_lora_r=args.lora_r,
-                       new_lora_alpha=args.lora_alpha, query_instruction=args.query_instruction)
+    enc = MMRagEncoder.from_profile(args.profile, device=args.device,
+                                    max_len=args.max_len_doc, new_lora_r=args.lora_r,
+                                    new_lora_alpha=args.lora_alpha,
+                                    query_instruction=args.query_instruction)
     enc.gradient_checkpointing_enable()
     enc.train()
     # deterministic policy: kill dropout so rollout logps == loss-forward logps (PPO ratio noise)

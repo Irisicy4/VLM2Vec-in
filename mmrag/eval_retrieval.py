@@ -19,7 +19,7 @@ import sys
 import torch
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from mmrag.encoder import MMRagEncoder, QUERY_INSTRUCTION  # noqa: E402
+from mmrag.encoder import ENCODER_PROFILES, MMRagEncoder  # noqa: E402
 from mmrag.image_store import TarImageStore  # noqa: E402
 
 KS = (1, 5, 10, 20, 50)
@@ -50,8 +50,9 @@ def encode_corpus(enc, corpus, bs, cache_path=None):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--model", default="Qwen/Qwen2-VL-2B-Instruct")
-    ap.add_argument("--checkpoint", default=None, help="LoRA adapter dir/repo (VLM2Vec or ours)")
+    ap.add_argument("--profile", default="gme2b", choices=list(ENCODER_PROFILES))
+    ap.add_argument("--checkpoint", default="__profile__",
+                    help="LoRA adapter dir to eval; default = the profile's own adapter (zero-shot)")
     ap.add_argument("--name", required=True)
     ap.add_argument("--data_dir", default=os.environ.get("MMRAG_DATA", "/lus/lfs1aip2/scratch/u6ko/icywang.u6ko/mmrag_data"))
     ap.add_argument("--corpus", default="built/corpus_small.jsonl")
@@ -62,7 +63,7 @@ def main():
     ap.add_argument("--corpus_bs", type=int, default=int(os.environ.get("ENCODE_BS", 64)))
     ap.add_argument("--query_bs", type=int, default=16)
     ap.add_argument("--max_len", type=int, default=512, help="doc-side max tokens")
-    ap.add_argument("--query_instruction", default=QUERY_INSTRUCTION)
+    ap.add_argument("--query_instruction", default=None, help="default: profile style's own")
     ap.add_argument("--cache_corpus", default=None, help="path to cache corpus embeddings (.pt)")
     ap.add_argument("--device", default="cuda:0")
     ap.add_argument("--out_dir", default=None)
@@ -78,8 +79,9 @@ def main():
     queries = [q for q in queries if q["image_id"] in store]
     print(f"queries with image available: {len(queries)}/{n0}; corpus: {len(corpus)}", flush=True)
 
-    enc = MMRagEncoder(args.model, checkpoint_path=args.checkpoint, device=args.device,
-                       max_len=args.max_len, query_instruction=args.query_instruction)
+    enc = MMRagEncoder.from_profile(args.profile, checkpoint_path=args.checkpoint,
+                                    device=args.device, max_len=args.max_len,
+                                    query_instruction=args.query_instruction)
 
     p_emb = encode_corpus(enc, corpus, args.corpus_bs, args.cache_corpus)  # (C, d) cpu fp32
     pids = [p["pid"] for p in corpus]

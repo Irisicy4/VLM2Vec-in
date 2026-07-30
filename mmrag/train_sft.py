@@ -19,14 +19,13 @@ import torch
 import torch.nn.functional as F
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from mmrag.encoder import MMRagEncoder, QUERY_INSTRUCTION  # noqa: E402
+from mmrag.encoder import ENCODER_PROFILES, MMRagEncoder  # noqa: E402
 from mmrag.image_store import TarImageStore  # noqa: E402
 
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--model", default="Qwen/Qwen2-VL-2B-Instruct")
-    ap.add_argument("--checkpoint", default="TIGER-Lab/VLM2Vec-Qwen2VL-2B")
+    ap.add_argument("--profile", default="gme2b", choices=list(ENCODER_PROFILES))
     ap.add_argument("--data_dir", default=os.environ.get("MMRAG_DATA", "/lus/lfs1aip2/scratch/u6ko/icywang.u6ko/mmrag_data"))
     ap.add_argument("--pool", default="built/pool_train.jsonl")
     ap.add_argument("--image_tars", nargs="+", default=None)
@@ -40,7 +39,7 @@ def main():
     ap.add_argument("--lora_alpha", type=int, default=64)
     ap.add_argument("--max_len_doc", type=int, default=512)
     ap.add_argument("--save_steps", type=int, default=200)
-    ap.add_argument("--query_instruction", default=QUERY_INSTRUCTION)
+    ap.add_argument("--query_instruction", default=None)
     ap.add_argument("--device", default="cuda:0")
     ap.add_argument("--seed", type=int, default=0)
     args = ap.parse_args()
@@ -53,9 +52,10 @@ def main():
     rows = [r for r in rows if r["image_id"] in store and r.get("pos")]
     print(f"train rows with images: {len(rows)}", flush=True)
 
-    enc = MMRagEncoder(args.model, checkpoint_path=args.checkpoint, device=args.device,
-                       max_len=args.max_len_doc, new_lora_r=args.lora_r,
-                       new_lora_alpha=args.lora_alpha, query_instruction=args.query_instruction)
+    enc = MMRagEncoder.from_profile(args.profile, device=args.device,
+                                    max_len=args.max_len_doc, new_lora_r=args.lora_r,
+                                    new_lora_alpha=args.lora_alpha,
+                                    query_instruction=args.query_instruction)
     enc.gradient_checkpointing_enable()
     enc.train()
 

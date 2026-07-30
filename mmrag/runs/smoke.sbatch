@@ -25,7 +25,7 @@ for i in $(seq 1 40); do
   S1=$(stat -c %s $VAL_TAR 2>/dev/null || echo 0)
   sleep 20
   S2=$(stat -c %s $VAL_TAR 2>/dev/null || echo 0)
-  if [ "$S1" = "$S2" ] && [ "$S2" -gt 9000000000 ]; then break; fi
+  if [ "$S1" = "$S2" ] && [ "$S2" -gt 8900000000 ]; then break; fi
   echo "waiting for val tar ($S2 bytes)..."
 done
 

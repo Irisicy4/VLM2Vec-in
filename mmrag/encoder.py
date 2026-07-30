@@ -178,21 +178,13 @@ class MMRagEncoder:
 
 
 def _merge_visual(inputs, device):
-    """Qwen2_VL_process_fn returns per-sample lists for pixel_values/image_grid_thw; the model
-    expects them concatenated (or absent for text-only batches). Mirrors EvalCollator's usage."""
-    import numpy as np
-
+    """Qwen2_VL_process_fn returns per-sample LISTS for pixel_values/image_grid_thw (None for
+    text-only samples). The vendored Qwen2VL forward indexes these lists per sample and
+    concatenates internally — so keep them as lists; only drop the keys for all-text batches
+    (the model would try to iterate a list of Nones otherwise)."""
     for pk, gk in (("pixel_values", "image_grid_thw"), ("pixel_values_videos", "video_grid_thw")):
         vals = inputs.get(pk)
-        if vals is None:
-            continue
-        keep = [v for v in vals if v is not None]
-        if not keep:
+        if vals is None or all(v is None for v in vals):
             inputs.pop(pk, None)
             inputs.pop(gk, None)
-            continue
-        pv = np.concatenate([v for v in keep], axis=0)
-        gt = np.concatenate([g for g in inputs[gk] if g is not None], axis=0)
-        inputs[pk] = torch.from_numpy(pv).to(device)
-        inputs[gk] = torch.from_numpy(gt).to(device)
     return inputs

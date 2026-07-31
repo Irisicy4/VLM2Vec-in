@@ -128,6 +128,7 @@ def main():
         if max_rows:
             picked = picked[:max_rows]
         out = []
+        chunk_cache = {}
         for r in picked:
             url = r["wikipedia_url"]
             if url not in url_pids:
@@ -137,17 +138,21 @@ def main():
                 continue
             art = kb[url]
             gold_pids = url_pids[url]
-            # answer-bearing passages (pseudo evidence)
-            ans = norm(r["answer"])
-            ans_pids = []
-            if ans:
-                ps = chunk_article(url, art, gold_pids[0])
-                ans_pids = [p["pid"] for p in ps if ans in norm(p["text"])]
+            # the CSV `answer` field is a '|'-joined alias list — split it (feeding the joined
+            # string to the reward reader / eval poisons them)
+            aliases = [a.strip() for a in r["answer"].split("|") if a.strip()] or [r["answer"]]
+            # answer-bearing passages (pseudo evidence): any alias appears verbatim
+            if url not in chunk_cache:
+                chunk_cache[url] = chunk_article(url, art, gold_pids[0])
+            norms = [norm(a) for a in aliases if norm(a)]
+            ans_pids = [p["pid"] for p in chunk_cache[url]
+                        if any(a in norm(p["text"]) for a in norms)]
             out.append({
                 "qid": r["data_id"],
                 "image_id": img_ids[0],
                 "question": r["question"],
-                "answer": r["answer"],
+                "answer": aliases[0],
+                "answer_aliases": aliases,
                 "entity_url": url,
                 "entity_title": r["wikipedia_title"],
                 "gold_pids": gold_pids,
@@ -194,7 +199,8 @@ def main():
             pos_pid = q["ans_pids"][0] if q["ans_pids"] else q["gold_pids"][0]
             f.write(json.dumps({
                 "qid": q["qid"], "image_id": q["image_id"], "question": q["question"],
-                "answer": q["answer"], "entity_url": q["entity_url"],
+                "answer": q["answer"], "answer_aliases": q.get("answer_aliases", [q["answer"]]),
+                "entity_url": q["entity_url"],
                 "pos": [pid2text[pos_pid]], "pos_pid": pos_pid, "gold_pids": q["gold_pids"],
             }, ensure_ascii=False) + "\n")
     print("pool_train.jsonl written", flush=True)

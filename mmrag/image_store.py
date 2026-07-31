@@ -30,7 +30,7 @@ def build_tar_index(tar_path: str, index_path: str = None, key_fn=None) -> dict:
             if not m.isfile():
                 continue
             index[key_fn(m.name)] = (m.offset_data, m.size)
-    tmp = index_path + ".tmp"
+    tmp = f"{index_path}.tmp.{os.getpid()}"   # unique per process — concurrent builders raced here
     with open(tmp, "w") as f:
         json.dump(index, f)
     os.replace(tmp, index_path)

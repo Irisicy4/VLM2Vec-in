@@ -182,8 +182,9 @@ def main():
                 else:
                     cands = [gold] + [t for t in retrieved if t != gold][: N - 1]
                 pools.append(cands)
+                ans = r.get("answer_aliases") or r["answer"]
                 triples.extend({"image": imgs[b], "question": r["question"],
-                                "context": c, "answer": r["answer"]} for c in cands)
+                                "context": c, "answer": ans} for c in cands)
 
             if args.reward == "judge":
                 rewards = reader.score_judge(triples, n_rollouts=args.reader_rollouts,

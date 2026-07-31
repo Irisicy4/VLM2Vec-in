@@ -26,7 +26,7 @@ import time
 import torch
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from mmrag.encoder import ENCODER_PROFILES, MMRagEncoder  # noqa: E402
+from mmrag.encoder import ENCODER_PROFILES, load_encoder  # noqa: E402
 from mmrag.image_store import TarImageStore, open_stores  # noqa: E402
 from mmrag.reader_vlm import LiveVLMReader  # noqa: E402
 from mmrag.rl_core import (  # noqa: E402
@@ -120,7 +120,7 @@ def main():
     corpus_texts = [p["text"] for p in corpus]
     print(f"RL corpus: {len(corpus)} passages", flush=True)
 
-    enc = MMRagEncoder.from_profile(args.profile, device=args.device,
+    enc = load_encoder(args.profile, device=args.device,
                                     max_len=args.max_len_doc, new_lora_r=args.lora_r,
                                     new_lora_alpha=args.lora_alpha,
                                     query_instruction=args.query_instruction)

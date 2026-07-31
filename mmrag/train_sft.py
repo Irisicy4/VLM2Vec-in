@@ -19,7 +19,7 @@ import torch
 import torch.nn.functional as F
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from mmrag.encoder import ENCODER_PROFILES, MMRagEncoder  # noqa: E402
+from mmrag.encoder import ENCODER_PROFILES, load_encoder  # noqa: E402
 from mmrag.image_store import TarImageStore, open_stores  # noqa: E402
 
 
@@ -53,7 +53,7 @@ def main():
     if len(rows) < args.batch_size:
         sys.exit(f"SKIP: only {len(rows)} usable rows (image archives missing?) — nothing to train on")
 
-    enc = MMRagEncoder.from_profile(args.profile, device=args.device,
+    enc = load_encoder(args.profile, device=args.device,
                                     max_len=args.max_len_doc, new_lora_r=args.lora_r,
                                     new_lora_alpha=args.lora_alpha,
                                     query_instruction=args.query_instruction)

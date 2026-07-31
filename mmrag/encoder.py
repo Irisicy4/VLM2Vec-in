@@ -40,7 +40,22 @@ ENCODER_PROFILES = {
                   "checkpoint": "TIGER-Lab/VLM2Vec-Qwen2VL-2B", "style": "vlm2vec"},
     "vlm2vec7b": {"model": f"{_MODELS_DIR}/Qwen2-VL-7B-Instruct",
                   "checkpoint": "TIGER-Lab/VLM2Vec-Qwen2VL-7B", "style": "vlm2vec"},
+    # capacity-ladder weak rungs: dual-tower encoders (mmrag/clip_encoder.py)
+    "clip": {"model": "openai/clip-vit-large-patch14-336", "checkpoint": None, "style": "clip"},
+    "siglip2": {"model": "google/siglip2-so400m-patch16-384", "checkpoint": None, "style": "clip"},
 }
+
+
+def load_encoder(profile: str, checkpoint_path="__profile__", **kwargs):
+    """Profile-dispatching factory: VLM profiles -> MMRagEncoder, clip-style -> CLIPStyleEncoder.
+    Extra kwargs irrelevant to a family are ignored by that family's constructor."""
+    p = ENCODER_PROFILES[profile]
+    ckpt = p["checkpoint"] if checkpoint_path == "__profile__" else checkpoint_path
+    if p["style"] == "clip":
+        from mmrag.clip_encoder import CLIPStyleEncoder
+
+        return CLIPStyleEncoder(p["model"], checkpoint_path=ckpt, **kwargs)
+    return MMRagEncoder(p["model"], checkpoint_path=ckpt, style=p["style"], **kwargs)
 
 _LORA_TARGETS = ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]
 
@@ -115,6 +130,22 @@ class MMRagEncoder:
             inputs.pop(k, None)
         # collate per-sample visual tensors like the eval collator does
         inputs = _merge_visual(inputs, self.device)
+        # Compute mrope position_ids OURSELVES with a properly-shaped (n_images, 3) grid tensor.
+        # The vendored forward's own get_rope_index call indexes the per-sample grid LIST as if it
+        # were that tensor and crashes — but only when rope_deltas is still uncached (first image
+        # batch of the process), which is why runs that encode the text corpus first "worked"
+        # (with approximate cached-delta positions). Passing position_ids skips that branch.
+        if inputs.get("image_grid_thw") is not None:
+            import numpy as np
+
+            grids = [g for g in inputs["image_grid_thw"] if g is not None]
+            if grids:
+                gt = torch.cat([torch.from_numpy(g) if isinstance(g, np.ndarray) else g
+                                for g in grids]).to(self.device)
+                base = self.model.encoder  # PeftModel delegates get_rope_index to the base model
+                pos, _ = base.get_rope_index(inputs["input_ids"], gt, None,
+                                             inputs.get("attention_mask"))
+                inputs["position_ids"] = pos
         return self.model.encode_input(inputs)  # (B, d), normalized if normalize=True
 
     def encode(self, texts, images=None, batch_size=16, grad=False, to_cpu=False, max_length=None):

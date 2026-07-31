@@ -15,7 +15,7 @@ import sys
 import torch
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from mmrag.encoder import ENCODER_PROFILES, MMRagEncoder  # noqa: E402
+from mmrag.encoder import ENCODER_PROFILES, load_encoder  # noqa: E402
 from mmrag.eval_retrieval import encode_corpus, load_jsonl  # noqa: E402
 from mmrag.image_store import open_stores  # noqa: E402
 
@@ -42,13 +42,14 @@ def main():
     rows = [r for r in rows if r["image_id"] in store]
     print(f"rows: {len(rows)}, corpus: {len(corpus)}", flush=True)
 
-    enc = MMRagEncoder.from_profile(args.profile, device=args.device, max_len=512)
+    enc = load_encoder(args.profile, device=args.device, max_len=512)
     cache = args.cache_corpus and os.path.join(D, args.cache_corpus)
     p_emb = encode_corpus(enc, corpus, args.corpus_bs, cache)
     p_emb_gpu = p_emb.to(args.device, dtype=torch.float16)
 
     out_path = os.path.join(D, args.out)
-    with open(out_path, "w") as f:
+    tmp_path = out_path + f".tmp.{os.getpid()}"   # atomic: a crash must not leave a partial file
+    with open(tmp_path, "w") as f:
         for i in range(0, len(rows), args.query_bs):
             chunk = rows[i : i + args.query_bs]
             imgs = [store.get(r["image_id"]) for r in chunk]
@@ -68,6 +69,7 @@ def main():
                 f.write(json.dumps(r, ensure_ascii=False) + "\n")
             if (i // args.query_bs) % 50 == 0:
                 print(f"  {i + len(chunk)}/{len(rows)}", flush=True)
+    os.replace(tmp_path, out_path)
     print(f"wrote {out_path}", flush=True)
 
 

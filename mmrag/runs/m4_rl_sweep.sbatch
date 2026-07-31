@@ -40,5 +40,16 @@ run 1 rl-grpo-logit-lr5e5 --algo grpo --reward logit --learning_rate 5e-5 &
 run 2 rl-grpo-judge-lr2e5 --algo grpo --reward judge --reader_rollouts 4 --learning_rate 2e-5 &
 run 3 rl-ppo-logit-lr2e5  --algo ppo  --reward logit --learning_rate 2e-5 &
 wait
+echo "=== training + retrieval done $(date) ==="
+
+# downstream VQA accuracy (7B reader) on each trained retriever's top-5
+g=0
+for name in rl-grpo-logit-lr2e5 rl-grpo-logit-lr5e5 rl-grpo-judge-lr2e5 rl-ppo-logit-lr2e5; do
+  RET=$MMRAG_DATA/results/$name.retrieval.json
+  [ -f $RET ] && CUDA_VISIBLE_DEVICES=$g python3 -u mmrag/eval_vqa.py --retrieval $RET --k 5 --max-q 1500 \
+    > $L/m4_vqa_${name}_g${g}.log 2>&1 &
+  g=$((g+1))
+done
+wait
 echo "=== done $(date) ==="
-grep -h "entity-level\|answer-level" $L/m4_eval_*_g*.log
+grep -h "entity-level\|answer-level\|L2 VQA" $L/m4_eval_*_g*.log $L/m4_vqa_*_g*.log

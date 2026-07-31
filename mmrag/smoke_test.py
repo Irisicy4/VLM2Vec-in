@@ -17,7 +17,7 @@ import sys
 import torch
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from mmrag.encoder import MMRagEncoder  # noqa: E402
+from mmrag.encoder import load_encoder  # noqa: E402
 from mmrag.image_store import TarImageStore  # noqa: E402
 from mmrag.reader_vlm import LiveVLMReader  # noqa: E402
 
@@ -57,7 +57,7 @@ print(f"mini corpus: {len(corpus)} passages", flush=True)
 
 hits = {}
 for prof in ("gme2b", "vlm2vec2b"):
-    enc = MMRagEncoder.from_profile(prof, device=DEV, max_len=512)
+    enc = load_encoder(prof, device=DEV, max_len=512)
     p_emb = enc.encode_docs([p["text"] for p in corpus], batch_size=32)
     q_emb = enc.encode_queries([q["question"] for q in qs], imgs, batch_size=8)
     print(f"[{prof}] emb shapes:", tuple(q_emb.shape), tuple(p_emb.shape), "norms:",

@@ -19,7 +19,7 @@ import sys
 import torch
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from mmrag.encoder import ENCODER_PROFILES, MMRagEncoder  # noqa: E402
+from mmrag.encoder import ENCODER_PROFILES, load_encoder  # noqa: E402
 from mmrag.image_store import open_stores  # noqa: E402
 
 KS = (1, 5, 10, 20, 50)
@@ -82,7 +82,7 @@ def main():
     queries = [q for q in queries if q["image_id"] in store]
     print(f"queries with image available: {len(queries)}/{n0}; corpus: {len(corpus)}", flush=True)
 
-    enc = MMRagEncoder.from_profile(args.profile, checkpoint_path=args.checkpoint,
+    enc = load_encoder(args.profile, checkpoint_path=args.checkpoint,
                                     device=args.device, max_len=args.max_len,
                                     query_instruction=args.query_instruction)
 

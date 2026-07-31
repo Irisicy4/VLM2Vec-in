@@ -23,7 +23,7 @@ TT=$MMRAG_DATA/images/Infoseek/infoseek_train_images.tar
 for i in $(seq 1 90); do [ -f $TT ] && break; echo "waiting for train tar..."; sleep 60; done
 
 POOL=built/pool_train_negs.jsonl
-[ -f $MMRAG_DATA/$POOL ] || POOL=built/pool_train.jsonl
+[ -s $MMRAG_DATA/$POOL ] || POOL=built/pool_train.jsonl   # -s: a crashed miner must not leave an empty decoy
 echo "pool: $POOL"
 
 # 4-way LR x hard-neg sweep, one per GPU (own log each — no shared names)

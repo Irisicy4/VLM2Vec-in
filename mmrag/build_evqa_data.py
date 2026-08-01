@@ -113,14 +113,17 @@ def main():
             answers = [a for a in r["answer"].split("|") if a]
             gold_pids = url_pids[url]
             ans_pids = []
-            ev = norm(r.get("evidence") or "")
             art = url_arts.get(url)
-            if ev and art:
+            if art:
                 ps = chunk_article(url, art, gold_pids[0])
-                # passages overlapping the evidence text (or containing an answer)
-                ans_pids = [p["pid"] for p in ps
-                            if ev[:120] and ev[:120] in norm(p["text"])
-                            or any(norm(a) and norm(a) in norm(p["text"]) for a in answers[:3])]
+                # E-VQA gives the evidence SECTION explicitly — passages of that section are gold.
+                sec_titles = {s.strip() for s in (r.get("evidence_section_title") or "").split("|") if s.strip()}
+                ans_pids = [p["pid"] for p in ps if p["section"] in sec_titles]
+                if not ans_pids:  # fallback: evidence-text or answer-alias overlap
+                    ev = norm(r.get("evidence") or "")
+                    ans_pids = [p["pid"] for p in ps
+                                if (ev[:120] and ev[:120] in norm(p["text"]))
+                                or any(norm(a) and norm(a) in norm(p["text"]) for a in answers[:3])]
             f.write(json.dumps({
                 "qid": f"evqa_test_{i:06d}", "image_id": image_key, "question": r["question"],
                 "answer": answers[0], "answer_aliases": answers,

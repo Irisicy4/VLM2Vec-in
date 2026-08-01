@@ -14,7 +14,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from mmrag.image_store import open_stores  # noqa: E402
-from mmrag.reader_vlm import LiveVLMReader, answer_correct, squad_f1  # noqa: E402
+from mmrag.reader_vlm import LiveVLMReader, answer_correct, answer_strict_em, squad_f1  # noqa: E402
 
 
 def main():
@@ -75,19 +75,24 @@ def main():
 
     accs, preds = reader.score_judge(triples, n_rollouts=1, temperature=0.0, return_preds=True)
     f1s = [squad_f1(p, t["answer"]) for p, t in zip(preds, triples)]
+    ems = [answer_strict_em(p, t["answer"]) for p, t in zip(preds, triples)]
     n = len(kept)
-    acc, f1 = sum(accs) / n, sum(f1s) / n
+    acc, f1, em = sum(accs) / n, sum(f1s) / n, sum(ems) / n
     by_split = {}
     for qid, a in zip(kept, accs):
         s = retr[qid].get("data_split") or "all"
         by_split.setdefault(s, []).append(a)
     split_acc = {s: sum(v) / len(v) for s, v in by_split.items()}
+    # store per-question predictions so metric fixes can rescore without regeneration
+    per_q = [{"qid": qid, "pred": p, "gold": t["answer"], "acc": a, "em": e}
+             for qid, p, t, a, e in zip(kept, preds, triples, accs, ems)]
     name = os.path.basename(args.retrieval).replace(".retrieval.json", "")
     mode = "noctx" if args.no_context else ("gold" if args.gold_context else f"top{args.k}")
     print(f"[{name}] L2 VQA  reader={os.path.basename(args.reader)} mode={mode} n={n}  "
-          f"acc={acc:.4f}  F1={f1:.4f}  by_split={ {k: round(v, 4) for k, v in split_acc.items()} }")
+          f"acc={acc:.4f}  strictEM={em:.4f}  F1={f1:.4f}  "
+          f"by_split={ {k: round(v, 4) for k, v in split_acc.items()} }")
     out = {"name": name, "reader": args.reader, "mode": mode, "n": n, "acc": acc, "f1": f1,
-           "acc_by_split": split_acc}
+           "strict_em": em, "acc_by_split": split_acc, "predictions": per_q}
     fp = args.retrieval.replace(".retrieval.json", f".vqa_{mode}.json")
     json.dump(out, open(fp, "w"), indent=2)
     print(f"wrote {fp}")

@@ -71,6 +71,7 @@ def main():
     B = args.batch_size
 
     os.makedirs(args.output_dir, exist_ok=True)
+    json.dump(vars(args), open(os.path.join(args.output_dir, "args.json"), "w"), indent=2)
     for step in range(args.max_steps):
         batch = rng.sample(rows, B)
         imgs = [store.get(r["image_id"]) for r in batch]

@@ -27,13 +27,29 @@ def _normalize(s):
 
 
 def answer_correct(pred, golds):
-    """Binary cover-EM vs any gold alias: exact normalized match OR gold contained in prediction."""
+    """Binary cover-EM vs any gold alias: exact normalized match OR the gold's TOKEN SEQUENCE
+    contained in the prediction's tokens. Token-boundary containment, not substring — raw
+    substring over-credits ('us' in 'museum', numbers inside years)."""
     p = _normalize(pred)
+    pt = p.split()
     for g in golds if isinstance(golds, (list, tuple)) else [golds]:
         g = _normalize(str(g))
-        if g and (p == g or g in p):
+        if not g:
+            continue
+        if p == g:
+            return 1.0
+        gt = g.split()
+        n = len(gt)
+        if n and any(pt[i:i + n] == gt for i in range(len(pt) - n + 1)):
             return 1.0
     return 0.0
+
+
+def answer_strict_em(pred, golds):
+    """Strict EM: normalized prediction exactly equals some gold alias."""
+    p = _normalize(pred)
+    return 1.0 if any(p == _normalize(str(g)) and p
+                      for g in (golds if isinstance(golds, (list, tuple)) else [golds])) else 0.0
 
 
 def squad_f1(pred, golds):

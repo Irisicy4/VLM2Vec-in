@@ -12,6 +12,7 @@
     {
       "name": "clip-sft-lr2e-4",
       "dataset": "infoseek",
+      "eval_of": null,
       "axes": {
         "arm": "sft",
         "lr": 0.0002,
@@ -38,6 +39,7 @@
     {
       "name": "clip-zeroshot",
       "dataset": "infoseek",
+      "eval_of": null,
       "axes": {
         "arm": "zero-shot",
         "profile": "clip"
@@ -72,6 +74,7 @@
     {
       "name": "gme2b-evqa-zeroshot",
       "dataset": "evqa",
+      "eval_of": "gme2b-zeroshot",
       "axes": {
         "arm": "zero-shot",
         "profile": "gme2b"
@@ -127,6 +130,7 @@
     {
       "name": "gme2b-zeroshot",
       "dataset": "infoseek",
+      "eval_of": null,
       "axes": {
         "arm": "zero-shot",
         "profile": "gme2b"
@@ -185,6 +189,7 @@
     {
       "name": "rl-grpo-judge-lr2e5",
       "dataset": "infoseek",
+      "eval_of": null,
       "axes": {
         "arm": "rl",
         "algo": "grpo",
@@ -233,6 +238,7 @@
     {
       "name": "rl-grpo-logit-lr2e5",
       "dataset": "infoseek",
+      "eval_of": null,
       "axes": {
         "arm": "rl",
         "algo": "grpo",
@@ -281,6 +287,7 @@
     {
       "name": "rl-grpo-logit-lr5e5",
       "dataset": "infoseek",
+      "eval_of": null,
       "axes": {
         "arm": "rl",
         "algo": "grpo",
@@ -329,7 +336,23 @@
     {
       "name": "rl-j2e5-evqa",
       "dataset": "evqa",
-      "axes": {},
+      "eval_of": "rl-grpo-judge-lr2e5",
+      "axes": {
+        "arm": "rl",
+        "algo": "grpo",
+        "reward": "judge",
+        "reward_detail": "sampled answer accuracy (cover-EM vs aliases), 4 rollouts @T=0.7, z-scored per pool",
+        "reward_model": "Qwen/Qwen2.5-VL-3B-Instruct",
+        "lr": 2e-05,
+        "gold_in_pool": true,
+        "pool_sampling": false,
+        "num_candidates": 8,
+        "max_steps": 500,
+        "contrastive_coef": 0.3,
+        "max_train_rows": "all(~41k)",
+        "profile": "gme2b",
+        "seed": 0
+      },
       "n_eval_retrieval": 2701,
       "n_eval_answer_level": 2696,
       "entity_R": {
@@ -342,6 +365,8 @@
         "5": 0.6981,
         "10": 0.7786
       },
+      "label": "[gold]",
+      "supervision_note": "gold passage force-inserted at pool slot 0 AND used as the InfoNCE-anchor positive -> same supervision level as SFT",
       "vqa": {
         "top5": {
           "acc": 0.462,
@@ -359,6 +384,7 @@
     {
       "name": "rl-ppo-logit-lr2e5",
       "dataset": "infoseek",
+      "eval_of": null,
       "axes": {
         "arm": "rl",
         "algo": "ppo",
@@ -407,10 +433,11 @@
     {
       "name": "sft-lr1e4-evqa",
       "dataset": "evqa",
+      "eval_of": "sft-lr1e4-h0",
       "axes": {
         "arm": "sft",
-        "lr": "?",
-        "num_hard_negs": "?",
+        "lr": "1e4",
+        "num_hard_negs": 0,
         "profile": "gme2b",
         "note": "axes parsed from name (pre-args.json run)"
       },
@@ -443,6 +470,7 @@
     {
       "name": "sft-lr1e4-h0",
       "dataset": "infoseek",
+      "eval_of": null,
       "axes": {
         "arm": "sft",
         "lr": "1e4",
@@ -480,6 +508,7 @@
     {
       "name": "sft-lr1e4-h2",
       "dataset": "infoseek",
+      "eval_of": null,
       "axes": {
         "arm": "sft",
         "lr": "1e4",
@@ -503,6 +532,7 @@
     {
       "name": "sft-lr2e4-h2",
       "dataset": "infoseek",
+      "eval_of": null,
       "axes": {
         "arm": "sft",
         "lr": "2e4",
@@ -526,6 +556,7 @@
     {
       "name": "sft-lr5e5-h2",
       "dataset": "infoseek",
+      "eval_of": null,
       "axes": {
         "arm": "sft",
         "lr": "5e5",
@@ -549,6 +580,7 @@
     {
       "name": "siglip2-zeroshot",
       "dataset": "infoseek",
+      "eval_of": null,
       "axes": {
         "arm": "zero-shot",
         "profile": "siglip2"
@@ -569,6 +601,7 @@
     {
       "name": "vlm2vec2b-zeroshot",
       "dataset": "infoseek",
+      "eval_of": null,
       "axes": {
         "arm": "zero-shot",
         "profile": "vlm2vec2b"

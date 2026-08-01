@@ -16,7 +16,6 @@ Pure top-N pools under the live policy; the ONLY supervision is the gold ANSWER 
 
 | run | arm | label | axes | entity R@1/R@5 | answer R@1/R@5 | VQA top5 acc / strictEM (n) |
 |---|---|---|---|---|---|---|
-| rl-j2e5-evqa | ? |  |  | 0.615/0.8293 | 0.4128/0.6981 | 0.462 / 0.256 (1500) |
 | gme2b-evqa-zeroshot | zero-shot |  | profile=gme2b | 0.4994/0.7645 | 0.362/0.6499 | 0.426 / 0.2407 (1500) |
 | clip-zeroshot | zero-shot |  | profile=clip | 0.0203/0.054 | 0.0053/0.0176 | 0.16 / 0.1173 (1500) |
 | gme2b-zeroshot | zero-shot |  | profile=gme2b | 0.4494/0.6938 | 0.3211/0.5471 | 0.3033 / 0.2333 (1500) |
@@ -29,7 +28,8 @@ These RL runs force-insert the gold evidence passage into every pool AND use it 
 
 | run | arm | label | axes | entity R@1/R@5 | answer R@1/R@5 | VQA top5 acc / strictEM (n) |
 |---|---|---|---|---|---|---|
-| sft-lr1e4-evqa | sft |  | lr=?, num_hard_negs=?, profile=gme2b, note=axes parsed from name (pre-args.json run) | 0.5309/0.709 | 0.3145/0.5538 | 0.3953 / 0.2153 (1500) |
+| rl-j2e5-evqa | rl | [gold] | algo=grpo, reward=judge, lr=2e-05, gold_in_pool=True, pool_sampling=False, num_candidates=8, max_steps=500, contrastive_coef=0.3, max_train_rows=all(~41k), profile=gme2b, seed=0 | 0.615/0.8293 | 0.4128/0.6981 | 0.462 / 0.256 (1500) |
+| sft-lr1e4-evqa | sft |  | lr=1e4, num_hard_negs=0, profile=gme2b, note=axes parsed from name (pre-args.json run) | 0.5309/0.709 | 0.3145/0.5538 | 0.3953 / 0.2153 (1500) |
 | rl-grpo-judge-lr2e5 | rl | [gold] | algo=grpo, reward=judge, lr=2e-05, gold_in_pool=True, pool_sampling=False, num_candidates=8, max_steps=500, contrastive_coef=0.3, max_train_rows=all(~41k), profile=gme2b, seed=0 | 0.6093/0.8043 | 0.4298/0.6796 | 0.3433 / 0.2607 (1500) |
 | rl-grpo-logit-lr2e5 | rl | [gold] | algo=grpo, reward=logit, lr=2e-05, gold_in_pool=True, pool_sampling=False, num_candidates=8, max_steps=500, contrastive_coef=0.3, max_train_rows=all(~41k), profile=gme2b, seed=0 | 0.6027/0.8213 | 0.3927/0.6339 | 0.3293 / 0.2453 (1500) |
 | rl-grpo-logit-lr5e5 | rl | [gold] | algo=grpo, reward=logit, lr=5e-05, gold_in_pool=True, pool_sampling=False, num_candidates=8, max_steps=500, contrastive_coef=0.3, max_train_rows=all(~41k), profile=gme2b, seed=0 | 0.5643/0.6823 | 0.2755/0.4788 | 0.298 / 0.2213 (1500) |

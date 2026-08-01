@@ -81,11 +81,16 @@ def main():
     for mf in sorted(glob.glob(os.path.join(R, "*.retrieval.metrics.json"))):
         name = os.path.basename(mf).replace(".retrieval.metrics.json", "")
         m = json.load(open(mf))
+        # eval-only aliases (OOD/full-corpus evals of a trained checkpoint) -> source run's axes
+        ALIAS = {"rl-j2e5": "rl-grpo-judge-lr2e5", "rl-logit2e5": "rl-grpo-logit-lr2e5",
+                 "sft-lr1e4": "sft-lr1e4-h0", "gme2b-zs": "gme2b-zeroshot"}
+        base_name = name.replace("-evqa", "").replace("-full", "")
+        base_name = ALIAS.get(base_name, base_name)
         row = {
             "name": name,
             "dataset": "evqa" if "evqa" in name else "infoseek",
-            "axes": axes_for(name.replace("-evqa", ""), load_args(runs_dir, name)
-                             or load_args(runs_dir, name.replace("-evqa", ""))),
+            "eval_of": base_name if base_name != name else None,
+            "axes": axes_for(base_name, load_args(runs_dir, name) or load_args(runs_dir, base_name)),
             "n_eval_retrieval": m["n"],
             "n_eval_answer_level": m["n_ans"],
             "entity_R": {k: round(v, 4) for k, v in m["entity_recall"].items() if k in ("1", "5", 1, 5, "10", 10)},

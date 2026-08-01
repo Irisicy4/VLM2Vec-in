@@ -155,32 +155,48 @@ def main():
         if r:
             scale_points.append(("41k (full)", arm, r))
 
-    # ---- markdown report ----
-    md = ["# mm-RAG results (PROVISIONAL — under review, do not cite yet)", "",
-          summary["status"], "",
-          "Reward reader is IN-PROCESS (no server): Qwen2.5-VL-3B-Instruct on the trainer GPU.",
-          "Each RL row lists `gold_in_pool` (was the gold passage force-inserted at slot 0 of every "
-          "candidate pool — i.e. the run is NOT annotation-free) and the exact reward.", "",
-          "| run | arm | label | axes | entity R@1/R@5 | answer R@1/R@5 | VQA top5 acc / strictEM (n) |",
-          "|---|---|---|---|---|---|---|"]
-    for r in sorted(rows, key=lambda x: (x["dataset"], x["axes"].get("arm", ""), x["name"])):
+    # ---- markdown report: PRIMARY = annotation-free ([no-gold]); gold-seeded = reference ----
+    def fmt(r):
         a = r["axes"]
         ax_s = ", ".join(f"{k}={v}" for k, v in a.items() if k not in ("arm", "reward_detail", "reward_model"))
         er = r["entity_R"]; ar = r["answer_R"]
         v = r.get("vqa", {}).get("top5")
         vs = (f"{v['acc']} / {v.get('strict_em', '?')} ({v['n']})"
               + ("" if v.get("strict_em") is not None else " ⚠v1-metric") if v else "—")
-        md.append(f"| {r['name']} | {a.get('arm','?')} | {r.get('label','')} | {ax_s} | "
-                  f"{er.get('1','?')}/{er.get('5','?')} | {ar.get('1','?')}/{ar.get('5','?')} | {vs} |")
-    md += ["", "## Feedback-data scaling (required deliverable; auto-fills as m6d lands)", "",
-           "| feedback size | arm | entity R@5 | answer R@5 | VQA top5 acc | n_retr / n_vqa |",
-           "|---|---|---|---|---|---|"]
+        return (f"| {r['name']} | {a.get('arm','?')} | {r.get('label','')} | {ax_s} | "
+                f"{er.get('1','?')}/{er.get('5','?')} | {ar.get('1','?')}/{ar.get('5','?')} | {vs} |")
+
+    HDR = ["| run | arm | label | axes | entity R@1/R@5 | answer R@1/R@5 | VQA top5 acc / strictEM (n) |",
+           "|---|---|---|---|---|---|---|"]
+    key = lambda x: (x["dataset"], x["axes"].get("arm", ""), x["name"])
+    nogold = [r for r in sorted(rows, key=key) if r.get("label") == "[no-gold]"]
+    ref = [r for r in sorted(rows, key=key) if r.get("label") != "[no-gold]" and r["axes"].get("arm") in ("rl", "sft")]
+    base = [r for r in sorted(rows, key=key) if r["axes"].get("arm") not in ("rl", "sft")]
+
+    md = ["# mm-RAG results (PROVISIONAL — under review, do not cite yet)", "",
+          summary["status"], "",
+          "Reward reader is IN-PROCESS (no server): Qwen2.5-VL-3B-Instruct on the trainer GPU.", "",
+          "## 1. PRIMARY: annotation-free RL ([no-gold])", "",
+          "Pure top-N pools under the live policy; the ONLY supervision is the gold ANSWER inside "
+          "the reward (no passage-level labels). Key question: does this beat zero-shot and the "
+          "relevance-supervised arms? (The text-side experiment could NOT achieve this.)", ""] + HDR
+    md += [fmt(r) for r in nogold] or ["| *(m6b no-gold cells still training/queued)* | | | | | | |"]
+    md += ["", "## 2. Baselines (no training)", ""] + HDR + [fmt(r) for r in base]
+    md += ["", "## 3. Gold-seeded reference (relevance-supervised) — SECONDARY", "",
+           "These RL runs force-insert the gold evidence passage into every pool AND use it as the "
+           "InfoNCE positive — the same passage-level supervision SFT consumes. They compare "
+           "supervision *form* (RL vs contrastive) at equal labels, NOT label-free learning.", ""] + HDR
+    md += [fmt(r) for r in ref]
+    md += ["", "## 4. Feedback-data scaling (arms labeled; no-gold arms lead when available)", "",
+           "| feedback size | arm | label | entity R@5 | answer R@5 | VQA top5 acc | n_retr / n_vqa |",
+           "|---|---|---|---|---|---|---|"]
     for label, arm, r in scale_points:
         v = r.get("vqa", {}).get("top5")
-        md.append(f"| {label} | {arm} | {r['entity_R'].get('5','?')} | {r['answer_R'].get('5','?')} | "
+        md.append(f"| {label} | {arm} | {r.get('label','—')} | {r['entity_R'].get('5','?')} | "
+                  f"{r['answer_R'].get('5','?')} | "
                   f"{v['acc'] if v else '—'} | {r['n_eval_retrieval']} / {v['n'] if v else '—'} |")
-    md += ["", "RL runs above with `gold_in_pool=True` use the gold-evidence passage as a forced pool "
-           "member (grounding); the annotation-free variants are the `nogold` runs of m6b.", ""]
+    md += ["", "All scaling rows are currently [gold] (gold-seeded pools) unless labeled [no-gold]; "
+           "the m6b no-gold cells provide the annotation-free scaling anchor when they land.", ""]
     out_md = os.path.join(args.repo_out, "RESULTS.md")
     open(out_md, "w").write("\n".join(md))
     print(f"wrote {out_md}")

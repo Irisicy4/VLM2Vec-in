@@ -8,11 +8,17 @@ success on knowledge-VQA (**InfoSeek**; OOD **Encyclopedic-VQA**), and compare a
 (a) the zero-shot encoder and (b) a relevance-SFT contrastive baseline at equal trainable budget.
 
 > **STATUS: ALL NUMBERS PROVISIONAL** — under main-session review (see `RESULTS.md` header).
-> Every RL run is labeled **[gold]** (gold evidence passage force-inserted into pools + used as
-> the InfoNCE positive → same supervision level as SFT) or **[no-gold]** (annotation-free:
-> pure top-N pools, self-labeled InfoNCE anchor). The reward is an **in-process** reader — no
-> server: `logit` = teacher-forced mean logP(answer | image, question, passage); `judge` =
-> sampled-answer accuracy (token-boundary cover-EM vs official aliases), both z-scored per pool.
+>
+> **Framing (per user directive):** the PRIMARY experimental question is the **[no-gold]**
+> (annotation-free) setting — pure top-N pools under the live policy, the only supervision being
+> the gold ANSWER inside the reward. **[gold]** runs (gold evidence passage force-inserted into
+> pools + used as the InfoNCE positive) consume the same passage-level supervision as SFT and are
+> reported only as a **gold-seeded reference (relevance-supervised)** — they compare supervision
+> form at equal labels, not label-free learning. The text-side experiment could NOT make no-gold
+> RL win; whether multimodal can is the headline question (m6b cells).
+> The reward is an **in-process** reader — no server: `logit` = teacher-forced mean
+> logP(answer | image, question, passage); `judge` = sampled-answer accuracy (token-boundary
+> cover-EM vs official aliases), both z-scored per pool.
 
 ## Setup (Isambard-AI, aarch64 GH200)
 
@@ -79,10 +85,10 @@ job m6i re-scores headline rows with the v2 token-boundary metric + strict-EM.
 | vlm2vec2b-zeroshot | — | same job | TIGER-Lab/VLM2Vec-Qwen2VL-2B |
 | clip / siglip2 zero-shot | — | `runs/m5_clip_ladder.sbatch` (5853835, retry 5856656) | openai / google originals |
 | sft-lr{3e5,5e5,1e4,2e4}-h{0,2}[-s1200] | [gold] | `runs/m3_sft_sweep.sbatch` (5853833), `m6c_sft_fair.sbatch` (5856652) | **best: [Icey444/mmrag-sft-lr1e4-h0](https://huggingface.co/Icey444/mmrag-sft-lr1e4-h0)** |
-| rl-grpo-judge-lr2e5 | [gold] | `runs/m4_rl_sweep.sbatch` (5853834) | **[Icey444/mmrag-rl-grpo-judge-lr2e5](https://huggingface.co/Icey444/mmrag-rl-grpo-judge-lr2e5)** |
+| rl-grpo-judge-lr2e5 (gold-seeded reference) | [gold] | `runs/m4_rl_sweep.sbatch` (5853834) | [Icey444/mmrag-rl-grpo-judge-lr2e5](https://huggingface.co/Icey444/mmrag-rl-grpo-judge-lr2e5) |
 | rl-{grpo,ppo}-logit-lr{2e5,5e5} | [gold] | same job | [Icey444/mmrag-rl-grpo-logit-lr2e5](https://huggingface.co/Icey444/mmrag-rl-grpo-logit-lr2e5) |
 | rl-grpo-judge-lr{1e5,3e5}, rl-ppo-judge, N=16 | [gold] | `runs/m6a_rl_refine.sbatch` (5856650) | scratch runs/ |
-| grounding×pool 2×2 (gold/nogold × det/sampled) + seed1 | mixed | `runs/m6b_grounding2x2.sbatch` (5856651) | scratch runs/ (competitive no-gold cell → HF post-review) |
+| **grounding×pool 2×2 (gold/nogold × det/sampled) + seed1 — PRIMARY cells** | mixed | `runs/m6b_grounding2x2.sbatch` (5856651) | scratch runs/ (competitive no-gold cell → HF post-review) |
 | data scaling rows{2k,8k} RL vs SFT | [gold] | `runs/m6d_datascale.sbatch` (5856653) | scratch runs/ |
 | GME-7B rung (zs, RL lr{1e-5,5e-6}, SFT) | [gold] | `runs/m6e_7b_ladder.sbatch` (5856654) | scratch runs/ |
 | E-VQA OOD transfer (best RL/SFT) | [gold] | `runs/m6f_catchup_ood.sbatch` (5856655) | — |

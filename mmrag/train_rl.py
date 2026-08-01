@@ -82,6 +82,9 @@ def main():
                     help="HARR-style stochastic pools: sample the candidates from "
                          "softmax(sims/temperature) over the top-4N without replacement, instead "
                          "of deterministic top-N (text finding: unstable without a gold anchor)")
+    ap.add_argument("--pool_sample_temperature", type=float, default=None,
+                    help="temperature for --pool_sampling (default: the policy temperature; "
+                         "at tau=0.02 sampling is near-argmax — raise to test true stochasticity)")
     ap.add_argument("--reward_gate_std", type=float, default=0.0,
                     help="zero the advantage of pools whose raw reward std < this (no signal)")
     # reward
@@ -202,7 +205,8 @@ def main():
                     # stochastic pools: sample w/o replacement from softmax over the wider top-K
                     pool_idx = [i for i in topk[b] if args.no_force_gold or corpus_texts[i] != gold]
                     want = N if args.no_force_gold else N - 1
-                    logits = sims[b, pool_idx] / max(args.temperature, 1e-6)
+                    samp_t = args.pool_sample_temperature or args.temperature
+                    logits = sims[b, pool_idx] / max(samp_t, 1e-6)
                     pick = torch.multinomial(torch.softmax(logits, dim=-1),
                                              min(want, len(pool_idx)), replacement=False)
                     chosen = [corpus_texts[pool_idx[j]] for j in pick.tolist()]

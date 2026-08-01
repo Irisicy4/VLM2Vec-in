@@ -88,10 +88,13 @@ def main():
     ap.add_argument("--reward_gate_std", type=float, default=0.0,
                     help="zero the advantage of pools whose raw reward std < this (no signal)")
     # reward
-    ap.add_argument("--reward", choices=["logit", "judge", "ragacc"], default="logit",
+    ap.add_argument("--reward", choices=["logit", "judge", "ragacc", "gain", "mix"], default="logit",
                     help="logit/judge score each passage ALONE; ragacc = downstream RAG accuracy: "
                          "sample a k-slate from the policy, reader answers over the JOINT top-k "
-                         "context, one scalar reward per query, REINFORCE on the slate members")
+                         "context, one scalar reward per query, REINFORCE on the slate members; "
+                         "gain = judge(passage) - judge(no context) per query (answer-GAIN: kills "
+                         "the spurious reward on queries the reader answers without retrieval); "
+                         "mix = mean of per-pool z-scored judge and logit rewards")
     ap.add_argument("--slate_k", type=int, default=5, help="slate size for --reward ragacc")
     ap.add_argument("--reward_server_url", default=None,
                     help="http://host:port of mmrag/reward_server.py; if set, rewards are fetched "
@@ -249,13 +252,31 @@ def main():
                 value_target = advantages.new_zeros(args.batch_size)
                 rewards = advantages  # for logging shape-compat
             else:
-                if args.reward == "judge":
+                if args.reward in ("judge", "gain"):
                     rewards = reader.score_judge(triples, n_rollouts=args.reader_rollouts,
                                                  temperature=args.reader_temperature)
+                elif args.reward == "mix":
+                    rj = torch.tensor(reader.score_judge(triples, n_rollouts=args.reader_rollouts,
+                                                         temperature=args.reader_temperature),
+                                      dtype=torch.float32, device=args.device).view(args.batch_size, N)
+                    rl_ = torch.tensor(reader.score_logit(triples), dtype=torch.float32,
+                                       device=args.device).view(args.batch_size, N)
+                    z = lambda x: (x - x.mean(1, keepdim=True)) / (x.std(1, keepdim=True) + 1e-6)
+                    rewards = (0.5 * z(rj) + 0.5 * z(rl_)).flatten().tolist()
                 else:
                     rewards = reader.score_logit(triples)
                 rewards = torch.tensor(rewards, dtype=torch.float32,
                                        device=args.device).view(args.batch_size, N)
+                if args.reward == "gain":
+                    # subtract the per-query NO-CONTEXT accuracy: only passages that CHANGE the
+                    # reader's answer earn reward (queries answerable without retrieval give 0)
+                    noctx = [{"image": imgs[b], "image_id": r["image_id"], "question": r["question"],
+                              "context": "", "answer": r.get("answer_aliases") or r["answer"]}
+                             for b, r in enumerate(batch)]
+                    r_no = torch.tensor(reader.score_judge(noctx, n_rollouts=args.reader_rollouts,
+                                                           temperature=args.reader_temperature),
+                                        dtype=torch.float32, device=args.device)
+                    rewards = rewards - r_no.unsqueeze(1)
                 raw_mean, gold_mean = rewards.mean().item(), rewards[:, 0].mean().item()
                 if args.reward_gate_std > 0:
                     gate = (rewards.std(1, keepdim=True) >= args.reward_gate_std).float()

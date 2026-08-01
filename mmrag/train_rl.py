@@ -90,6 +90,9 @@ def main():
                          "sample a k-slate from the policy, reader answers over the JOINT top-k "
                          "context, one scalar reward per query, REINFORCE on the slate members")
     ap.add_argument("--slate_k", type=int, default=5, help="slate size for --reward ragacc")
+    ap.add_argument("--reward_server_url", default=None,
+                    help="http://host:port of mmrag/reward_server.py; if set, rewards are fetched "
+                         "remotely (shared, possibly eval-grade reader) instead of in-process")
     ap.add_argument("--reader_model", default="Qwen/Qwen2.5-VL-3B-Instruct")
     ap.add_argument("--reader_device", default=None, help="default: same as --device")
     ap.add_argument("--reader_rollouts", type=int, default=4)
@@ -148,9 +151,15 @@ def main():
         [{"params": params, "lr": args.learning_rate},
          {"params": value_head.parameters(), "lr": args.value_head_lr, "weight_decay": 0.0}])
 
-    reader = LiveVLMReader(args.reader_model, device=args.reader_device or args.device,
-                           batch_size=args.reader_batch_size,
-                           max_ctx_chars=(args.slate_k * 900 if args.reward == "ragacc" else 1600))
+    if args.reward_server_url:
+        from mmrag.reward_server import RemoteReader
+
+        reader = RemoteReader(args.reward_server_url,
+                              max_ctx_chars=(args.slate_k * 900 if args.reward == "ragacc" else 1600))
+    else:
+        reader = LiveVLMReader(args.reader_model, device=args.reader_device or args.device,
+                               batch_size=args.reader_batch_size,
+                               max_ctx_chars=(args.slate_k * 900 if args.reward == "ragacc" else 1600))
 
     corpus_emb = None
 
@@ -204,8 +213,9 @@ def main():
                     cands = [gold] + [t for t in retrieved if t != gold][: N - 1]
                 pools.append(cands)
                 ans = r.get("answer_aliases") or r["answer"]
-                triples.extend({"image": imgs[b], "question": r["question"],
-                                "context": c, "answer": ans} for c in cands)
+                triples.extend({"image": imgs[b], "image_id": r["image_id"],
+                                "question": r["question"], "context": c, "answer": ans}
+                               for c in cands)
 
             flat = [c for pool in pools for c in pool]
             c_emb = enc.encode_docs(flat, batch_size=args.encode_bs).float().view(args.batch_size, N, -1)
@@ -222,8 +232,8 @@ def main():
                 slate_triples = []
                 for b, r in enumerate(batch):
                     ctx = "\n\n".join(pools[b][j] for j in slates[b].tolist())
-                    slate_triples.append({"image": imgs[b], "question": r["question"],
-                                          "context": ctx,
+                    slate_triples.append({"image": imgs[b], "image_id": r["image_id"],
+                                          "question": r["question"], "context": ctx,
                                           "answer": r.get("answer_aliases") or r["answer"]})
                 slate_r = reader.score_judge(slate_triples, n_rollouts=args.reader_rollouts,
                                              temperature=args.reader_temperature)

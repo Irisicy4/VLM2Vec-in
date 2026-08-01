@@ -78,6 +78,10 @@ def main():
     ap.add_argument("--no_force_gold", action="store_true",
                     help="annotation-free pools: pure top-N (gold only enters if retrieved). "
                          "Disables the InfoNCE anchor's labeled positive -> uses top-1 as anchor.")
+    ap.add_argument("--pool_sampling", action="store_true",
+                    help="HARR-style stochastic pools: sample the candidates from "
+                         "softmax(sims/temperature) over the top-4N without replacement, instead "
+                         "of deterministic top-N (text finding: unstable without a gold anchor)")
     ap.add_argument("--reward_gate_std", type=float, default=0.0,
                     help="zero the advantage of pools whose raw reward std < this (no signal)")
     # reward
@@ -171,13 +175,23 @@ def main():
         with torch.no_grad():
             q_emb = enc.encode_queries(questions, imgs, batch_size=args.batch_size).float()
             sims = q_emb @ corpus_emb.T                              # (B, C)
-            topk = sims.topk(min(N + 4, sims.shape[1]), dim=1).indices.tolist()
+            K = (4 * N + 4) if args.pool_sampling else (N + 4)
+            topk = sims.topk(min(K, sims.shape[1]), dim=1).indices.tolist()
             pools, triples, gold_hit = [], [], 0
             for b, r in enumerate(batch):
                 gold = r["pos"][0]
                 retrieved = [corpus_texts[i] for i in topk[b]]
                 gold_hit += float(gold in retrieved[:N])
-                if args.no_force_gold:
+                if args.pool_sampling:
+                    # stochastic pools: sample w/o replacement from softmax over the wider top-K
+                    pool_idx = [i for i in topk[b] if args.no_force_gold or corpus_texts[i] != gold]
+                    want = N if args.no_force_gold else N - 1
+                    logits = sims[b, pool_idx] / max(args.temperature, 1e-6)
+                    pick = torch.multinomial(torch.softmax(logits, dim=-1),
+                                             min(want, len(pool_idx)), replacement=False)
+                    chosen = [corpus_texts[pool_idx[j]] for j in pick.tolist()]
+                    cands = chosen if args.no_force_gold else [gold] + chosen
+                elif args.no_force_gold:
                     cands = retrieved[:N]
                 else:
                     cands = [gold] + [t for t in retrieved if t != gold][: N - 1]

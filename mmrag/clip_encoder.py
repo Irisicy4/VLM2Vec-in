@@ -31,7 +31,12 @@ class CLIPStyleEncoder:
         self.model = AutoModel.from_pretrained(model_name, torch_dtype=torch.bfloat16)
         self.processor = AutoProcessor.from_pretrained(model_name)
         tok = self.processor.tokenizer
-        self.text_max_len = min(getattr(tok, "model_max_length", 77) or 77, 512)
+        # SigLIP tokenizers report model_max_length=1e30 but the text tower has hard positional
+        # capacity (64) — cap by the config, and pad to max_length (SigLIP's training convention).
+        cfg_max = getattr(getattr(self.model.config, "text_config", None),
+                          "max_position_embeddings", None) or 512
+        self.text_max_len = min(getattr(tok, "model_max_length", 77) or 77, cfg_max, 512)
+        self.pad_mode = "max_length" if "siglip" in self.model.config.model_type else True
 
         if checkpoint_path:
             from peft import PeftModel
@@ -53,7 +58,8 @@ class CLIPStyleEncoder:
     # ---------------- encoding ----------------
     def _text_emb(self, texts):
         tok = self.processor.tokenizer(
-            texts, padding=True, truncation=True, max_length=self.text_max_len, return_tensors="pt"
+            texts, padding=self.pad_mode, truncation=True, max_length=self.text_max_len,
+            return_tensors="pt"
         ).to(self.device)
         emb = self.model.get_text_features(**tok)
         return F.normalize(emb.float(), dim=-1)
@@ -99,10 +105,9 @@ class CLIPStyleEncoder:
         return self.train(False)
 
     def gradient_checkpointing_enable(self):
-        try:
-            self.model.gradient_checkpointing_enable()
-        except (AttributeError, ValueError):
-            pass  # small towers — GC optional
+        # No-op: the towers are small, and reentrant GC with frozen (pixel) inputs detaches the
+        # graph ("element 0 of tensors does not require grad") under LoRA-only training.
+        pass
 
     def save_adapters(self, output_dir):
         self.model.save_pretrained(output_dir)

@@ -39,6 +39,7 @@ def main():
     ap.add_argument("--lora_alpha", type=int, default=64)
     ap.add_argument("--max_len_doc", type=int, default=512)
     ap.add_argument("--save_steps", type=int, default=200)
+    ap.add_argument("--max_train_rows", type=int, default=0, help="cap the query pool (data scaling)")
     ap.add_argument("--query_instruction", default=None)
     ap.add_argument("--device", default="cuda:0")
     ap.add_argument("--seed", type=int, default=0)
@@ -49,6 +50,8 @@ def main():
     store = (TarImageStore([t for t in args.image_tars if os.path.exists(t)])
              if args.image_tars else open_stores(D, "infoseek"))
     rows = [r for r in rows if r["image_id"] in store and r.get("pos")]
+    if args.max_train_rows and len(rows) > args.max_train_rows:
+        rows = random.Random(args.seed).sample(rows, args.max_train_rows)
     print(f"train rows with images: {len(rows)}", flush=True)
     if len(rows) < args.batch_size:
         sys.exit(f"SKIP: only {len(rows)} usable rows (image archives missing?) — nothing to train on")

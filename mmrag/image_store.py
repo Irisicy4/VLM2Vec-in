@@ -76,6 +76,8 @@ def open_stores(data_dir, dataset="infoseek"):
         if os.path.exists(t):
             stores.append(TarImageStore(t))          # keys = basename w/o ext = landmark id
         return ChainStore(stores)
+    if dataset == "mix":                             # InfoSeek + E-VQA (data-mix training)
+        return ChainStore([open_stores(data_dir, "infoseek"), open_stores(data_dir, "evqa")])
     raise ValueError(dataset)
 
 

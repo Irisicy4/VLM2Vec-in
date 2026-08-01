@@ -29,6 +29,7 @@ def main():
     ap.add_argument("--data_dir", default=os.environ.get("MMRAG_DATA", "/lus/lfs1aip2/scratch/u6ko/icywang.u6ko/mmrag_data"))
     ap.add_argument("--pool", default="built/pool_train.jsonl")
     ap.add_argument("--image_tars", nargs="+", default=None)
+    ap.add_argument("--image_dataset", default="infoseek", choices=["infoseek", "evqa", "mix"])
     ap.add_argument("--output_dir", required=True)
     ap.add_argument("--batch_size", type=int, default=32)
     ap.add_argument("--num_hard_negs", type=int, default=0)
@@ -48,7 +49,7 @@ def main():
 
     rows = [json.loads(l) for l in open(os.path.join(D, args.pool))]
     store = (TarImageStore([t for t in args.image_tars if os.path.exists(t)])
-             if args.image_tars else open_stores(D, "infoseek"))
+             if args.image_tars else open_stores(D, args.image_dataset))
     rows = [r for r in rows if r["image_id"] in store and r.get("pos")]
     if args.max_train_rows and len(rows) > args.max_train_rows:
         rows = random.Random(args.seed).sample(rows, args.max_train_rows)

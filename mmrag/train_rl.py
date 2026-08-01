@@ -85,7 +85,11 @@ def main():
     ap.add_argument("--reward_gate_std", type=float, default=0.0,
                     help="zero the advantage of pools whose raw reward std < this (no signal)")
     # reward
-    ap.add_argument("--reward", choices=["logit", "judge"], default="logit")
+    ap.add_argument("--reward", choices=["logit", "judge", "ragacc"], default="logit",
+                    help="logit/judge score each passage ALONE; ragacc = downstream RAG accuracy: "
+                         "sample a k-slate from the policy, reader answers over the JOINT top-k "
+                         "context, one scalar reward per query, REINFORCE on the slate members")
+    ap.add_argument("--slate_k", type=int, default=5, help="slate size for --reward ragacc")
     ap.add_argument("--reader_model", default="Qwen/Qwen2.5-VL-3B-Instruct")
     ap.add_argument("--reader_device", default=None, help="default: same as --device")
     ap.add_argument("--reader_rollouts", type=int, default=4)
@@ -104,6 +108,8 @@ def main():
     ap.add_argument("--log_every", type=int, default=5)
     ap.add_argument("--seed", type=int, default=0)
     args = ap.parse_args()
+    if args.reward == "ragacc":
+        args.algo = "grpo"  # slate reward is per-query scalar; critic/value path not wired for it
     if args.algo == "grpo":
         args.vf_coef = 0.0
     D = args.data_dir
@@ -143,7 +149,8 @@ def main():
          {"params": value_head.parameters(), "lr": args.value_head_lr, "weight_decay": 0.0}])
 
     reader = LiveVLMReader(args.reader_model, device=args.reader_device or args.device,
-                           batch_size=args.reader_batch_size)
+                           batch_size=args.reader_batch_size,
+                           max_ctx_chars=(args.slate_k * 900 if args.reward == "ragacc" else 1600))
 
     corpus_emb = None
 
@@ -200,31 +207,53 @@ def main():
                 triples.extend({"image": imgs[b], "question": r["question"],
                                 "context": c, "answer": ans} for c in cands)
 
-            if args.reward == "judge":
-                rewards = reader.score_judge(triples, n_rollouts=args.reader_rollouts,
-                                             temperature=args.reader_temperature)
-            else:
-                rewards = reader.score_logit(triples)
-            rewards = torch.tensor(rewards, dtype=torch.float32,
-                                   device=args.device).view(args.batch_size, N)
-            raw_mean, gold_mean = rewards.mean().item(), rewards[:, 0].mean().item()
-            gate = None
-            if args.reward_gate_std > 0:
-                gate = (rewards.std(1, keepdim=True) >= args.reward_gate_std).float()
-            rewards = (rewards - rewards.mean(1, keepdim=True)) / (rewards.std(1, keepdim=True) + 1e-6)
-
             flat = [c for pool in pools for c in pool]
             c_emb = enc.encode_docs(flat, batch_size=args.encode_bs).float().view(args.batch_size, N, -1)
             old_logps, _ = pool_logps(q_emb, c_emb, args.temperature)
             old_values = value_head(q_emb)
-            if args.algo == "grpo":
-                advantages, value_target = rewards, rewards.new_zeros(args.batch_size)
+            gate = None
+
+            if args.reward == "ragacc":
+                # downstream RAG accuracy as the reward: sample a k-slate per query from the
+                # current policy, reader answers over the JOINT slate context; the scalar reward
+                # is batch-z-scored and applied to the sampled members (REINFORCE on the slate).
+                k = min(args.slate_k, N)
+                slates = torch.multinomial(old_logps.exp(), k, replacement=False)  # (B, k)
+                slate_triples = []
+                for b, r in enumerate(batch):
+                    ctx = "\n\n".join(pools[b][j] for j in slates[b].tolist())
+                    slate_triples.append({"image": imgs[b], "question": r["question"],
+                                          "context": ctx,
+                                          "answer": r.get("answer_aliases") or r["answer"]})
+                slate_r = reader.score_judge(slate_triples, n_rollouts=args.reader_rollouts,
+                                             temperature=args.reader_temperature)
+                slate_r = torch.tensor(slate_r, dtype=torch.float32, device=args.device)  # (B,)
+                raw_mean, gold_mean = slate_r.mean().item(), float("nan")
+                adv_q = (slate_r - slate_r.mean()) / (slate_r.std() + 1e-6)              # (B,)
+                advantages = torch.zeros_like(old_logps)
+                advantages.scatter_(1, slates, adv_q.unsqueeze(1).expand(-1, k))
+                value_target = advantages.new_zeros(args.batch_size)
+                rewards = advantages  # for logging shape-compat
             else:
-                advantages, value_target = compute_advantages_and_targets(rewards, old_values, old_logps)
-            if gate is not None:
-                advantages = advantages * gate
-                if args.algo == "ppo":
-                    value_target = value_target * gate.squeeze(1) + old_values * (1 - gate.squeeze(1))
+                if args.reward == "judge":
+                    rewards = reader.score_judge(triples, n_rollouts=args.reader_rollouts,
+                                                 temperature=args.reader_temperature)
+                else:
+                    rewards = reader.score_logit(triples)
+                rewards = torch.tensor(rewards, dtype=torch.float32,
+                                       device=args.device).view(args.batch_size, N)
+                raw_mean, gold_mean = rewards.mean().item(), rewards[:, 0].mean().item()
+                if args.reward_gate_std > 0:
+                    gate = (rewards.std(1, keepdim=True) >= args.reward_gate_std).float()
+                rewards = (rewards - rewards.mean(1, keepdim=True)) / (rewards.std(1, keepdim=True) + 1e-6)
+                if args.algo == "grpo":
+                    advantages, value_target = rewards, rewards.new_zeros(args.batch_size)
+                else:
+                    advantages, value_target = compute_advantages_and_targets(rewards, old_values, old_logps)
+                if gate is not None:
+                    advantages = advantages * gate
+                    if args.algo == "ppo":
+                        value_target = value_target * gate.squeeze(1) + old_values * (1 - gate.squeeze(1))
 
         # ---- loss forward (grad): re-encode the same pools with the trainable policy ----
         q_emb_g = enc.encode_queries(questions, imgs, batch_size=args.batch_size, grad=True).float()

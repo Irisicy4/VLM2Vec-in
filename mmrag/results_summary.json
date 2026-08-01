@@ -292,6 +292,300 @@
       }
     },
     {
+      "name": "rl-ansmatch-gold",
+      "dataset": "infoseek",
+      "eval_of": null,
+      "axes": {
+        "arm": "rl",
+        "algo": "grpo",
+        "reward": "ansmatch",
+        "reward_detail": "sampled answer accuracy (cover-EM vs aliases), 4 rollouts @T=0.7, z-scored per pool",
+        "reward_model": "Qwen/Qwen2.5-VL-3B-Instruct",
+        "lr": 2e-05,
+        "gold_in_pool": true,
+        "pool_sampling": false,
+        "num_candidates": 8,
+        "max_steps": 500,
+        "contrastive_coef": 0.3,
+        "max_train_rows": "all(~41k)",
+        "profile": "gme2b",
+        "seed": 0
+      },
+      "n_eval_retrieval": 3000,
+      "n_eval_answer_level": 2450,
+      "entity_R": {
+        "1": 0.6,
+        "5": 0.7783,
+        "10": 0.8487
+      },
+      "answer_R": {
+        "1": 0.4318,
+        "5": 0.6718,
+        "10": 0.76
+      },
+      "label": "[gold]",
+      "supervision_note": "gold passage force-inserted at pool slot 0 AND used as the InfoNCE-anchor positive -> same supervision level as SFT",
+      "vqa": {
+        "top5": {
+          "acc": 0.346,
+          "f1": 0.3428,
+          "n": 1500,
+          "strict_em": 0.2547,
+          "metric_version": "v2-token-boundary",
+          "reader": "Qwen2.5-VL-7B-Instruct",
+          "acc_by_split": {
+            "val_unseen_entity": 0.3423,
+            "val_unseen_question": 0.3568
+          }
+        }
+      }
+    },
+    {
+      "name": "rl-ansmatch-nogold",
+      "dataset": "infoseek",
+      "eval_of": null,
+      "axes": {
+        "arm": "rl",
+        "algo": "grpo",
+        "reward": "ansmatch",
+        "reward_detail": "sampled answer accuracy (cover-EM vs aliases), 4 rollouts @T=0.7, z-scored per pool",
+        "reward_model": "Qwen/Qwen2.5-VL-3B-Instruct",
+        "lr": 2e-05,
+        "gold_in_pool": false,
+        "pool_sampling": false,
+        "num_candidates": 8,
+        "max_steps": 500,
+        "contrastive_coef": 0.3,
+        "max_train_rows": "all(~41k)",
+        "profile": "gme2b",
+        "seed": 0
+      },
+      "n_eval_retrieval": 3000,
+      "n_eval_answer_level": 2450,
+      "entity_R": {
+        "1": 0.5263,
+        "5": 0.7443,
+        "10": 0.819
+      },
+      "answer_R": {
+        "1": 0.378,
+        "5": 0.6073,
+        "10": 0.6914
+      },
+      "label": "[no-gold]",
+      "supervision_note": "annotation-free: pure top-N pools, InfoNCE positive = self-labeled top-1",
+      "vqa": {
+        "top5": {
+          "acc": 0.334,
+          "f1": 0.3346,
+          "n": 1500,
+          "strict_em": 0.2533,
+          "metric_version": "v2-token-boundary",
+          "reader": "Qwen2.5-VL-7B-Instruct",
+          "acc_by_split": {
+            "val_unseen_entity": 0.336,
+            "val_unseen_question": 0.3281
+          }
+        }
+      }
+    },
+    {
+      "name": "rl-gain2e5-gold",
+      "dataset": "infoseek",
+      "eval_of": null,
+      "axes": {
+        "arm": "rl",
+        "algo": "grpo",
+        "reward": "gain",
+        "reward_detail": "sampled answer accuracy (cover-EM vs aliases), 4 rollouts @T=0.7, z-scored per pool",
+        "reward_model": "Qwen/Qwen2.5-VL-3B-Instruct",
+        "lr": 2e-05,
+        "gold_in_pool": true,
+        "pool_sampling": false,
+        "num_candidates": 8,
+        "max_steps": 500,
+        "contrastive_coef": 0.3,
+        "max_train_rows": "all(~41k)",
+        "profile": "gme2b",
+        "seed": 0
+      },
+      "n_eval_retrieval": 3000,
+      "n_eval_answer_level": 2450,
+      "entity_R": {
+        "1": 0.5993,
+        "5": 0.8153,
+        "10": 0.875
+      },
+      "answer_R": {
+        "1": 0.4135,
+        "5": 0.6792,
+        "10": 0.7637
+      },
+      "label": "[gold]",
+      "supervision_note": "gold passage force-inserted at pool slot 0 AND used as the InfoNCE-anchor positive -> same supervision level as SFT",
+      "vqa": {
+        "top5": {
+          "acc": 0.3367,
+          "f1": 0.3379,
+          "n": 1500,
+          "strict_em": 0.2513,
+          "metric_version": "v2-token-boundary",
+          "reader": "Qwen2.5-VL-7B-Instruct",
+          "acc_by_split": {
+            "val_unseen_entity": 0.3306,
+            "val_unseen_question": 0.3542
+          }
+        }
+      }
+    },
+    {
+      "name": "rl-gain2e5-nogold",
+      "dataset": "infoseek",
+      "eval_of": null,
+      "axes": {
+        "arm": "rl",
+        "algo": "grpo",
+        "reward": "gain",
+        "reward_detail": "sampled answer accuracy (cover-EM vs aliases), 4 rollouts @T=0.7, z-scored per pool",
+        "reward_model": "Qwen/Qwen2.5-VL-3B-Instruct",
+        "lr": 2e-05,
+        "gold_in_pool": false,
+        "pool_sampling": false,
+        "num_candidates": 8,
+        "max_steps": 500,
+        "contrastive_coef": 0.3,
+        "max_train_rows": "all(~41k)",
+        "profile": "gme2b",
+        "seed": 0
+      },
+      "n_eval_retrieval": 3000,
+      "n_eval_answer_level": 2450,
+      "entity_R": {
+        "1": 0.59,
+        "5": 0.7957,
+        "10": 0.8597
+      },
+      "answer_R": {
+        "1": 0.4049,
+        "5": 0.649,
+        "10": 0.7233
+      },
+      "label": "[no-gold]",
+      "supervision_note": "annotation-free: pure top-N pools, InfoNCE positive = self-labeled top-1",
+      "vqa": {
+        "top5": {
+          "acc": 0.3373,
+          "f1": 0.3362,
+          "n": 1500,
+          "strict_em": 0.2513,
+          "metric_version": "v2-token-boundary",
+          "reader": "Qwen2.5-VL-7B-Instruct",
+          "acc_by_split": {
+            "val_unseen_entity": 0.3414,
+            "val_unseen_question": 0.3255
+          }
+        }
+      }
+    },
+    {
+      "name": "rl-goldrel-gold",
+      "dataset": "infoseek",
+      "eval_of": null,
+      "axes": {
+        "arm": "rl",
+        "algo": "grpo",
+        "reward": "goldrel",
+        "reward_detail": "sampled answer accuracy (cover-EM vs aliases), 4 rollouts @T=0.7, z-scored per pool",
+        "reward_model": "Qwen/Qwen2.5-VL-3B-Instruct",
+        "lr": 2e-05,
+        "gold_in_pool": true,
+        "pool_sampling": false,
+        "num_candidates": 8,
+        "max_steps": 500,
+        "contrastive_coef": 0.3,
+        "max_train_rows": "all(~41k)",
+        "profile": "gme2b",
+        "seed": 0
+      },
+      "n_eval_retrieval": 3000,
+      "n_eval_answer_level": 2450,
+      "entity_R": {
+        "1": 0.612,
+        "5": 0.8037,
+        "10": 0.8617
+      },
+      "answer_R": {
+        "1": 0.402,
+        "5": 0.662,
+        "10": 0.7498
+      },
+      "label": "[gold]",
+      "supervision_note": "gold passage force-inserted at pool slot 0 AND used as the InfoNCE-anchor positive -> same supervision level as SFT",
+      "vqa": {
+        "top5": {
+          "acc": 0.3413,
+          "f1": 0.3416,
+          "n": 1500,
+          "strict_em": 0.2553,
+          "metric_version": "v2-token-boundary",
+          "reader": "Qwen2.5-VL-7B-Instruct",
+          "acc_by_split": {
+            "val_unseen_entity": 0.3333,
+            "val_unseen_question": 0.3646
+          }
+        }
+      }
+    },
+    {
+      "name": "rl-goldrel-nogold",
+      "dataset": "infoseek",
+      "eval_of": null,
+      "axes": {
+        "arm": "rl",
+        "algo": "grpo",
+        "reward": "goldrel",
+        "reward_detail": "sampled answer accuracy (cover-EM vs aliases), 4 rollouts @T=0.7, z-scored per pool",
+        "reward_model": "Qwen/Qwen2.5-VL-3B-Instruct",
+        "lr": 2e-05,
+        "gold_in_pool": false,
+        "pool_sampling": false,
+        "num_candidates": 8,
+        "max_steps": 500,
+        "contrastive_coef": 0.3,
+        "max_train_rows": "all(~41k)",
+        "profile": "gme2b",
+        "seed": 0
+      },
+      "n_eval_retrieval": 3000,
+      "n_eval_answer_level": 2450,
+      "entity_R": {
+        "1": 0.6057,
+        "5": 0.7833,
+        "10": 0.8293
+      },
+      "answer_R": {
+        "1": 0.3796,
+        "5": 0.6057,
+        "10": 0.6967
+      },
+      "label": "[no-gold]",
+      "supervision_note": "annotation-free: pure top-N pools, InfoNCE positive = self-labeled top-1",
+      "vqa": {
+        "top5": {
+          "acc": 0.3173,
+          "f1": 0.3242,
+          "n": 1500,
+          "strict_em": 0.2393,
+          "metric_version": "v2-token-boundary",
+          "reader": "Qwen2.5-VL-7B-Instruct",
+          "acc_by_split": {
+            "val_unseen_entity": 0.3091,
+            "val_unseen_question": 0.3411
+          }
+        }
+      }
+    },
+    {
       "name": "rl-grpo-judge-lr1e5",
       "dataset": "infoseek",
       "eval_of": null,
@@ -314,27 +608,27 @@
       "n_eval_retrieval": 3000,
       "n_eval_answer_level": 2450,
       "entity_R": {
-        "1": 0.5977,
-        "5": 0.801,
-        "10": 0.8673
+        "1": 0.6017,
+        "5": 0.8017,
+        "10": 0.8697
       },
       "answer_R": {
-        "1": 0.4131,
+        "1": 0.4159,
         "5": 0.6702,
-        "10": 0.7588
+        "10": 0.7592
       },
       "label": "[gold]",
       "supervision_note": "gold passage force-inserted at pool slot 0 AND used as the InfoNCE-anchor positive -> same supervision level as SFT",
       "vqa": {
         "top5": {
-          "acc": 0.3387,
-          "f1": 0.3397,
+          "acc": 0.336,
+          "f1": 0.3402,
           "n": 1500,
-          "strict_em": 0.2533,
+          "strict_em": 0.2547,
           "metric_version": "v2-token-boundary",
           "reader": "Qwen2.5-VL-7B-Instruct",
           "acc_by_split": {
-            "val_unseen_entity": 0.3342,
+            "val_unseen_entity": 0.3306,
             "val_unseen_question": 0.3516
           }
         }
@@ -461,17 +755,31 @@
       "n_eval_retrieval": 3000,
       "n_eval_answer_level": 2450,
       "entity_R": {
-        "1": 0.6117,
-        "5": 0.801,
-        "10": 0.865
+        "1": 0.6133,
+        "5": 0.774,
+        "10": 0.833
       },
       "answer_R": {
-        "1": 0.4322,
-        "5": 0.691,
-        "10": 0.7739
+        "1": 0.4139,
+        "5": 0.6637,
+        "10": 0.7453
       },
       "label": "[gold]",
-      "supervision_note": "gold passage force-inserted at pool slot 0 AND used as the InfoNCE-anchor positive -> same supervision level as SFT"
+      "supervision_note": "gold passage force-inserted at pool slot 0 AND used as the InfoNCE-anchor positive -> same supervision level as SFT",
+      "vqa": {
+        "top5": {
+          "acc": 0.342,
+          "f1": 0.3405,
+          "n": 1500,
+          "strict_em": 0.248,
+          "metric_version": "v2-token-boundary",
+          "reader": "Qwen2.5-VL-7B-Instruct",
+          "acc_by_split": {
+            "val_unseen_entity": 0.3387,
+            "val_unseen_question": 0.3516
+          }
+        }
+      }
     },
     {
       "name": "rl-grpo-logit-lr2e5",
@@ -572,6 +880,202 @@
       }
     },
     {
+      "name": "rl-j-nogold-det-lr1e5",
+      "dataset": "infoseek",
+      "eval_of": null,
+      "axes": {
+        "arm": "rl",
+        "algo": "grpo",
+        "reward": "judge",
+        "reward_detail": "sampled answer accuracy (cover-EM vs aliases), 4 rollouts @T=0.7, z-scored per pool",
+        "reward_model": "Qwen/Qwen2.5-VL-3B-Instruct",
+        "lr": 1e-05,
+        "gold_in_pool": false,
+        "pool_sampling": false,
+        "num_candidates": 8,
+        "max_steps": 500,
+        "contrastive_coef": 0.3,
+        "max_train_rows": "all(~41k)",
+        "profile": "gme2b",
+        "seed": 0
+      },
+      "n_eval_retrieval": 3000,
+      "n_eval_answer_level": 2450,
+      "entity_R": {
+        "1": 0.598,
+        "5": 0.797,
+        "10": 0.8583
+      },
+      "answer_R": {
+        "1": 0.3971,
+        "5": 0.6518,
+        "10": 0.7376
+      },
+      "label": "[no-gold]",
+      "supervision_note": "annotation-free: pure top-N pools, InfoNCE positive = self-labeled top-1",
+      "vqa": {
+        "top5": {
+          "acc": 0.332,
+          "f1": 0.3331,
+          "n": 1500,
+          "strict_em": 0.25,
+          "metric_version": "v2-token-boundary",
+          "reader": "Qwen2.5-VL-7B-Instruct",
+          "acc_by_split": {
+            "val_unseen_entity": 0.3324,
+            "val_unseen_question": 0.3307
+          }
+        }
+      }
+    },
+    {
+      "name": "rl-j-nogold-frozen-lr1e5",
+      "dataset": "infoseek",
+      "eval_of": null,
+      "axes": {
+        "arm": "rl",
+        "algo": "grpo",
+        "reward": "judge",
+        "reward_detail": "sampled answer accuracy (cover-EM vs aliases), 4 rollouts @T=0.7, z-scored per pool",
+        "reward_model": "Qwen/Qwen2.5-VL-3B-Instruct",
+        "lr": 1e-05,
+        "gold_in_pool": false,
+        "pool_sampling": false,
+        "num_candidates": 8,
+        "max_steps": 500,
+        "contrastive_coef": 0.3,
+        "max_train_rows": "all(~41k)",
+        "profile": "gme2b",
+        "seed": 0
+      },
+      "n_eval_retrieval": 3000,
+      "n_eval_answer_level": 2450,
+      "entity_R": {
+        "1": 0.579,
+        "5": 0.7973,
+        "10": 0.856
+      },
+      "answer_R": {
+        "1": 0.3967,
+        "5": 0.6518,
+        "10": 0.7306
+      },
+      "label": "[no-gold]",
+      "supervision_note": "annotation-free: pure top-N pools, InfoNCE positive = self-labeled top-1",
+      "vqa": {
+        "top5": {
+          "acc": 0.3367,
+          "f1": 0.3391,
+          "n": 1500,
+          "strict_em": 0.2527,
+          "metric_version": "v2-token-boundary",
+          "reader": "Qwen2.5-VL-7B-Instruct",
+          "acc_by_split": {
+            "val_unseen_entity": 0.3351,
+            "val_unseen_question": 0.3411
+          }
+        }
+      }
+    },
+    {
+      "name": "rl-j2e5-cc0",
+      "dataset": "infoseek",
+      "eval_of": null,
+      "axes": {
+        "arm": "rl",
+        "algo": "grpo",
+        "reward": "judge",
+        "reward_detail": "sampled answer accuracy (cover-EM vs aliases), 4 rollouts @T=0.7, z-scored per pool",
+        "reward_model": "Qwen/Qwen2.5-VL-3B-Instruct",
+        "lr": 2e-05,
+        "gold_in_pool": true,
+        "pool_sampling": false,
+        "num_candidates": 8,
+        "max_steps": 500,
+        "contrastive_coef": 0.0,
+        "max_train_rows": "all(~41k)",
+        "profile": "gme2b",
+        "seed": 0
+      },
+      "n_eval_retrieval": 3000,
+      "n_eval_answer_level": 2450,
+      "entity_R": {
+        "1": 0.594,
+        "5": 0.8083,
+        "10": 0.87
+      },
+      "answer_R": {
+        "1": 0.4139,
+        "5": 0.6673,
+        "10": 0.7465
+      },
+      "label": "[gold]",
+      "supervision_note": "gold passage force-inserted at pool slot 0 AND used as the InfoNCE-anchor positive -> same supervision level as SFT",
+      "vqa": {
+        "top5": {
+          "acc": 0.3327,
+          "f1": 0.3379,
+          "n": 1500,
+          "strict_em": 0.2527,
+          "metric_version": "v2-token-boundary",
+          "reader": "Qwen2.5-VL-7B-Instruct",
+          "acc_by_split": {
+            "val_unseen_entity": 0.3315,
+            "val_unseen_question": 0.3359
+          }
+        }
+      }
+    },
+    {
+      "name": "rl-j2e5-cc01",
+      "dataset": "infoseek",
+      "eval_of": null,
+      "axes": {
+        "arm": "rl",
+        "algo": "grpo",
+        "reward": "judge",
+        "reward_detail": "sampled answer accuracy (cover-EM vs aliases), 4 rollouts @T=0.7, z-scored per pool",
+        "reward_model": "Qwen/Qwen2.5-VL-3B-Instruct",
+        "lr": 2e-05,
+        "gold_in_pool": true,
+        "pool_sampling": false,
+        "num_candidates": 8,
+        "max_steps": 500,
+        "contrastive_coef": 0.1,
+        "max_train_rows": "all(~41k)",
+        "profile": "gme2b",
+        "seed": 0
+      },
+      "n_eval_retrieval": 3000,
+      "n_eval_answer_level": 2450,
+      "entity_R": {
+        "1": 0.6003,
+        "5": 0.8027,
+        "10": 0.8687
+      },
+      "answer_R": {
+        "1": 0.4245,
+        "5": 0.6751,
+        "10": 0.7588
+      },
+      "label": "[gold]",
+      "supervision_note": "gold passage force-inserted at pool slot 0 AND used as the InfoNCE-anchor positive -> same supervision level as SFT",
+      "vqa": {
+        "top5": {
+          "acc": 0.3413,
+          "f1": 0.3403,
+          "n": 1500,
+          "strict_em": 0.25,
+          "metric_version": "v2-token-boundary",
+          "reader": "Qwen2.5-VL-7B-Instruct",
+          "acc_by_split": {
+            "val_unseen_entity": 0.336,
+            "val_unseen_question": 0.3568
+          }
+        }
+      }
+    },
+    {
       "name": "rl-j2e5-evqa",
       "dataset": "evqa",
       "eval_of": "rl-grpo-judge-lr2e5",
@@ -615,6 +1119,86 @@
           "reader": "Qwen2.5-VL-7B-Instruct",
           "acc_by_split": {
             "all": 0.462
+          }
+        }
+      }
+    },
+    {
+      "name": "rl-j2e5-evqaonly-evqa",
+      "dataset": "evqa",
+      "eval_of": "rl-j2e5only",
+      "axes": {},
+      "n_eval_retrieval": 2701,
+      "n_eval_answer_level": 2696,
+      "entity_R": {
+        "1": 0.6438,
+        "5": 0.8382,
+        "10": 0.8974
+      },
+      "answer_R": {
+        "1": 0.5438,
+        "5": 0.7678,
+        "10": 0.8368
+      },
+      "vqa": {
+        "top5": {
+          "acc": 0.4787,
+          "f1": 0.3889,
+          "n": 1500,
+          "strict_em": 0.2633,
+          "metric_version": "v2-token-boundary",
+          "reader": "Qwen2.5-VL-7B-Instruct",
+          "acc_by_split": {
+            "all": 0.4787
+          }
+        }
+      }
+    },
+    {
+      "name": "rl-j2e5-evqaonly",
+      "dataset": "evqa",
+      "eval_of": "rl-j2e5only",
+      "axes": {
+        "arm": "rl",
+        "algo": "grpo",
+        "reward": "judge",
+        "reward_detail": "sampled answer accuracy (cover-EM vs aliases), 4 rollouts @T=0.7, z-scored per pool",
+        "reward_model": "Qwen/Qwen2.5-VL-3B-Instruct",
+        "lr": 2e-05,
+        "gold_in_pool": true,
+        "pool_sampling": false,
+        "num_candidates": 8,
+        "max_steps": 500,
+        "contrastive_coef": 0.3,
+        "max_train_rows": "all(~41k)",
+        "profile": "gme2b",
+        "seed": 0
+      },
+      "n_eval_retrieval": 3000,
+      "n_eval_answer_level": 2450,
+      "entity_R": {
+        "1": 0.505,
+        "5": 0.743,
+        "10": 0.8113
+      },
+      "answer_R": {
+        "1": 0.3624,
+        "5": 0.609,
+        "10": 0.6984
+      },
+      "label": "[gold]",
+      "supervision_note": "gold passage force-inserted at pool slot 0 AND used as the InfoNCE-anchor positive -> same supervision level as SFT",
+      "vqa": {
+        "top5": {
+          "acc": 0.3133,
+          "f1": 0.3161,
+          "n": 1500,
+          "strict_em": 0.236,
+          "metric_version": "v2-token-boundary",
+          "reader": "Qwen2.5-VL-7B-Instruct",
+          "acc_by_split": {
+            "val_unseen_entity": 0.3145,
+            "val_unseen_question": 0.3099
           }
         }
       }
@@ -767,6 +1351,346 @@
       }
     },
     {
+      "name": "rl-j2e5-mix-evqa",
+      "dataset": "evqa",
+      "eval_of": "rl-j2e5-mix",
+      "axes": {
+        "arm": "rl",
+        "algo": "grpo",
+        "reward": "judge",
+        "reward_detail": "sampled answer accuracy (cover-EM vs aliases), 4 rollouts @T=0.7, z-scored per pool",
+        "reward_model": "Qwen/Qwen2.5-VL-3B-Instruct",
+        "lr": 2e-05,
+        "gold_in_pool": true,
+        "pool_sampling": false,
+        "num_candidates": 8,
+        "max_steps": 500,
+        "contrastive_coef": 0.3,
+        "max_train_rows": "all(~41k)",
+        "profile": "gme2b",
+        "seed": 0
+      },
+      "n_eval_retrieval": 2701,
+      "n_eval_answer_level": 2696,
+      "entity_R": {
+        "1": 0.6346,
+        "5": 0.8301,
+        "10": 0.886
+      },
+      "answer_R": {
+        "1": 0.5026,
+        "5": 0.747,
+        "10": 0.8197
+      },
+      "label": "[gold]",
+      "supervision_note": "gold passage force-inserted at pool slot 0 AND used as the InfoNCE-anchor positive -> same supervision level as SFT",
+      "vqa": {
+        "top5": {
+          "acc": 0.4773,
+          "f1": 0.3902,
+          "n": 1500,
+          "strict_em": 0.2667,
+          "metric_version": "v2-token-boundary",
+          "reader": "Qwen2.5-VL-7B-Instruct",
+          "acc_by_split": {
+            "all": 0.4773
+          }
+        }
+      }
+    },
+    {
+      "name": "rl-j2e5-mix",
+      "dataset": "infoseek",
+      "eval_of": null,
+      "axes": {
+        "arm": "rl",
+        "algo": "grpo",
+        "reward": "judge",
+        "reward_detail": "sampled answer accuracy (cover-EM vs aliases), 4 rollouts @T=0.7, z-scored per pool",
+        "reward_model": "Qwen/Qwen2.5-VL-3B-Instruct",
+        "lr": 2e-05,
+        "gold_in_pool": true,
+        "pool_sampling": false,
+        "num_candidates": 8,
+        "max_steps": 500,
+        "contrastive_coef": 0.3,
+        "max_train_rows": "all(~41k)",
+        "profile": "gme2b",
+        "seed": 0
+      },
+      "n_eval_retrieval": 3000,
+      "n_eval_answer_level": 2450,
+      "entity_R": {
+        "1": 0.607,
+        "5": 0.778,
+        "10": 0.8367
+      },
+      "answer_R": {
+        "1": 0.4163,
+        "5": 0.6669,
+        "10": 0.7473
+      },
+      "label": "[gold]",
+      "supervision_note": "gold passage force-inserted at pool slot 0 AND used as the InfoNCE-anchor positive -> same supervision level as SFT",
+      "vqa": {
+        "top5": {
+          "acc": 0.344,
+          "f1": 0.3426,
+          "n": 1500,
+          "strict_em": 0.252,
+          "metric_version": "v2-token-boundary",
+          "reader": "Qwen2.5-VL-7B-Instruct",
+          "acc_by_split": {
+            "val_unseen_entity": 0.3432,
+            "val_unseen_question": 0.3464
+          }
+        }
+      }
+    },
+    {
+      "name": "rl-j2e5-nogold-N32",
+      "dataset": "infoseek",
+      "eval_of": null,
+      "axes": {
+        "arm": "rl",
+        "algo": "grpo",
+        "reward": "judge",
+        "reward_detail": "sampled answer accuracy (cover-EM vs aliases), 4 rollouts @T=0.7, z-scored per pool",
+        "reward_model": "Qwen/Qwen2.5-VL-3B-Instruct",
+        "lr": 2e-05,
+        "gold_in_pool": false,
+        "pool_sampling": false,
+        "num_candidates": 32,
+        "max_steps": 500,
+        "contrastive_coef": 0.3,
+        "max_train_rows": "all(~41k)",
+        "profile": "gme2b",
+        "seed": 0
+      },
+      "n_eval_retrieval": 3000,
+      "n_eval_answer_level": 2450,
+      "entity_R": {
+        "1": 0.5927,
+        "5": 0.784,
+        "10": 0.8373
+      },
+      "answer_R": {
+        "1": 0.3776,
+        "5": 0.6041,
+        "10": 0.6882
+      },
+      "label": "[no-gold]",
+      "supervision_note": "annotation-free: pure top-N pools, InfoNCE positive = self-labeled top-1",
+      "vqa": {
+        "top5": {
+          "acc": 0.328,
+          "f1": 0.3328,
+          "n": 1500,
+          "strict_em": 0.246,
+          "metric_version": "v2-token-boundary",
+          "reader": "Qwen2.5-VL-7B-Instruct",
+          "acc_by_split": {
+            "val_unseen_entity": 0.3253,
+            "val_unseen_question": 0.3359
+          }
+        }
+      }
+    },
+    {
+      "name": "rl-j2e5-nogold-det-N16-evqa",
+      "dataset": "evqa",
+      "eval_of": "rl-j2e5-nogold-det-N16",
+      "axes": {
+        "arm": "rl",
+        "algo": "grpo",
+        "reward": "judge",
+        "reward_detail": "sampled answer accuracy (cover-EM vs aliases), 4 rollouts @T=0.7, z-scored per pool",
+        "reward_model": "Qwen/Qwen2.5-VL-3B-Instruct",
+        "lr": 2e-05,
+        "gold_in_pool": false,
+        "pool_sampling": false,
+        "num_candidates": 16,
+        "max_steps": 500,
+        "contrastive_coef": 0.3,
+        "max_train_rows": "all(~41k)",
+        "profile": "gme2b",
+        "seed": 0
+      },
+      "n_eval_retrieval": 2701,
+      "n_eval_answer_level": 2696,
+      "entity_R": {
+        "1": 0.5202,
+        "5": 0.7742,
+        "10": 0.8408
+      },
+      "answer_R": {
+        "1": 0.1517,
+        "5": 0.3531,
+        "10": 0.4863
+      },
+      "label": "[no-gold]",
+      "supervision_note": "annotation-free: pure top-N pools, InfoNCE positive = self-labeled top-1",
+      "vqa": {
+        "top5": {
+          "acc": 0.272,
+          "f1": 0.2339,
+          "n": 1500,
+          "strict_em": 0.1567,
+          "metric_version": "v2-token-boundary",
+          "reader": "Qwen2.5-VL-7B-Instruct",
+          "acc_by_split": {
+            "all": 0.272
+          }
+        }
+      }
+    },
+    {
+      "name": "rl-j2e5-nogold-det-N16",
+      "dataset": "infoseek",
+      "eval_of": null,
+      "axes": {
+        "arm": "rl",
+        "algo": "grpo",
+        "reward": "judge",
+        "reward_detail": "sampled answer accuracy (cover-EM vs aliases), 4 rollouts @T=0.7, z-scored per pool",
+        "reward_model": "Qwen/Qwen2.5-VL-3B-Instruct",
+        "lr": 2e-05,
+        "gold_in_pool": false,
+        "pool_sampling": false,
+        "num_candidates": 16,
+        "max_steps": 500,
+        "contrastive_coef": 0.3,
+        "max_train_rows": "all(~41k)",
+        "profile": "gme2b",
+        "seed": 0
+      },
+      "n_eval_retrieval": 3000,
+      "n_eval_answer_level": 2450,
+      "entity_R": {
+        "1": 0.5683,
+        "5": 0.7917,
+        "10": 0.855
+      },
+      "answer_R": {
+        "1": 0.3657,
+        "5": 0.5984,
+        "10": 0.6898
+      },
+      "label": "[no-gold]",
+      "supervision_note": "annotation-free: pure top-N pools, InfoNCE positive = self-labeled top-1",
+      "vqa": {
+        "top5": {
+          "acc": 0.3193,
+          "f1": 0.326,
+          "n": 1500,
+          "strict_em": 0.242,
+          "metric_version": "v2-token-boundary",
+          "reader": "Qwen2.5-VL-7B-Instruct",
+          "acc_by_split": {
+            "val_unseen_entity": 0.3181,
+            "val_unseen_question": 0.3229
+          }
+        }
+      }
+    },
+    {
+      "name": "rl-j2e5-nogold-det-evqa",
+      "dataset": "evqa",
+      "eval_of": "rl-j2e5-nogold-det",
+      "axes": {
+        "arm": "rl",
+        "algo": "grpo",
+        "reward": "judge",
+        "reward_detail": "sampled answer accuracy (cover-EM vs aliases), 4 rollouts @T=0.7, z-scored per pool",
+        "reward_model": "Qwen/Qwen2.5-VL-3B-Instruct",
+        "lr": 2e-05,
+        "gold_in_pool": false,
+        "pool_sampling": false,
+        "num_candidates": 8,
+        "max_steps": 500,
+        "contrastive_coef": 0.3,
+        "max_train_rows": "all(~41k)",
+        "profile": "gme2b",
+        "seed": 0
+      },
+      "n_eval_retrieval": 2701,
+      "n_eval_answer_level": 2696,
+      "entity_R": {
+        "1": 0.5739,
+        "5": 0.8008,
+        "10": 0.8634
+      },
+      "answer_R": {
+        "1": 0.3034,
+        "5": 0.5831,
+        "10": 0.6992
+      },
+      "label": "[no-gold]",
+      "supervision_note": "annotation-free: pure top-N pools, InfoNCE positive = self-labeled top-1",
+      "vqa": {
+        "top5": {
+          "acc": 0.3967,
+          "f1": 0.3287,
+          "n": 1500,
+          "strict_em": 0.2173,
+          "metric_version": "v2-token-boundary",
+          "reader": "Qwen2.5-VL-7B-Instruct",
+          "acc_by_split": {
+            "all": 0.3967
+          }
+        }
+      }
+    },
+    {
+      "name": "rl-j2e5-nogold-det-s2",
+      "dataset": "infoseek",
+      "eval_of": null,
+      "axes": {
+        "arm": "rl",
+        "algo": "grpo",
+        "reward": "judge",
+        "reward_detail": "sampled answer accuracy (cover-EM vs aliases), 4 rollouts @T=0.7, z-scored per pool",
+        "reward_model": "Qwen/Qwen2.5-VL-3B-Instruct",
+        "lr": 2e-05,
+        "gold_in_pool": false,
+        "pool_sampling": false,
+        "num_candidates": 8,
+        "max_steps": 500,
+        "contrastive_coef": 0.3,
+        "max_train_rows": "all(~41k)",
+        "profile": "gme2b",
+        "seed": 2
+      },
+      "n_eval_retrieval": 3000,
+      "n_eval_answer_level": 2450,
+      "entity_R": {
+        "1": 0.6023,
+        "5": 0.805,
+        "10": 0.8583
+      },
+      "answer_R": {
+        "1": 0.3971,
+        "5": 0.6388,
+        "10": 0.7176
+      },
+      "label": "[no-gold]",
+      "supervision_note": "annotation-free: pure top-N pools, InfoNCE positive = self-labeled top-1",
+      "vqa": {
+        "top5": {
+          "acc": 0.3393,
+          "f1": 0.3426,
+          "n": 1500,
+          "strict_em": 0.2533,
+          "metric_version": "v2-token-boundary",
+          "reader": "Qwen2.5-VL-7B-Instruct",
+          "acc_by_split": {
+            "val_unseen_entity": 0.3405,
+            "val_unseen_question": 0.3359
+          }
+        }
+      }
+    },
+    {
       "name": "rl-j2e5-nogold-det",
       "dataset": "infoseek",
       "eval_of": null,
@@ -816,6 +1740,153 @@
       }
     },
     {
+      "name": "rl-j2e5-nogold-rows2k",
+      "dataset": "infoseek",
+      "eval_of": null,
+      "axes": {
+        "arm": "rl",
+        "algo": "grpo",
+        "reward": "judge",
+        "reward_detail": "sampled answer accuracy (cover-EM vs aliases), 4 rollouts @T=0.7, z-scored per pool",
+        "reward_model": "Qwen/Qwen2.5-VL-3B-Instruct",
+        "lr": 2e-05,
+        "gold_in_pool": false,
+        "pool_sampling": false,
+        "num_candidates": 8,
+        "max_steps": 500,
+        "contrastive_coef": 0.3,
+        "max_train_rows": 2000,
+        "profile": "gme2b",
+        "seed": 0
+      },
+      "n_eval_retrieval": 3000,
+      "n_eval_answer_level": 2450,
+      "entity_R": {
+        "1": 0.589,
+        "5": 0.7827,
+        "10": 0.85
+      },
+      "answer_R": {
+        "1": 0.3837,
+        "5": 0.6102,
+        "10": 0.7053
+      },
+      "label": "[no-gold]",
+      "supervision_note": "annotation-free: pure top-N pools, InfoNCE positive = self-labeled top-1",
+      "vqa": {
+        "top5": {
+          "acc": 0.3333,
+          "f1": 0.3317,
+          "n": 1500,
+          "strict_em": 0.2493,
+          "metric_version": "v2-token-boundary",
+          "reader": "Qwen2.5-VL-7B-Instruct",
+          "acc_by_split": {
+            "val_unseen_entity": 0.3342,
+            "val_unseen_question": 0.3307
+          }
+        }
+      }
+    },
+    {
+      "name": "rl-j2e5-nogold-rows8k",
+      "dataset": "infoseek",
+      "eval_of": null,
+      "axes": {
+        "arm": "rl",
+        "algo": "grpo",
+        "reward": "judge",
+        "reward_detail": "sampled answer accuracy (cover-EM vs aliases), 4 rollouts @T=0.7, z-scored per pool",
+        "reward_model": "Qwen/Qwen2.5-VL-3B-Instruct",
+        "lr": 2e-05,
+        "gold_in_pool": false,
+        "pool_sampling": false,
+        "num_candidates": 8,
+        "max_steps": 500,
+        "contrastive_coef": 0.3,
+        "max_train_rows": 8000,
+        "profile": "gme2b",
+        "seed": 0
+      },
+      "n_eval_retrieval": 3000,
+      "n_eval_answer_level": 2450,
+      "entity_R": {
+        "1": 0.5897,
+        "5": 0.7957,
+        "10": 0.8627
+      },
+      "answer_R": {
+        "1": 0.3927,
+        "5": 0.642,
+        "10": 0.7253
+      },
+      "label": "[no-gold]",
+      "supervision_note": "annotation-free: pure top-N pools, InfoNCE positive = self-labeled top-1",
+      "vqa": {
+        "top5": {
+          "acc": 0.3407,
+          "f1": 0.3387,
+          "n": 1500,
+          "strict_em": 0.2533,
+          "metric_version": "v2-token-boundary",
+          "reader": "Qwen2.5-VL-7B-Instruct",
+          "acc_by_split": {
+            "val_unseen_entity": 0.3441,
+            "val_unseen_question": 0.3307
+          }
+        }
+      }
+    },
+    {
+      "name": "rl-j2e5-nogold-samp-t01",
+      "dataset": "infoseek",
+      "eval_of": null,
+      "axes": {
+        "arm": "rl",
+        "algo": "grpo",
+        "reward": "judge",
+        "reward_detail": "sampled answer accuracy (cover-EM vs aliases), 4 rollouts @T=0.7, z-scored per pool",
+        "reward_model": "Qwen/Qwen2.5-VL-3B-Instruct",
+        "lr": 2e-05,
+        "gold_in_pool": false,
+        "pool_sampling": true,
+        "num_candidates": 8,
+        "max_steps": 500,
+        "contrastive_coef": 0.3,
+        "max_train_rows": "all(~41k)",
+        "profile": "gme2b",
+        "seed": 0
+      },
+      "n_eval_retrieval": 3000,
+      "n_eval_answer_level": 2450,
+      "entity_R": {
+        "1": 0.592,
+        "5": 0.729,
+        "10": 0.7817
+      },
+      "answer_R": {
+        "1": 0.3567,
+        "5": 0.5776,
+        "10": 0.6702
+      },
+      "label": "[no-gold]",
+      "supervision_note": "annotation-free: pure top-N pools, InfoNCE positive = self-labeled top-1",
+      "vqa": {
+        "top5": {
+          "acc": 0.326,
+          "f1": 0.3362,
+          "n": 1500,
+          "strict_em": 0.2467,
+          "metric_version": "v2-token-boundary",
+          "reader": "Qwen2.5-VL-7B-Instruct",
+          "acc_by_split": {
+            "val_unseen_entity": 0.319,
+            "val_unseen_question": 0.3464
+          }
+        }
+      }
+    },
+    {
       "name": "rl-j2e5-nogold-samp",
       "dataset": "infoseek",
       "eval_of": null,
@@ -860,6 +1931,55 @@
           "acc_by_split": {
             "val_unseen_entity": 0.3387,
             "val_unseen_question": 0.3151
+          }
+        }
+      }
+    },
+    {
+      "name": "rl-j2e5-rows20k",
+      "dataset": "infoseek",
+      "eval_of": null,
+      "axes": {
+        "arm": "rl",
+        "algo": "grpo",
+        "reward": "judge",
+        "reward_detail": "sampled answer accuracy (cover-EM vs aliases), 4 rollouts @T=0.7, z-scored per pool",
+        "reward_model": "Qwen/Qwen2.5-VL-3B-Instruct",
+        "lr": 2e-05,
+        "gold_in_pool": true,
+        "pool_sampling": false,
+        "num_candidates": 8,
+        "max_steps": 500,
+        "contrastive_coef": 0.3,
+        "max_train_rows": 20000,
+        "profile": "gme2b",
+        "seed": 0
+      },
+      "n_eval_retrieval": 3000,
+      "n_eval_answer_level": 2450,
+      "entity_R": {
+        "1": 0.6133,
+        "5": 0.7953,
+        "10": 0.8607
+      },
+      "answer_R": {
+        "1": 0.431,
+        "5": 0.6833,
+        "10": 0.7714
+      },
+      "label": "[gold]",
+      "supervision_note": "gold passage force-inserted at pool slot 0 AND used as the InfoNCE-anchor positive -> same supervision level as SFT",
+      "vqa": {
+        "top5": {
+          "acc": 0.346,
+          "f1": 0.3433,
+          "n": 1500,
+          "strict_em": 0.2587,
+          "metric_version": "v2-token-boundary",
+          "reader": "Qwen2.5-VL-7B-Instruct",
+          "acc_by_split": {
+            "val_unseen_entity": 0.345,
+            "val_unseen_question": 0.349
           }
         }
       }
@@ -963,6 +2083,299 @@
       }
     },
     {
+      "name": "rl-j2e5-s2",
+      "dataset": "infoseek",
+      "eval_of": null,
+      "axes": {
+        "arm": "rl",
+        "algo": "grpo",
+        "reward": "judge",
+        "reward_detail": "sampled answer accuracy (cover-EM vs aliases), 4 rollouts @T=0.7, z-scored per pool",
+        "reward_model": "Qwen/Qwen2.5-VL-3B-Instruct",
+        "lr": 2e-05,
+        "gold_in_pool": true,
+        "pool_sampling": false,
+        "num_candidates": 8,
+        "max_steps": 500,
+        "contrastive_coef": 0.3,
+        "max_train_rows": "all(~41k)",
+        "profile": "gme2b",
+        "seed": 2
+      },
+      "n_eval_retrieval": 3000,
+      "n_eval_answer_level": 2450,
+      "entity_R": {
+        "1": 0.62,
+        "5": 0.8077,
+        "10": 0.863
+      },
+      "answer_R": {
+        "1": 0.4245,
+        "5": 0.6747,
+        "10": 0.7612
+      },
+      "label": "[gold]",
+      "supervision_note": "gold passage force-inserted at pool slot 0 AND used as the InfoNCE-anchor positive -> same supervision level as SFT",
+      "vqa": {
+        "top5": {
+          "acc": 0.35,
+          "f1": 0.3471,
+          "n": 1500,
+          "strict_em": 0.2573,
+          "metric_version": "v2-token-boundary",
+          "reader": "Qwen2.5-VL-7B-Instruct",
+          "acc_by_split": {
+            "val_unseen_entity": 0.3441,
+            "val_unseen_question": 0.3672
+          }
+        }
+      }
+    },
+    {
+      "name": "rl-j2e5-s3",
+      "dataset": "infoseek",
+      "eval_of": null,
+      "axes": {
+        "arm": "rl",
+        "algo": "grpo",
+        "reward": "judge",
+        "reward_detail": "sampled answer accuracy (cover-EM vs aliases), 4 rollouts @T=0.7, z-scored per pool",
+        "reward_model": "Qwen/Qwen2.5-VL-3B-Instruct",
+        "lr": 2e-05,
+        "gold_in_pool": true,
+        "pool_sampling": false,
+        "num_candidates": 8,
+        "max_steps": 500,
+        "contrastive_coef": 0.3,
+        "max_train_rows": "all(~41k)",
+        "profile": "gme2b",
+        "seed": 3
+      },
+      "n_eval_retrieval": 3000,
+      "n_eval_answer_level": 2450,
+      "entity_R": {
+        "1": 0.6033,
+        "5": 0.8107,
+        "10": 0.8687
+      },
+      "answer_R": {
+        "1": 0.4208,
+        "5": 0.6812,
+        "10": 0.7641
+      },
+      "label": "[gold]",
+      "supervision_note": "gold passage force-inserted at pool slot 0 AND used as the InfoNCE-anchor positive -> same supervision level as SFT",
+      "vqa": {
+        "top5": {
+          "acc": 0.3393,
+          "f1": 0.3387,
+          "n": 1500,
+          "strict_em": 0.2527,
+          "metric_version": "v2-token-boundary",
+          "reader": "Qwen2.5-VL-7B-Instruct",
+          "acc_by_split": {
+            "val_unseen_entity": 0.336,
+            "val_unseen_question": 0.349
+          }
+        }
+      }
+    },
+    {
+      "name": "rl-judge-nogold-frozen-evqa",
+      "dataset": "evqa",
+      "eval_of": "rl-judge-nogold-frozen",
+      "axes": {
+        "arm": "rl",
+        "algo": "grpo",
+        "reward": "judge",
+        "reward_detail": "sampled answer accuracy (cover-EM vs aliases), 4 rollouts @T=0.7, z-scored per pool",
+        "reward_model": "Qwen/Qwen2.5-VL-3B-Instruct",
+        "lr": 2e-05,
+        "gold_in_pool": false,
+        "pool_sampling": false,
+        "num_candidates": 8,
+        "max_steps": 500,
+        "contrastive_coef": 0.3,
+        "max_train_rows": "all(~41k)",
+        "profile": "gme2b",
+        "seed": 0
+      },
+      "n_eval_retrieval": 2701,
+      "n_eval_answer_level": 2696,
+      "entity_R": {
+        "1": 0.5546,
+        "5": 0.7908,
+        "10": 0.8526
+      },
+      "answer_R": {
+        "1": 0.3283,
+        "5": 0.595,
+        "10": 0.7025
+      },
+      "label": "[no-gold]",
+      "supervision_note": "annotation-free: pure top-N pools, InfoNCE positive = self-labeled top-1",
+      "vqa": {
+        "top5": {
+          "acc": 0.398,
+          "f1": 0.3345,
+          "n": 1500,
+          "strict_em": 0.2247,
+          "metric_version": "v2-token-boundary",
+          "reader": "Qwen2.5-VL-7B-Instruct",
+          "acc_by_split": {
+            "all": 0.398
+          }
+        }
+      }
+    },
+    {
+      "name": "rl-judge-nogold-frozen",
+      "dataset": "infoseek",
+      "eval_of": null,
+      "axes": {
+        "arm": "rl",
+        "algo": "grpo",
+        "reward": "judge",
+        "reward_detail": "sampled answer accuracy (cover-EM vs aliases), 4 rollouts @T=0.7, z-scored per pool",
+        "reward_model": "Qwen/Qwen2.5-VL-3B-Instruct",
+        "lr": 2e-05,
+        "gold_in_pool": false,
+        "pool_sampling": false,
+        "num_candidates": 8,
+        "max_steps": 500,
+        "contrastive_coef": 0.3,
+        "max_train_rows": "all(~41k)",
+        "profile": "gme2b",
+        "seed": 0
+      },
+      "n_eval_retrieval": 3000,
+      "n_eval_answer_level": 2450,
+      "entity_R": {
+        "1": 0.569,
+        "5": 0.7843,
+        "10": 0.8423
+      },
+      "answer_R": {
+        "1": 0.3927,
+        "5": 0.6302,
+        "10": 0.702
+      },
+      "label": "[no-gold]",
+      "supervision_note": "annotation-free: pure top-N pools, InfoNCE positive = self-labeled top-1",
+      "vqa": {
+        "top5": {
+          "acc": 0.336,
+          "f1": 0.3432,
+          "n": 1500,
+          "strict_em": 0.26,
+          "metric_version": "v2-token-boundary",
+          "reader": "Qwen2.5-VL-7B-Instruct",
+          "acc_by_split": {
+            "val_unseen_entity": 0.3414,
+            "val_unseen_question": 0.3203
+          }
+        }
+      }
+    },
+    {
+      "name": "rl-judge-roll1",
+      "dataset": "infoseek",
+      "eval_of": null,
+      "axes": {
+        "arm": "rl",
+        "algo": "grpo",
+        "reward": "judge",
+        "reward_detail": "sampled answer accuracy (cover-EM vs aliases), 1 rollouts @T=0.0, z-scored per pool",
+        "reward_model": "Qwen/Qwen2.5-VL-3B-Instruct",
+        "lr": 2e-05,
+        "gold_in_pool": true,
+        "pool_sampling": false,
+        "num_candidates": 8,
+        "max_steps": 500,
+        "contrastive_coef": 0.3,
+        "max_train_rows": "all(~41k)",
+        "profile": "gme2b",
+        "seed": 0
+      },
+      "n_eval_retrieval": 3000,
+      "n_eval_answer_level": 2450,
+      "entity_R": {
+        "1": 0.6103,
+        "5": 0.8087,
+        "10": 0.869
+      },
+      "answer_R": {
+        "1": 0.4233,
+        "5": 0.6755,
+        "10": 0.7661
+      },
+      "label": "[gold]",
+      "supervision_note": "gold passage force-inserted at pool slot 0 AND used as the InfoNCE-anchor positive -> same supervision level as SFT",
+      "vqa": {
+        "top5": {
+          "acc": 0.344,
+          "f1": 0.3481,
+          "n": 1500,
+          "strict_em": 0.2607,
+          "metric_version": "v2-token-boundary",
+          "reader": "Qwen2.5-VL-7B-Instruct",
+          "acc_by_split": {
+            "val_unseen_entity": 0.3423,
+            "val_unseen_question": 0.349
+          }
+        }
+      }
+    },
+    {
+      "name": "rl-judge7b-nogold-lr2e5",
+      "dataset": "infoseek",
+      "eval_of": null,
+      "axes": {
+        "arm": "rl",
+        "algo": "grpo",
+        "reward": "judge",
+        "reward_detail": "sampled answer accuracy (cover-EM vs aliases), 4 rollouts @T=0.7, z-scored per pool",
+        "reward_model": "Qwen/Qwen2.5-VL-3B-Instruct",
+        "lr": 2e-05,
+        "gold_in_pool": false,
+        "pool_sampling": false,
+        "num_candidates": 8,
+        "max_steps": 500,
+        "contrastive_coef": 0.3,
+        "max_train_rows": "all(~41k)",
+        "profile": "gme2b",
+        "seed": 0
+      },
+      "n_eval_retrieval": 3000,
+      "n_eval_answer_level": 2450,
+      "entity_R": {
+        "1": 0.5827,
+        "5": 0.785,
+        "10": 0.8483
+      },
+      "answer_R": {
+        "1": 0.3878,
+        "5": 0.6163,
+        "10": 0.7082
+      },
+      "label": "[no-gold]",
+      "supervision_note": "annotation-free: pure top-N pools, InfoNCE positive = self-labeled top-1",
+      "vqa": {
+        "top5": {
+          "acc": 0.3373,
+          "f1": 0.336,
+          "n": 1500,
+          "strict_em": 0.2513,
+          "metric_version": "v2-token-boundary",
+          "reader": "Qwen2.5-VL-7B-Instruct",
+          "acc_by_split": {
+            "val_unseen_entity": 0.336,
+            "val_unseen_question": 0.3411
+          }
+        }
+      }
+    },
+    {
       "name": "rl-logit2e5-full",
       "dataset": "infoseek",
       "eval_of": "rl-grpo-logit-lr2e5",
@@ -1012,6 +2425,104 @@
       }
     },
     {
+      "name": "rl-logit2e5-nogold-det",
+      "dataset": "infoseek",
+      "eval_of": null,
+      "axes": {
+        "arm": "rl",
+        "algo": "grpo",
+        "reward": "logit",
+        "reward_detail": "teacher-forced mean logP(answer|image,question,passage), z-scored per pool",
+        "reward_model": "Qwen/Qwen2.5-VL-3B-Instruct",
+        "lr": 2e-05,
+        "gold_in_pool": false,
+        "pool_sampling": false,
+        "num_candidates": 8,
+        "max_steps": 500,
+        "contrastive_coef": 0.3,
+        "max_train_rows": "all(~41k)",
+        "profile": "gme2b",
+        "seed": 0
+      },
+      "n_eval_retrieval": 3000,
+      "n_eval_answer_level": 2450,
+      "entity_R": {
+        "1": 0.564,
+        "5": 0.7493,
+        "10": 0.8113
+      },
+      "answer_R": {
+        "1": 0.3441,
+        "5": 0.5404,
+        "10": 0.6388
+      },
+      "label": "[no-gold]",
+      "supervision_note": "annotation-free: pure top-N pools, InfoNCE positive = self-labeled top-1",
+      "vqa": {
+        "top5": {
+          "acc": 0.3153,
+          "f1": 0.3158,
+          "n": 1500,
+          "strict_em": 0.232,
+          "metric_version": "v2-token-boundary",
+          "reader": "Qwen2.5-VL-7B-Instruct",
+          "acc_by_split": {
+            "val_unseen_entity": 0.3073,
+            "val_unseen_question": 0.3385
+          }
+        }
+      }
+    },
+    {
+      "name": "rl-mix2e5-gold",
+      "dataset": "infoseek",
+      "eval_of": null,
+      "axes": {
+        "arm": "rl",
+        "algo": "grpo",
+        "reward": "mix",
+        "reward_detail": "sampled answer accuracy (cover-EM vs aliases), 4 rollouts @T=0.7, z-scored per pool",
+        "reward_model": "Qwen/Qwen2.5-VL-3B-Instruct",
+        "lr": 2e-05,
+        "gold_in_pool": true,
+        "pool_sampling": false,
+        "num_candidates": 8,
+        "max_steps": 500,
+        "contrastive_coef": 0.3,
+        "max_train_rows": "all(~41k)",
+        "profile": "gme2b",
+        "seed": 0
+      },
+      "n_eval_retrieval": 3000,
+      "n_eval_answer_level": 2450,
+      "entity_R": {
+        "1": 0.624,
+        "5": 0.749,
+        "10": 0.8007
+      },
+      "answer_R": {
+        "1": 0.3682,
+        "5": 0.602,
+        "10": 0.6931
+      },
+      "label": "[gold]",
+      "supervision_note": "gold passage force-inserted at pool slot 0 AND used as the InfoNCE-anchor positive -> same supervision level as SFT",
+      "vqa": {
+        "top5": {
+          "acc": 0.3327,
+          "f1": 0.3346,
+          "n": 1500,
+          "strict_em": 0.2427,
+          "metric_version": "v2-token-boundary",
+          "reader": "Qwen2.5-VL-7B-Instruct",
+          "acc_by_split": {
+            "val_unseen_entity": 0.3217,
+            "val_unseen_question": 0.3646
+          }
+        }
+      }
+    },
+    {
       "name": "rl-ppo-judge-lr2e5",
       "dataset": "infoseek",
       "eval_of": null,
@@ -1034,17 +2545,31 @@
       "n_eval_retrieval": 3000,
       "n_eval_answer_level": 2450,
       "entity_R": {
-        "1": 0.6037,
-        "5": 0.798,
-        "10": 0.8617
+        "1": 0.6067,
+        "5": 0.799,
+        "10": 0.8653
       },
       "answer_R": {
         "1": 0.4171,
-        "5": 0.6665,
-        "10": 0.7612
+        "5": 0.6751,
+        "10": 0.7637
       },
       "label": "[gold]",
-      "supervision_note": "gold passage force-inserted at pool slot 0 AND used as the InfoNCE-anchor positive -> same supervision level as SFT"
+      "supervision_note": "gold passage force-inserted at pool slot 0 AND used as the InfoNCE-anchor positive -> same supervision level as SFT",
+      "vqa": {
+        "top5": {
+          "acc": 0.3373,
+          "f1": 0.3422,
+          "n": 1500,
+          "strict_em": 0.2547,
+          "metric_version": "v2-token-boundary",
+          "reader": "Qwen2.5-VL-7B-Instruct",
+          "acc_by_split": {
+            "val_unseen_entity": 0.3324,
+            "val_unseen_question": 0.3516
+          }
+        }
+      }
     },
     {
       "name": "rl-ppo-logit-lr2e5",
@@ -1096,6 +2621,544 @@
       }
     },
     {
+      "name": "rl-ragacc-gold-lr2e5",
+      "dataset": "infoseek",
+      "eval_of": null,
+      "axes": {
+        "arm": "rl",
+        "algo": "grpo",
+        "reward": "ragacc",
+        "reward_detail": "sampled answer accuracy (cover-EM vs aliases), 4 rollouts @T=0.7, z-scored per pool",
+        "reward_model": "Qwen/Qwen2.5-VL-3B-Instruct",
+        "lr": 2e-05,
+        "gold_in_pool": true,
+        "pool_sampling": false,
+        "num_candidates": 8,
+        "max_steps": 500,
+        "contrastive_coef": 0.3,
+        "max_train_rows": "all(~41k)",
+        "profile": "gme2b",
+        "seed": 0
+      },
+      "n_eval_retrieval": 3000,
+      "n_eval_answer_level": 2450,
+      "entity_R": {
+        "1": 0.3713,
+        "5": 0.6157,
+        "10": 0.7063
+      },
+      "answer_R": {
+        "1": 0.2229,
+        "5": 0.44,
+        "10": 0.5298
+      },
+      "label": "[gold]",
+      "supervision_note": "gold passage force-inserted at pool slot 0 AND used as the InfoNCE-anchor positive -> same supervision level as SFT",
+      "vqa": {
+        "top5": {
+          "acc": 0.2787,
+          "f1": 0.2865,
+          "n": 1500,
+          "strict_em": 0.2193,
+          "metric_version": "v2-token-boundary",
+          "reader": "Qwen2.5-VL-7B-Instruct",
+          "acc_by_split": {
+            "val_unseen_entity": 0.2778,
+            "val_unseen_question": 0.2812
+          }
+        }
+      }
+    },
+    {
+      "name": "rl-ragacc-nogold-N16",
+      "dataset": "infoseek",
+      "eval_of": null,
+      "axes": {
+        "arm": "rl",
+        "algo": "grpo",
+        "reward": "ragacc",
+        "reward_detail": "sampled answer accuracy (cover-EM vs aliases), 4 rollouts @T=0.7, z-scored per pool",
+        "reward_model": "Qwen/Qwen2.5-VL-3B-Instruct",
+        "lr": 2e-05,
+        "gold_in_pool": false,
+        "pool_sampling": false,
+        "num_candidates": 16,
+        "max_steps": 500,
+        "contrastive_coef": 0.3,
+        "max_train_rows": "all(~41k)",
+        "profile": "gme2b",
+        "seed": 0
+      },
+      "n_eval_retrieval": 3000,
+      "n_eval_answer_level": 2450,
+      "entity_R": {
+        "1": 0.427,
+        "5": 0.668,
+        "10": 0.7337
+      },
+      "answer_R": {
+        "1": 0.2555,
+        "5": 0.482,
+        "10": 0.5747
+      },
+      "label": "[no-gold]",
+      "supervision_note": "annotation-free: pure top-N pools, InfoNCE positive = self-labeled top-1",
+      "vqa": {
+        "top5": {
+          "acc": 0.2927,
+          "f1": 0.3041,
+          "n": 1500,
+          "strict_em": 0.2313,
+          "metric_version": "v2-token-boundary",
+          "reader": "Qwen2.5-VL-7B-Instruct",
+          "acc_by_split": {
+            "val_unseen_entity": 0.293,
+            "val_unseen_question": 0.2917
+          }
+        }
+      }
+    },
+    {
+      "name": "rl-ragacc-nogold-frozen",
+      "dataset": "infoseek",
+      "eval_of": null,
+      "axes": {
+        "arm": "rl",
+        "algo": "grpo",
+        "reward": "ragacc",
+        "reward_detail": "sampled answer accuracy (cover-EM vs aliases), 4 rollouts @T=0.7, z-scored per pool",
+        "reward_model": "Qwen/Qwen2.5-VL-3B-Instruct",
+        "lr": 2e-05,
+        "gold_in_pool": false,
+        "pool_sampling": false,
+        "num_candidates": 8,
+        "max_steps": 500,
+        "contrastive_coef": 0.3,
+        "max_train_rows": "all(~41k)",
+        "profile": "gme2b",
+        "seed": 0
+      },
+      "n_eval_retrieval": 3000,
+      "n_eval_answer_level": 2450,
+      "entity_R": {
+        "1": 0.2473,
+        "5": 0.4693,
+        "10": 0.563
+      },
+      "answer_R": {
+        "1": 0.1641,
+        "5": 0.3506,
+        "10": 0.4331
+      },
+      "label": "[no-gold]",
+      "supervision_note": "annotation-free: pure top-N pools, InfoNCE positive = self-labeled top-1",
+      "vqa": {
+        "top5": {
+          "acc": 0.256,
+          "f1": 0.2619,
+          "n": 1500,
+          "strict_em": 0.1953,
+          "metric_version": "v2-token-boundary",
+          "reader": "Qwen2.5-VL-7B-Instruct",
+          "acc_by_split": {
+            "val_unseen_entity": 0.2581,
+            "val_unseen_question": 0.25
+          }
+        }
+      }
+    },
+    {
+      "name": "rl-ragacc-nogold-lr1e5",
+      "dataset": "infoseek",
+      "eval_of": null,
+      "axes": {
+        "arm": "rl",
+        "algo": "grpo",
+        "reward": "ragacc",
+        "reward_detail": "sampled answer accuracy (cover-EM vs aliases), 4 rollouts @T=0.7, z-scored per pool",
+        "reward_model": "Qwen/Qwen2.5-VL-3B-Instruct",
+        "lr": 1e-05,
+        "gold_in_pool": false,
+        "pool_sampling": false,
+        "num_candidates": 8,
+        "max_steps": 500,
+        "contrastive_coef": 0.3,
+        "max_train_rows": "all(~41k)",
+        "profile": "gme2b",
+        "seed": 0
+      },
+      "n_eval_retrieval": 3000,
+      "n_eval_answer_level": 2450,
+      "entity_R": {
+        "1": 0.1083,
+        "5": 0.3853,
+        "10": 0.5277
+      },
+      "answer_R": {
+        "1": 0.0649,
+        "5": 0.2433,
+        "10": 0.3657
+      },
+      "label": "[no-gold]",
+      "supervision_note": "annotation-free: pure top-N pools, InfoNCE positive = self-labeled top-1",
+      "vqa": {
+        "top5": {
+          "acc": 0.21,
+          "f1": 0.2251,
+          "n": 1500,
+          "strict_em": 0.1733,
+          "metric_version": "v2-token-boundary",
+          "reader": "Qwen2.5-VL-7B-Instruct",
+          "acc_by_split": {
+            "val_unseen_entity": 0.207,
+            "val_unseen_question": 0.2188
+          }
+        }
+      }
+    },
+    {
+      "name": "rl-ragacc-nogold-lr2e5-evqa",
+      "dataset": "evqa",
+      "eval_of": "rl-ragacc-nogold-lr2e5",
+      "axes": {
+        "arm": "rl",
+        "algo": "grpo",
+        "reward": "ragacc",
+        "reward_detail": "sampled answer accuracy (cover-EM vs aliases), 4 rollouts @T=0.7, z-scored per pool",
+        "reward_model": "Qwen/Qwen2.5-VL-3B-Instruct",
+        "lr": 2e-05,
+        "gold_in_pool": false,
+        "pool_sampling": false,
+        "num_candidates": 8,
+        "max_steps": 500,
+        "contrastive_coef": 0.3,
+        "max_train_rows": "all(~41k)",
+        "profile": "gme2b",
+        "seed": 0
+      },
+      "n_eval_retrieval": 2701,
+      "n_eval_answer_level": 2696,
+      "entity_R": {
+        "1": 0.0004,
+        "5": 0.0007,
+        "10": 0.0007
+      },
+      "answer_R": {
+        "1": 0.0,
+        "5": 0.0,
+        "10": 0.0
+      },
+      "label": "[no-gold]",
+      "supervision_note": "annotation-free: pure top-N pools, InfoNCE positive = self-labeled top-1",
+      "vqa": {
+        "top5": {
+          "acc": 0.0967,
+          "f1": 0.0753,
+          "n": 1500,
+          "strict_em": 0.0433,
+          "metric_version": "v2-token-boundary",
+          "reader": "Qwen2.5-VL-7B-Instruct",
+          "acc_by_split": {
+            "all": 0.0967
+          }
+        }
+      }
+    },
+    {
+      "name": "rl-ragacc-nogold-lr2e5-s1",
+      "dataset": "infoseek",
+      "eval_of": null,
+      "axes": {
+        "arm": "rl",
+        "algo": "grpo",
+        "reward": "ragacc",
+        "reward_detail": "sampled answer accuracy (cover-EM vs aliases), 4 rollouts @T=0.7, z-scored per pool",
+        "reward_model": "Qwen/Qwen2.5-VL-3B-Instruct",
+        "lr": 2e-05,
+        "gold_in_pool": false,
+        "pool_sampling": false,
+        "num_candidates": 8,
+        "max_steps": 500,
+        "contrastive_coef": 0.3,
+        "max_train_rows": "all(~41k)",
+        "profile": "gme2b",
+        "seed": 1
+      },
+      "n_eval_retrieval": 3000,
+      "n_eval_answer_level": 2450,
+      "entity_R": {
+        "1": 0.2827,
+        "5": 0.5633,
+        "10": 0.6733
+      },
+      "answer_R": {
+        "1": 0.1792,
+        "5": 0.4029,
+        "10": 0.5094
+      },
+      "label": "[no-gold]",
+      "supervision_note": "annotation-free: pure top-N pools, InfoNCE positive = self-labeled top-1",
+      "vqa": {
+        "top5": {
+          "acc": 0.2653,
+          "f1": 0.2762,
+          "n": 1500,
+          "strict_em": 0.208,
+          "metric_version": "v2-token-boundary",
+          "reader": "Qwen2.5-VL-7B-Instruct",
+          "acc_by_split": {
+            "val_unseen_entity": 0.2545,
+            "val_unseen_question": 0.2969
+          }
+        }
+      }
+    },
+    {
+      "name": "rl-ragacc-nogold-lr2e5",
+      "dataset": "infoseek",
+      "eval_of": null,
+      "axes": {
+        "arm": "rl",
+        "algo": "grpo",
+        "reward": "ragacc",
+        "reward_detail": "sampled answer accuracy (cover-EM vs aliases), 4 rollouts @T=0.7, z-scored per pool",
+        "reward_model": "Qwen/Qwen2.5-VL-3B-Instruct",
+        "lr": 2e-05,
+        "gold_in_pool": false,
+        "pool_sampling": false,
+        "num_candidates": 8,
+        "max_steps": 500,
+        "contrastive_coef": 0.3,
+        "max_train_rows": "all(~41k)",
+        "profile": "gme2b",
+        "seed": 0
+      },
+      "n_eval_retrieval": 3000,
+      "n_eval_answer_level": 2450,
+      "entity_R": {
+        "1": 0.0007,
+        "5": 0.0017,
+        "10": 0.0023
+      },
+      "answer_R": {
+        "1": 0.0008,
+        "5": 0.002,
+        "10": 0.0029
+      },
+      "label": "[no-gold]",
+      "supervision_note": "annotation-free: pure top-N pools, InfoNCE positive = self-labeled top-1",
+      "vqa": {
+        "top5": {
+          "acc": 0.148,
+          "f1": 0.1559,
+          "n": 1500,
+          "strict_em": 0.1113,
+          "metric_version": "v2-token-boundary",
+          "reader": "Qwen2.5-VL-7B-Instruct",
+          "acc_by_split": {
+            "val_unseen_entity": 0.1532,
+            "val_unseen_question": 0.1328
+          }
+        }
+      }
+    },
+    {
+      "name": "rl-ragacc7b-gold-lr2e5",
+      "dataset": "infoseek",
+      "eval_of": null,
+      "axes": {
+        "arm": "rl",
+        "algo": "grpo",
+        "reward": "ragacc",
+        "reward_detail": "sampled answer accuracy (cover-EM vs aliases), 4 rollouts @T=0.7, z-scored per pool",
+        "reward_model": "Qwen/Qwen2.5-VL-3B-Instruct",
+        "lr": 2e-05,
+        "gold_in_pool": true,
+        "pool_sampling": false,
+        "num_candidates": 8,
+        "max_steps": 500,
+        "contrastive_coef": 0.3,
+        "max_train_rows": "all(~41k)",
+        "profile": "gme2b",
+        "seed": 0
+      },
+      "n_eval_retrieval": 3000,
+      "n_eval_answer_level": 2450,
+      "entity_R": {
+        "1": 0.548,
+        "5": 0.787,
+        "10": 0.8527
+      },
+      "answer_R": {
+        "1": 0.3645,
+        "5": 0.6086,
+        "10": 0.7016
+      },
+      "label": "[gold]",
+      "supervision_note": "gold passage force-inserted at pool slot 0 AND used as the InfoNCE-anchor positive -> same supervision level as SFT",
+      "vqa": {
+        "top5": {
+          "acc": 0.3247,
+          "f1": 0.3276,
+          "n": 1500,
+          "strict_em": 0.2487,
+          "metric_version": "v2-token-boundary",
+          "reader": "Qwen2.5-VL-7B-Instruct",
+          "acc_by_split": {
+            "val_unseen_entity": 0.3217,
+            "val_unseen_question": 0.3333
+          }
+        }
+      }
+    },
+    {
+      "name": "rl-ragacc7b-nogold-lr2e5",
+      "dataset": "infoseek",
+      "eval_of": null,
+      "axes": {
+        "arm": "rl",
+        "algo": "grpo",
+        "reward": "ragacc",
+        "reward_detail": "sampled answer accuracy (cover-EM vs aliases), 4 rollouts @T=0.7, z-scored per pool",
+        "reward_model": "Qwen/Qwen2.5-VL-3B-Instruct",
+        "lr": 2e-05,
+        "gold_in_pool": false,
+        "pool_sampling": false,
+        "num_candidates": 8,
+        "max_steps": 500,
+        "contrastive_coef": 0.3,
+        "max_train_rows": "all(~41k)",
+        "profile": "gme2b",
+        "seed": 0
+      },
+      "n_eval_retrieval": 3000,
+      "n_eval_answer_level": 2450,
+      "entity_R": {
+        "1": 0.159,
+        "5": 0.403,
+        "10": 0.5093
+      },
+      "answer_R": {
+        "1": 0.0914,
+        "5": 0.2808,
+        "10": 0.3784
+      },
+      "label": "[no-gold]",
+      "supervision_note": "annotation-free: pure top-N pools, InfoNCE positive = self-labeled top-1",
+      "vqa": {
+        "top5": {
+          "acc": 0.2273,
+          "f1": 0.2431,
+          "n": 1500,
+          "strict_em": 0.1773,
+          "metric_version": "v2-token-boundary",
+          "reader": "Qwen2.5-VL-7B-Instruct",
+          "acc_by_split": {
+            "val_unseen_entity": 0.2249,
+            "val_unseen_question": 0.2344
+          }
+        }
+      }
+    },
+    {
+      "name": "rl7b-j-lr1e5",
+      "dataset": "infoseek",
+      "eval_of": null,
+      "axes": {
+        "arm": "rl",
+        "algo": "grpo",
+        "reward": "judge",
+        "reward_detail": "sampled answer accuracy (cover-EM vs aliases), 4 rollouts @T=0.7, z-scored per pool",
+        "reward_model": "Qwen/Qwen2.5-VL-3B-Instruct",
+        "lr": 1e-05,
+        "gold_in_pool": true,
+        "pool_sampling": false,
+        "num_candidates": 8,
+        "max_steps": 500,
+        "contrastive_coef": 0.3,
+        "max_train_rows": "all(~41k)",
+        "profile": "gme7b",
+        "seed": 0
+      },
+      "n_eval_retrieval": 3000,
+      "n_eval_answer_level": 2450,
+      "entity_R": {
+        "1": 0.6537,
+        "5": 0.83,
+        "10": 0.8783
+      },
+      "answer_R": {
+        "1": 0.4653,
+        "5": 0.7073,
+        "10": 0.7935
+      },
+      "label": "[gold]",
+      "supervision_note": "gold passage force-inserted at pool slot 0 AND used as the InfoNCE-anchor positive -> same supervision level as SFT",
+      "vqa": {
+        "top5": {
+          "acc": 0.3587,
+          "f1": 0.3548,
+          "n": 1500,
+          "strict_em": 0.2653,
+          "metric_version": "v2-token-boundary",
+          "reader": "Qwen2.5-VL-7B-Instruct",
+          "acc_by_split": {
+            "val_unseen_entity": 0.3504,
+            "val_unseen_question": 0.3828
+          }
+        }
+      }
+    },
+    {
+      "name": "rl7b-j-lr5e6",
+      "dataset": "infoseek",
+      "eval_of": null,
+      "axes": {
+        "arm": "rl",
+        "algo": "grpo",
+        "reward": "judge",
+        "reward_detail": "sampled answer accuracy (cover-EM vs aliases), 4 rollouts @T=0.7, z-scored per pool",
+        "reward_model": "Qwen/Qwen2.5-VL-3B-Instruct",
+        "lr": 5e-06,
+        "gold_in_pool": true,
+        "pool_sampling": false,
+        "num_candidates": 8,
+        "max_steps": 500,
+        "contrastive_coef": 0.3,
+        "max_train_rows": "all(~41k)",
+        "profile": "gme7b",
+        "seed": 0
+      },
+      "n_eval_retrieval": 3000,
+      "n_eval_answer_level": 2450,
+      "entity_R": {
+        "1": 0.6417,
+        "5": 0.8337,
+        "10": 0.883
+      },
+      "answer_R": {
+        "1": 0.4624,
+        "5": 0.7082,
+        "10": 0.7943
+      },
+      "label": "[gold]",
+      "supervision_note": "gold passage force-inserted at pool slot 0 AND used as the InfoNCE-anchor positive -> same supervision level as SFT",
+      "vqa": {
+        "top5": {
+          "acc": 0.3473,
+          "f1": 0.3449,
+          "n": 1500,
+          "strict_em": 0.26,
+          "metric_version": "v2-token-boundary",
+          "reader": "Qwen2.5-VL-7B-Instruct",
+          "acc_by_split": {
+            "val_unseen_entity": 0.3387,
+            "val_unseen_question": 0.3724
+          }
+        }
+      }
+    },
+    {
       "name": "sft-lr1e4-evqa",
       "dataset": "evqa",
       "eval_of": "sft-lr1e4-h0",
@@ -1128,6 +3191,84 @@
           "reader": "Qwen2.5-VL-7B-Instruct",
           "acc_by_split": {
             "all": 0.3953
+          }
+        }
+      }
+    },
+    {
+      "name": "sft-lr1e4-evqaonly-evqa",
+      "dataset": "evqa",
+      "eval_of": "sft-lr1e4only",
+      "axes": {
+        "arm": "sft",
+        "lr": "?",
+        "num_hard_negs": "?",
+        "profile": "gme2b",
+        "note": "axes parsed from name (pre-args.json run)"
+      },
+      "n_eval_retrieval": 2701,
+      "n_eval_answer_level": 2696,
+      "entity_R": {
+        "1": 0.6098,
+        "5": 0.8093,
+        "10": 0.8656
+      },
+      "answer_R": {
+        "1": 0.4811,
+        "5": 0.7255,
+        "10": 0.7975
+      },
+      "vqa": {
+        "top5": {
+          "acc": 0.45,
+          "f1": 0.3739,
+          "n": 1500,
+          "strict_em": 0.2593,
+          "metric_version": "v2-token-boundary",
+          "reader": "Qwen2.5-VL-7B-Instruct",
+          "acc_by_split": {
+            "all": 0.45
+          }
+        }
+      }
+    },
+    {
+      "name": "sft-lr1e4-evqaonly",
+      "dataset": "evqa",
+      "eval_of": "sft-lr1e4only",
+      "axes": {
+        "arm": "sft",
+        "lr": 0.0001,
+        "num_hard_negs": 0,
+        "max_steps": 600,
+        "batch_size": 24,
+        "max_train_rows": "all(~41k)",
+        "profile": "gme2b",
+        "seed": 0
+      },
+      "n_eval_retrieval": 3000,
+      "n_eval_answer_level": 2450,
+      "entity_R": {
+        "1": 0.561,
+        "5": 0.7447,
+        "10": 0.813
+      },
+      "answer_R": {
+        "1": 0.3824,
+        "5": 0.6086,
+        "10": 0.7033
+      },
+      "vqa": {
+        "top5": {
+          "acc": 0.3167,
+          "f1": 0.3246,
+          "n": 1500,
+          "strict_em": 0.2433,
+          "metric_version": "v2-token-boundary",
+          "reader": "Qwen2.5-VL-7B-Instruct",
+          "acc_by_split": {
+            "val_unseen_entity": 0.3127,
+            "val_unseen_question": 0.3281
           }
         }
       }
@@ -1166,6 +3307,88 @@
           "acc_by_split": {
             "val_unseen_entity": 0.302,
             "val_unseen_question": 0.3151
+          }
+        }
+      }
+    },
+    {
+      "name": "sft-lr1e4-h0-rows20k",
+      "dataset": "infoseek",
+      "eval_of": null,
+      "axes": {
+        "arm": "sft",
+        "lr": 0.0001,
+        "num_hard_negs": 0,
+        "max_steps": 600,
+        "batch_size": 24,
+        "max_train_rows": 20000,
+        "profile": "gme2b",
+        "seed": 0
+      },
+      "n_eval_retrieval": 3000,
+      "n_eval_answer_level": 2450,
+      "entity_R": {
+        "1": 0.5987,
+        "5": 0.745,
+        "10": 0.7987
+      },
+      "answer_R": {
+        "1": 0.3163,
+        "5": 0.5718,
+        "10": 0.6735
+      },
+      "vqa": {
+        "top5": {
+          "acc": 0.3107,
+          "f1": 0.3124,
+          "n": 1500,
+          "strict_em": 0.2327,
+          "metric_version": "v2-token-boundary",
+          "reader": "Qwen2.5-VL-7B-Instruct",
+          "acc_by_split": {
+            "val_unseen_entity": 0.3073,
+            "val_unseen_question": 0.3203
+          }
+        }
+      }
+    },
+    {
+      "name": "sft-lr1e4-h0-rows2k-s1",
+      "dataset": "infoseek",
+      "eval_of": null,
+      "axes": {
+        "arm": "sft",
+        "lr": 0.0001,
+        "num_hard_negs": 0,
+        "max_steps": 600,
+        "batch_size": 24,
+        "max_train_rows": 2000,
+        "profile": "gme2b",
+        "seed": 1
+      },
+      "n_eval_retrieval": 3000,
+      "n_eval_answer_level": 2450,
+      "entity_R": {
+        "1": 0.6127,
+        "5": 0.7457,
+        "10": 0.8023
+      },
+      "answer_R": {
+        "1": 0.342,
+        "5": 0.5763,
+        "10": 0.68
+      },
+      "vqa": {
+        "top5": {
+          "acc": 0.32,
+          "f1": 0.3246,
+          "n": 1500,
+          "strict_em": 0.2407,
+          "metric_version": "v2-token-boundary",
+          "reader": "Qwen2.5-VL-7B-Instruct",
+          "acc_by_split": {
+            "val_unseen_entity": 0.3118,
+            "val_unseen_question": 0.3438
           }
         }
       }
@@ -1438,6 +3661,87 @@
       }
     },
     {
+      "name": "sft-lr1e4-mix-evqa",
+      "dataset": "evqa",
+      "eval_of": "sft-lr1e4-mix",
+      "axes": {
+        "arm": "sft",
+        "lr": 0.0001,
+        "num_hard_negs": 0,
+        "max_steps": 600,
+        "batch_size": 24,
+        "max_train_rows": "all(~41k)",
+        "profile": "gme2b",
+        "seed": 0
+      },
+      "n_eval_retrieval": 2701,
+      "n_eval_answer_level": 2696,
+      "entity_R": {
+        "1": 0.585,
+        "5": 0.786,
+        "10": 0.8508
+      },
+      "answer_R": {
+        "1": 0.4058,
+        "5": 0.6721,
+        "10": 0.7659
+      },
+      "vqa": {
+        "top5": {
+          "acc": 0.4467,
+          "f1": 0.3657,
+          "n": 1500,
+          "strict_em": 0.2513,
+          "metric_version": "v2-token-boundary",
+          "reader": "Qwen2.5-VL-7B-Instruct",
+          "acc_by_split": {
+            "all": 0.4467
+          }
+        }
+      }
+    },
+    {
+      "name": "sft-lr1e4-mix",
+      "dataset": "infoseek",
+      "eval_of": null,
+      "axes": {
+        "arm": "sft",
+        "lr": 0.0001,
+        "num_hard_negs": 0,
+        "max_steps": 600,
+        "batch_size": 24,
+        "max_train_rows": "all(~41k)",
+        "profile": "gme2b",
+        "seed": 0
+      },
+      "n_eval_retrieval": 3000,
+      "n_eval_answer_level": 2450,
+      "entity_R": {
+        "1": 0.6,
+        "5": 0.7573,
+        "10": 0.82
+      },
+      "answer_R": {
+        "1": 0.3849,
+        "5": 0.6355,
+        "10": 0.7233
+      },
+      "vqa": {
+        "top5": {
+          "acc": 0.328,
+          "f1": 0.3337,
+          "n": 1500,
+          "strict_em": 0.2467,
+          "metric_version": "v2-token-boundary",
+          "reader": "Qwen2.5-VL-7B-Instruct",
+          "acc_by_split": {
+            "val_unseen_entity": 0.3181,
+            "val_unseen_question": 0.3568
+          }
+        }
+      }
+    },
+    {
       "name": "sft-lr2e4-h0",
       "dataset": "infoseek",
       "eval_of": null,
@@ -1606,6 +3910,47 @@
         "1": 0.2527,
         "5": 0.469,
         "10": 0.5878
+      }
+    },
+    {
+      "name": "sft7b-lr5e5-h0",
+      "dataset": "infoseek",
+      "eval_of": null,
+      "axes": {
+        "arm": "sft",
+        "lr": 5e-05,
+        "num_hard_negs": 0,
+        "max_steps": 600,
+        "batch_size": 12,
+        "max_train_rows": "all(~41k)",
+        "profile": "gme7b",
+        "seed": 0
+      },
+      "n_eval_retrieval": 3000,
+      "n_eval_answer_level": 2450,
+      "entity_R": {
+        "1": 0.645,
+        "5": 0.7523,
+        "10": 0.795
+      },
+      "answer_R": {
+        "1": 0.3367,
+        "5": 0.5743,
+        "10": 0.6759
+      },
+      "vqa": {
+        "top5": {
+          "acc": 0.326,
+          "f1": 0.3295,
+          "n": 1500,
+          "strict_em": 0.242,
+          "metric_version": "v2-token-boundary",
+          "reader": "Qwen2.5-VL-7B-Instruct",
+          "acc_by_split": {
+            "val_unseen_entity": 0.3145,
+            "val_unseen_question": 0.3594
+          }
+        }
       }
     },
     {

@@ -28,7 +28,9 @@ class CLIPStyleEncoder:
 
         self.device = device
         self.fusion = fusion
-        self.model = AutoModel.from_pretrained(model_name, torch_dtype=torch.bfloat16)
+        # fp32: these towers are small, and bf16 LoRA training at the high LRs the weak rung
+        # needs went NaN (loss=nan from ~step 35 in the first CLIP RL run)
+        self.model = AutoModel.from_pretrained(model_name, torch_dtype=torch.float32)
         self.processor = AutoProcessor.from_pretrained(model_name)
         tok = self.processor.tokenizer
         # SigLIP tokenizers report model_max_length=1e30 but the text tower has hard positional
@@ -66,7 +68,7 @@ class CLIPStyleEncoder:
 
     def _image_emb(self, images):
         px = self.processor.image_processor(images=images, return_tensors="pt")["pixel_values"]
-        emb = self.model.get_image_features(pixel_values=px.to(self.device, dtype=torch.bfloat16))
+        emb = self.model.get_image_features(pixel_values=px.to(self.device))
         return F.normalize(emb.float(), dim=-1)
 
     def encode_queries(self, questions, images, batch_size=32, grad=False, to_cpu=False):

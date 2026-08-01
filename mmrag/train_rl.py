@@ -241,6 +241,15 @@ def main():
             loss = loss + args.contrastive_coef * nce
             m["loss/infonce"] = nce.item()
 
+        if not torch.isfinite(loss):
+            opt.zero_grad()
+            nan_streak = getattr(main, "_nan_streak", 0) + 1
+            main._nan_streak = nan_streak
+            print(f"step {step:>4} NON-FINITE loss — skipping optimizer step ({nan_streak} in a row)", flush=True)
+            if nan_streak >= 30:
+                sys.exit("ABORT: 30 consecutive non-finite losses — model has diverged")
+            continue
+        main._nan_streak = 0
         loss.backward()
         torch.nn.utils.clip_grad_norm_(params, 1.0)
         opt.step()

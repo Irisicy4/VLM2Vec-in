@@ -89,13 +89,18 @@ def main():
     ap.add_argument("--reward_gate_std", type=float, default=0.0,
                     help="zero the advantage of pools whose raw reward std < this (no signal)")
     # reward
-    ap.add_argument("--reward", choices=["logit", "judge", "ragacc", "gain", "mix"], default="logit",
+    ap.add_argument("--reward", choices=["logit", "judge", "ragacc", "gain", "mix",
+                                         "goldrel", "ansmatch"], default="logit",
                     help="logit/judge score each passage ALONE; ragacc = downstream RAG accuracy: "
                          "sample a k-slate from the policy, reader answers over the JOINT top-k "
                          "context, one scalar reward per query, REINFORCE on the slate members; "
                          "gain = judge(passage) - judge(no context) per query (answer-GAIN: kills "
                          "the spurious reward on queries the reader answers without retrieval); "
-                         "mix = mean of per-pool z-scored judge and logit rewards")
+                         "mix = mean of per-pool z-scored judge and logit rewards; "
+                         "CONTROLS (no reader, benchmark the indirect signal through the SAME RL "
+                         "loop): goldrel = 1 iff passage belongs to the gold entity (direct "
+                         "relevance-label reward); ansmatch = 1 iff an answer alias appears "
+                         "token-bounded in the passage (lexical oracle, answers-only supervision)")
     ap.add_argument("--slate_k", type=int, default=5, help="slate size for --reward ragacc")
     ap.add_argument("--reward_server_url", default=None,
                     help="http://host:port of mmrag/reward_server.py; if set, rewards are fetched "
@@ -138,6 +143,7 @@ def main():
 
     corpus = build_rl_corpus(D, args.corpus, rows, args.n_distractor_articles, args.seed)
     corpus_texts = [p["text"] for p in corpus]
+    text2url = {p["text"]: p["url"] for p in corpus}   # for the goldrel benchmark reward
     print(f"RL corpus: {len(corpus)} passages", flush=True)
 
     enc = load_encoder(args.profile, device=args.device,
@@ -158,7 +164,9 @@ def main():
         [{"params": params, "lr": args.learning_rate},
          {"params": value_head.parameters(), "lr": args.value_head_lr, "weight_decay": 0.0}])
 
-    if args.reward_server_url:
+    if args.reward in ("goldrel", "ansmatch"):
+        reader = None  # gold-derived benchmark rewards need no reader
+    elif args.reward_server_url:
         from mmrag.reward_server import RemoteReader
 
         reader = RemoteReader(args.reward_server_url,
@@ -252,6 +260,25 @@ def main():
                 advantages.scatter_(1, slates, adv_q.unsqueeze(1).expand(-1, k))
                 value_target = advantages.new_zeros(args.batch_size)
                 rewards = advantages  # for logging shape-compat
+            elif args.reward in ("goldrel", "ansmatch"):
+                # gold-derived benchmark rewards: same RL loop, no reader involved
+                from mmrag.reader_vlm import answer_correct as _am
+
+                vals = []
+                for b, r in enumerate(batch):
+                    for c in pools[b]:
+                        if args.reward == "goldrel":
+                            vals.append(1.0 if text2url.get(c) == r["entity_url"] else 0.0)
+                        else:
+                            vals.append(_am(c, r.get("answer_aliases") or [r["answer"]]))
+                rewards = torch.tensor(vals, dtype=torch.float32,
+                                       device=args.device).view(args.batch_size, N)
+                raw_mean, gold_mean = rewards.mean().item(), rewards[:, 0].mean().item()
+                rewards = (rewards - rewards.mean(1, keepdim=True)) / (rewards.std(1, keepdim=True) + 1e-6)
+                if args.algo == "grpo":
+                    advantages, value_target = rewards, rewards.new_zeros(args.batch_size)
+                else:
+                    advantages, value_target = compute_advantages_and_targets(rewards, old_values, old_logps)
             else:
                 if args.reward in ("judge", "gain"):
                     rewards = reader.score_judge(triples, n_rollouts=args.reader_rollouts,

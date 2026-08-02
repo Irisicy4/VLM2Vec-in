@@ -32,7 +32,7 @@ gold-oracle context 0.503. PROVISIONAL pending review. Evidence = run name in
 | E-VQA in-domain | zs/SFT/RL | RL 0.479 > SFT 0.450 > zs 0.426 — replicates on 2nd dataset | m6s |
 | OOD transfer (IS→EVQA) | zs/SFT/gold-RL/no-gold-RL | gold-RL 0.462 > zs 0.426 > no-gold 0.397 ≈ frozen 0.398 > SFT 0.395; **no-gold-mix cells running** (m6ac) | m6q/m6x/m6f |
 | Corpus scale | 422K vs 1.42M passages | ranking preserved (RL-judge 0.328 > logit 0.317 > SFT 0.305 > zs 0.289) | m6h |
-| Statistical significance | paired McNemar + bootstrap, per-question | nogold>SFT SIG per seed; 7B all SIG; gold≈nogold n.s.; 2B-vs-zs alignment eval running (m6ab) | mmrag/significance.py output |
+| Statistical significance | paired McNemar + bootstrap, per-question | nogold>SFT SIG per seed (p=.024/.027); nogold>zs SIG (p=1e-4/5e-4, aligned n=1500); gold-RL>zs p=8e-5; **SFT>zs n.s. (p=0.25)** — direct supervision gives no significant downstream gain, indirect RL does; 7B all SIG; gold≈nogold n.s. | mmrag/significance.py |
 
 Running at ledger time: m6y (nogold s3/s4 + nogold cc0/cc01), m6z (SFT-lr2e4 seeds), m6ab
 (aligned zero-shot), m6ac (no-gold data-mix transfer, 2B×2 + 7B + evqa-only).

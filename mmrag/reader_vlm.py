@@ -73,12 +73,17 @@ class LiveVLMReader:
 
     def __init__(self, model_id="Qwen/Qwen2.5-VL-3B-Instruct", device="cuda:0", batch_size=8,
                  max_ctx_chars=1600, max_pixels=28 * 28 * 576):
-        from transformers import AutoProcessor, Qwen2_5_VLForConditionalGeneration
+        from transformers import AutoConfig, AutoProcessor, Qwen2_5_VLForConditionalGeneration
 
         self.processor = AutoProcessor.from_pretrained(
             model_id, min_pixels=28 * 28 * 4, max_pixels=max_pixels)
         self.processor.tokenizer.padding_side = "left"
-        self.model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
+        cfg = AutoConfig.from_pretrained(model_id)
+        if cfg.model_type == "qwen2_vl":   # reward-reader ladder: plain Qwen2-VL readers
+            from transformers import Qwen2VLForConditionalGeneration as _CLS
+        else:
+            _CLS = Qwen2_5_VLForConditionalGeneration
+        self.model = _CLS.from_pretrained(
             model_id, torch_dtype=torch.bfloat16,
             attn_implementation="flash_attention_2").to(device).eval()
         self.tok = self.processor.tokenizer

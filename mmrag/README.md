@@ -88,9 +88,9 @@ job m6i re-scores headline rows with the v2 token-boundary metric + strict-EM.
 | rl-grpo-judge-lr2e5 (gold-seeded reference) | [gold] | `runs/m4_rl_sweep.sbatch` (5853834) | [Icey444/mmrag-rl-grpo-judge-lr2e5](https://huggingface.co/Icey444/mmrag-rl-grpo-judge-lr2e5) |
 | rl-{grpo,ppo}-logit-lr{2e5,5e5} | [gold] | same job | [Icey444/mmrag-rl-grpo-logit-lr2e5](https://huggingface.co/Icey444/mmrag-rl-grpo-logit-lr2e5) |
 | rl-grpo-judge-lr{1e5,3e5}, rl-ppo-judge, N=16 | [gold] | `runs/m6a_rl_refine.sbatch` (5856650) | scratch runs/ |
-| **grounding×pool 2×2 (gold/nogold × det/sampled) + seed1 — PRIMARY cells** | mixed | `runs/m6b_grounding2x2.sbatch` (5856651) | scratch runs/ (competitive no-gold cell → HF post-review) |
+| **grounding×pool 2×2 (gold/nogold × det/sampled) + seed1 — PRIMARY cells** | mixed | `runs/m6b_grounding2x2.sbatch` (5856651) | **no-gold winner: [Icey444/mmrag-rl-nogold-judge-2b](https://huggingface.co/Icey444/mmrag-rl-nogold-judge-2b)** |
 | data scaling rows{2k,8k} RL vs SFT | [gold] | `runs/m6d_datascale.sbatch` (5856653) | scratch runs/ |
-| GME-7B rung (zs, RL lr{1e-5,5e-6}, SFT) | [gold] | `runs/m6e_7b_ladder.sbatch` (5856654) | scratch runs/ |
+| GME-7B rung (zs, RL lr{1e-5,5e-6}, SFT) | [gold] | `runs/m6e_7b_ladder.sbatch` (5856654) | [Icey444/mmrag-rl-judge-7b](https://huggingface.co/Icey444/mmrag-rl-judge-7b) (0.359, best overall); no-gold: [Icey444/mmrag-rl-nogold-judge-7b](https://huggingface.co/Icey444/mmrag-rl-nogold-judge-7b) |
 | E-VQA OOD transfer (best RL/SFT) | [gold] | `runs/m6f_catchup_ood.sbatch` (5856655) | — |
 | winner ablations (1500 steps, 8 rollouts, cc∈{0,.1}) | [gold] | `runs/m6g_winner_ablate.sbatch` (5856743) | scratch runs/ |
 | full-corpus (1.42M) triple | — | `runs/m6h_fullcorpus.sbatch` (5856744) | — |

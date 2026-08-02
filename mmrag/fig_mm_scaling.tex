@@ -1,0 +1,16 @@
+% Figure block for the multimodal scaling subsection (fig_mm_scaling.pdf).
+% All numbers PROVISIONAL pending review; v2 token-boundary cover-EM, 1500-q fixed eval,
+% Qwen2.5-VL-7B reader over top-5, InfoSeek val, 422K-passage corpus. Whiskers = seed min--max.
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.62\textwidth]{fig_mm_scaling.pdf}
+\caption{\textbf{Multimodal indirect feedback scales; direct supervision does not.} Downstream
+VQA accuracy of the frozen \textsc{Qwen2.5-VL-7B} reader (top-5) for \textsc{GME-Qwen2-VL-2B}
+retrievers trained on nested InfoSeek query subsets at fixed compute (500 updates). Both
+indirect-RL arms rise monotonically with feedback data and exceed the LR-tuned relevance-SFT
+baseline at every size except its 2k point; the annotation-free \textbf{[no-gold]} arm (pools =
+the policy's own top-$N$; supervision = gold answers inside the reward only) matches the
+gold-seeded arm throughout ($p{=}0.93$, McNemar) and beats tuned SFT at full size
+($+2.1$, $p{=}0.024$). Whiskers: seed min--max at the full pool.}
+\label{fig:mm_scaling}
+\end{figure}

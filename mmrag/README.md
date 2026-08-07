@@ -95,7 +95,9 @@ job m6i re-scores headline rows with the v2 token-boundary metric + strict-EM.
 | winner ablations (1500 steps, 8 rollouts, cc∈{0,.1}) | [gold] | `runs/m6g_winner_ablate.sbatch` (5856743) | scratch runs/ |
 | full-corpus (1.42M) triple | — | `runs/m6h_fullcorpus.sbatch` (5856744) | — |
 | metric-v2 rescore + fixed E-VQA gold | — | `runs/m6i_rescore.sbatch` (5856745) | — |
-| seed replicates (RL s2/s3, SFT s1/s2) | [gold] | `runs/m6j_seeds.sbatch` (5856751) | — |
+| seed replicates (RL s2/s3, SFT s1/s2) | [gold] | `runs/m6j_seeds.sbatch` (5856751) | [Icey444/mmrag-rl-nogold-judge-2b-seed3](https://huggingface.co/Icey444/mmrag-rl-nogold-judge-2b-seed3) |
+| **no-gold data-mix (transfer fix)** | [no-gold] | `runs/m6ac_nogold_mix.sbatch` (5874119), `m6ad` (5874353) | [Icey444/mmrag-rl-nogold-mix-2b](https://huggingface.co/Icey444/mmrag-rl-nogold-mix-2b), [Icey444/mmrag-rl-nogold-mix-7b](https://huggingface.co/Icey444/mmrag-rl-nogold-mix-7b) |
+| significance/ablation waves (m6y/z/ab/v/t/r/s/u/o/p/w/x) | mixed | `runs/m6*.sbatch` (see LEDGER.md) | — |
 
 Key facts for interpretation (documented per review):
 - **Exposure asymmetry**: RL visits ~2,000 queries (500 steps × batch 4, ~16K reward calls);

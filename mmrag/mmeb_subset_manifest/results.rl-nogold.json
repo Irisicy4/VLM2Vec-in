@@ -1,0 +1,193 @@
+{
+ "name": "rl-nogold",
+ "checkpoint": "/mnt/bn/tns-algo-video-public-my2/yijiangli/hf_home/hub/models--Icey444--mmrag-rl-nogold-judge-2b/snapshots/66d09f4aa33fc5e35891f9b3b80170b520bcb24e",
+ "subset": "/mnt/bn/tns-algo-video-public-my2/yijiangli/data/mmeb_eval/subset_seed0",
+ "macro_prec@1": 0.4468,
+ "per_task": {
+  "A-OKVQA": {
+   "prec@1": 0.23,
+   "n": 100,
+   "pool": 894
+  },
+  "CIFAR-100": {
+   "prec@1": 0.46,
+   "n": 100,
+   "pool": 100
+  },
+  "CIRR": {
+   "prec@1": 0.08,
+   "n": 100,
+   "pool": 2197
+  },
+  "ChartQA": {
+   "prec@1": 0.13,
+   "n": 100,
+   "pool": 1601
+  },
+  "Country211": {
+   "prec@1": 0.34,
+   "n": 100,
+   "pool": 211
+  },
+  "DocVQA": {
+   "prec@1": 0.18,
+   "n": 100,
+   "pool": 4463
+  },
+  "EDIS": {
+   "prec@1": 0.92,
+   "n": 100,
+   "pool": 3241
+  },
+  "FashionIQ": {
+   "prec@1": 0.03,
+   "n": 100,
+   "pool": 5992
+  },
+  "GQA": {
+   "prec@1": 0.48,
+   "n": 100,
+   "pool": 6850
+  },
+  "HatefulMemes": {
+   "prec@1": 0.47,
+   "n": 100,
+   "pool": 2
+  },
+  "ImageNet-1K": {
+   "prec@1": 0.66,
+   "n": 100,
+   "pool": 1000
+  },
+  "ImageNet-A": {
+   "prec@1": 0.29,
+   "n": 100,
+   "pool": 1000
+  },
+  "ImageNet-R": {
+   "prec@1": 0.86,
+   "n": 100,
+   "pool": 200
+  },
+  "InfographicsVQA": {
+   "prec@1": 0.07,
+   "n": 100,
+   "pool": 1730
+  },
+  "MSCOCO": {
+   "prec@1": 0.26,
+   "n": 100,
+   "pool": 4348
+  },
+  "MSCOCO_i2t": {
+   "prec@1": 0.41,
+   "n": 100,
+   "pool": 4968
+  },
+  "MSCOCO_t2i": {
+   "prec@1": 0.64,
+   "n": 100,
+   "pool": 1002
+  },
+  "N24News": {
+   "prec@1": 0.44,
+   "n": 100,
+   "pool": 24
+  },
+  "NIGHTS": {
+   "prec@1": 0.52,
+   "n": 100,
+   "pool": 2120
+  },
+  "OK-VQA": {
+   "prec@1": 0.22,
+   "n": 100,
+   "pool": 2555
+  },
+  "OVEN": {
+   "prec@1": 0.64,
+   "n": 100,
+   "pool": 5001
+  },
+  "ObjectNet": {
+   "prec@1": 0.65,
+   "n": 100,
+   "pool": 113
+  },
+  "Place365": {
+   "prec@1": 0.34,
+   "n": 100,
+   "pool": 365
+  },
+  "RefCOCO": {
+   "prec@1": 0.26,
+   "n": 100,
+   "pool": 8416
+  },
+  "RefCOCO-Matching": {
+   "prec@1": 0.81,
+   "n": 100,
+   "pool": 2566
+  },
+  "SUN397": {
+   "prec@1": 0.73,
+   "n": 100,
+   "pool": 397
+  },
+  "ScienceQA": {
+   "prec@1": 0.28,
+   "n": 100,
+   "pool": 736
+  },
+  "TextVQA": {
+   "prec@1": 0.36,
+   "n": 100,
+   "pool": 3342
+  },
+  "VOC2007": {
+   "prec@1": 0.8,
+   "n": 100,
+   "pool": 20
+  },
+  "VisDial": {
+   "prec@1": 0.39,
+   "n": 100,
+   "pool": 2064
+  },
+  "Visual7W": {
+   "prec@1": 0.13,
+   "n": 100,
+   "pool": 3480
+  },
+  "Visual7W-Pointing": {
+   "prec@1": 0.71,
+   "n": 100,
+   "pool": 1000
+  },
+  "VisualNews_i2t": {
+   "prec@1": 0.56,
+   "n": 100,
+   "pool": 19995
+  },
+  "VisualNews_t2i": {
+   "prec@1": 0.59,
+   "n": 100,
+   "pool": 5000
+  },
+  "VizWiz": {
+   "prec@1": 0.38,
+   "n": 100,
+   "pool": 1436
+  },
+  "WebQA": {
+   "prec@1": 0.8,
+   "n": 100,
+   "pool": 2360
+  },
+  "Wiki-SS-NQ": {
+   "prec@1": 0.41,
+   "n": 100,
+   "pool": 10694
+  }
+ }
+}

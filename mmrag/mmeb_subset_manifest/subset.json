@@ -1,0 +1,229 @@
+{
+ "seed": 0,
+ "per_task": 100,
+ "max_pool": 20000,
+ "tasks": {
+  "A-OKVQA": {
+   "n_total": 1000,
+   "n_queries": 100,
+   "pool_size": 894,
+   "pool_capped": false
+  },
+  "CIFAR-100": {
+   "n_total": 1000,
+   "n_queries": 100,
+   "pool_size": 100,
+   "pool_capped": false
+  },
+  "CIRR": {
+   "n_total": 1000,
+   "n_queries": 100,
+   "pool_size": 2197,
+   "pool_capped": false
+  },
+  "ChartQA": {
+   "n_total": 1000,
+   "n_queries": 100,
+   "pool_size": 1601,
+   "pool_capped": false
+  },
+  "Country211": {
+   "n_total": 1000,
+   "n_queries": 100,
+   "pool_size": 211,
+   "pool_capped": false
+  },
+  "DocVQA": {
+   "n_total": 1000,
+   "n_queries": 100,
+   "pool_size": 4463,
+   "pool_capped": false
+  },
+  "EDIS": {
+   "n_total": 1000,
+   "n_queries": 100,
+   "pool_size": 3241,
+   "pool_capped": false
+  },
+  "FashionIQ": {
+   "n_total": 1000,
+   "n_queries": 100,
+   "pool_size": 5992,
+   "pool_capped": false
+  },
+  "GQA": {
+   "n_total": 1000,
+   "n_queries": 100,
+   "pool_size": 6850,
+   "pool_capped": false
+  },
+  "HatefulMemes": {
+   "n_total": 1000,
+   "n_queries": 100,
+   "pool_size": 2,
+   "pool_capped": false
+  },
+  "ImageNet-1K": {
+   "n_total": 1000,
+   "n_queries": 100,
+   "pool_size": 1000,
+   "pool_capped": false
+  },
+  "ImageNet-A": {
+   "n_total": 1000,
+   "n_queries": 100,
+   "pool_size": 1000,
+   "pool_capped": false
+  },
+  "ImageNet-R": {
+   "n_total": 1000,
+   "n_queries": 100,
+   "pool_size": 200,
+   "pool_capped": false
+  },
+  "InfographicsVQA": {
+   "n_total": 1000,
+   "n_queries": 100,
+   "pool_size": 1730,
+   "pool_capped": false
+  },
+  "MSCOCO": {
+   "n_total": 1000,
+   "n_queries": 100,
+   "pool_size": 4348,
+   "pool_capped": false
+  },
+  "MSCOCO_i2t": {
+   "n_total": 1000,
+   "n_queries": 100,
+   "pool_size": 4968,
+   "pool_capped": false
+  },
+  "MSCOCO_t2i": {
+   "n_total": 1000,
+   "n_queries": 100,
+   "pool_size": 1002,
+   "pool_capped": false
+  },
+  "N24News": {
+   "n_total": 1000,
+   "n_queries": 100,
+   "pool_size": 24,
+   "pool_capped": false
+  },
+  "NIGHTS": {
+   "n_total": 1000,
+   "n_queries": 100,
+   "pool_size": 2120,
+   "pool_capped": false
+  },
+  "OK-VQA": {
+   "n_total": 1000,
+   "n_queries": 100,
+   "pool_size": 2555,
+   "pool_capped": false
+  },
+  "OVEN": {
+   "n_total": 1000,
+   "n_queries": 100,
+   "pool_size": 5001,
+   "pool_capped": false
+  },
+  "ObjectNet": {
+   "n_total": 1000,
+   "n_queries": 100,
+   "pool_size": 113,
+   "pool_capped": false
+  },
+  "Place365": {
+   "n_total": 1000,
+   "n_queries": 100,
+   "pool_size": 365,
+   "pool_capped": false
+  },
+  "RefCOCO": {
+   "n_total": 1000,
+   "n_queries": 100,
+   "pool_size": 8416,
+   "pool_capped": false
+  },
+  "RefCOCO-Matching": {
+   "n_total": 1000,
+   "n_queries": 100,
+   "pool_size": 2566,
+   "pool_capped": false
+  },
+  "SUN397": {
+   "n_total": 1000,
+   "n_queries": 100,
+   "pool_size": 397,
+   "pool_capped": false
+  },
+  "ScienceQA": {
+   "n_total": 1000,
+   "n_queries": 100,
+   "pool_size": 736,
+   "pool_capped": false
+  },
+  "TextVQA": {
+   "n_total": 1000,
+   "n_queries": 100,
+   "pool_size": 3342,
+   "pool_capped": false
+  },
+  "VOC2007": {
+   "n_total": 1000,
+   "n_queries": 100,
+   "pool_size": 20,
+   "pool_capped": false
+  },
+  "VisDial": {
+   "n_total": 1000,
+   "n_queries": 100,
+   "pool_size": 2064,
+   "pool_capped": false
+  },
+  "Visual7W": {
+   "n_total": 1000,
+   "n_queries": 100,
+   "pool_size": 3480,
+   "pool_capped": false
+  },
+  "Visual7W-Pointing": {
+   "n_total": 1000,
+   "n_queries": 100,
+   "pool_size": 1000,
+   "pool_capped": false
+  },
+  "VisualNews_i2t": {
+   "n_total": 1000,
+   "n_queries": 100,
+   "pool_size": 19995,
+   "pool_capped": false
+  },
+  "VisualNews_t2i": {
+   "n_total": 1000,
+   "n_queries": 100,
+   "pool_size": 5000,
+   "pool_capped": false
+  },
+  "VizWiz": {
+   "n_total": 1000,
+   "n_queries": 100,
+   "pool_size": 1436,
+   "pool_capped": false
+  },
+  "WebQA": {
+   "n_total": 1000,
+   "n_queries": 100,
+   "pool_size": 2360,
+   "pool_capped": false
+  },
+  "Wiki-SS-NQ": {
+   "n_total": 1000,
+   "n_queries": 100,
+   "pool_size": 10694,
+   "pool_capped": false
+  }
+ }
+}

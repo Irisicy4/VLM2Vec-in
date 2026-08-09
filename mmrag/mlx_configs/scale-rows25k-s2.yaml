@@ -1,0 +1,34 @@
+caption: '[mm-RAG] data-scaling scale-rows25k-s2'
+notifyRequest:
+  silent: true
+jobDefVersion:
+  entrypointMode: FULL_SCRIPT
+  imageMeta:
+    imageVid: d6lj4vjc77u7t7t31hp0
+  lazyDownloadCode: true
+  name: 'mmrag-scale-rows25k-s2'
+  resource:
+    arnoldConfig:
+      clusterId: 11
+      groupIds:
+        - 665
+      quotaPool: default
+      preemptible: false
+      bytenasVolumes:
+        - name: tns-algo-video-public-my2
+          accessMode: RW
+      roles:
+        - cpu: 24
+          gpu: 1
+          gpuv: 19
+          memory: 220160
+          name: worker
+          num: 1
+          queueName: compute-543-my2-cloudnative-aigcp-tns.algo.public.pool.minipod.gcpsd.c-guarantee
+    backend: ARNOLD
+jobRunParams:
+  entrypointFullScript: |
+    bash /mnt/bn/tns-algo-video-public-my2/yijiangli/project/VLM2Vec-in/mmrag/mlx_entry_scale.sh
+  envsList:
+    SCALE_CELL: scale-rows25k-s2:25000:500:2
+namespace: /user/yliang.26

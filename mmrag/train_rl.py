@@ -88,6 +88,14 @@ def main():
                          "at tau=0.02 sampling is near-argmax — raise to test true stochasticity)")
     ap.add_argument("--reward_gate_std", type=float, default=0.0,
                     help="zero the advantage of pools whose raw reward std < this (no signal)")
+    ap.add_argument("--reward_gate_noctx", action="store_true",
+                    help="NO-CONTEXT UTILITY GATE (text-side port): keep a query only if its BEST "
+                         "candidate beats the reader's no-context accuracy, i.e. "
+                         "max_c judge(c) > judge(no context). Drops queries retrieval cannot help "
+                         "on — either already answerable from the image, or not answerable at all. "
+                         "Unlike --reward gain (which SHIFTS every reward by the no-context "
+                         "baseline) this is a per-query DATA FILTER: kept queries train on their "
+                         "unmodified rewards, dropped queries contribute no gradient.")
     # reward
     ap.add_argument("--reward", choices=["logit", "judge", "ragacc", "gain", "mix",
                                          "goldrel", "ansmatch"], default="logit",
@@ -209,10 +217,13 @@ def main():
             K = (4 * N + 4) if args.pool_sampling else (N + 4)
             topk = sims.topk(min(K, sims.shape[1]), dim=1).indices.tolist()
             pools, triples, gold_hit = [], [], 0
+            gold_in_pool = []          # per-query, for the gate x pool-content contingency
             for b, r in enumerate(batch):
                 gold = r["pos"][0]
                 retrieved = [corpus_texts[i] for i in topk[b]]
-                gold_hit += float(gold in retrieved[:N])
+                _hit = float(gold in retrieved[:N])
+                gold_in_pool.append(_hit)
+                gold_hit += _hit
                 if args.pool_sampling:
                     # stochastic pools: sample w/o replacement from softmax over the wider top-K
                     pool_idx = [i for i in topk[b] if args.no_force_gold or corpus_texts[i] != gold]
@@ -238,6 +249,8 @@ def main():
             old_logps, _ = pool_logps(q_emb, c_emb, args.temperature)
             old_values = value_head(q_emb)
             gate = None
+            noctx_keep_rate = None
+            noctx_gate_xtab = None
 
             if args.reward == "ragacc":
                 # downstream RAG accuracy as the reward: sample a k-slate per query from the
@@ -295,17 +308,37 @@ def main():
                     rewards = reader.score_logit(triples)
                 rewards = torch.tensor(rewards, dtype=torch.float32,
                                        device=args.device).view(args.batch_size, N)
-                if args.reward == "gain":
-                    # subtract the per-query NO-CONTEXT accuracy: only passages that CHANGE the
-                    # reader's answer earn reward (queries answerable without retrieval give 0)
+                r_no = None
+                if args.reward == "gain" or args.reward_gate_noctx:
                     noctx = [{"image": imgs[b], "image_id": r["image_id"], "question": r["question"],
                               "context": "", "answer": r.get("answer_aliases") or r["answer"]}
                              for b, r in enumerate(batch)]
                     r_no = torch.tensor(reader.score_judge(noctx, n_rollouts=args.reader_rollouts,
                                                            temperature=args.reader_temperature),
                                         dtype=torch.float32, device=args.device)
+                if args.reward == "gain":
+                    # subtract the per-query NO-CONTEXT accuracy: only passages that CHANGE the
+                    # reader's answer earn reward (queries answerable without retrieval give 0)
                     rewards = rewards - r_no.unsqueeze(1)
                 raw_mean, gold_mean = rewards.mean().item(), rewards[:, 0].mean().item()
+                if args.reward_gate_noctx:
+                    # DATA FILTER, not a reward shift: keep the query only if retrieval can beat
+                    # answering with no context at all. Kept queries keep their raw rewards.
+                    keep = (rewards.max(dim=1).values > r_no).float().unsqueeze(1)
+                    gate = keep if gate is None else gate * keep
+                    noctx_keep_rate = keep.mean().item()
+                    # Can reader-utility gating tell a USELESS pool from a useful one? Cross the
+                    # keep decision with whether the pool actually contains the gold passage.
+                    # A gate that keeps gold-free pools at a similar rate is not a pool-quality
+                    # detector, however well it separates rewards.
+                    _g = torch.tensor(gold_in_pool, dtype=torch.float32, device=rewards.device)
+                    _k = keep.squeeze(1)
+                    noctx_gate_xtab = {
+                        "n_gold_in_pool": int(_g.sum().item()),
+                        "n_no_gold_in_pool": int((1 - _g).sum().item()),
+                        "keep_given_gold": (_k * _g).sum().item() / max(_g.sum().item(), 1e-9),
+                        "keep_given_no_gold": (_k * (1 - _g)).sum().item() / max((1 - _g).sum().item(), 1e-9),
+                    }
                 if args.reward_gate_std > 0:
                     gate = (rewards.std(1, keepdim=True) >= args.reward_gate_std).float()
                 rewards = (rewards - rewards.mean(1, keepdim=True)) / (rewards.std(1, keepdim=True) + 1e-6)
@@ -349,6 +382,10 @@ def main():
 
         m.update({"step": step, "loss": loss.item(), "reward/raw_mean": raw_mean,
                   "reward/gold_mean": gold_mean, "retrieval/gold_in_topN": gold_hit / args.batch_size})
+        if noctx_keep_rate is not None:
+            m["gate/noctx_keep_rate"] = noctx_keep_rate
+        if noctx_gate_xtab is not None:
+            m.update({f"gate/{k}": v for k, v in noctx_gate_xtab.items()})
         metrics_log.write(json.dumps(m) + "\n")
         metrics_log.flush()
         if step % args.log_every == 0:

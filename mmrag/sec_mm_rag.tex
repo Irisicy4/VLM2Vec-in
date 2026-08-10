@@ -35,7 +35,17 @@ We port the indirect-feedback recipe to knowledge-VQA: the retriever is
 \textsc{GME-Qwen2-VL-2B} (LoRA), queries are image--question pairs (InfoSeek), the corpus is a
 422K-passage Wikipedia KB, and the reward is a frozen \textsc{Qwen2.5-VL-3B} reader's sampled
 answer accuracy on the retrieved passage (cover-EM vs.\ official aliases, $4$ rollouts, per-pool
-z-scored), with GRPO on top-$N{=}8$ pools and an InfoNCE anchor.
+z-scored), with an advantage-weighted listwise update over top-$N{=}8$ pools and an InfoNCE
+anchor. A note on terminology: our runs label this update ``GRPO''/``PPO'', but it is neither ---
+pools are the \emph{deterministic} top-$N$ (no sampling), every pool member enters the gradient
+with weight $1$ rather than $\pi(d)$, and with a single inner epoch the PPO ratio is identically
+$1$, so the clip never engages (logged clipfrac is $0.0$ in every run). The method is online
+learning from bandit feedback with a reward-weighted ranking loss --- reinforcement-style in its
+supervision (a reward from a frozen reader; no labels), supervised-style in its update. A
+correctly factorized Plackett--Luce policy gradient (sampled ordered lists, exact conditional
+log-probabilities, group = the sampled lists) is implemented as \texttt{--algo plgrpo} and
+evaluated as an ablation; the listwise update is kept as the tagged v1 baseline
+(\texttt{v1-listwise-top8}).
 
 \paragraph{Annotation-free RL works in multimodal.} Unlike the text setting, where [no-gold]
 training never exceeded its zero-shot base, the multimodal [no-gold] arm --- pools are purely the

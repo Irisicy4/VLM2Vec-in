@@ -1,8 +1,34 @@
 % ===== Multimodal indirect-feedback RAG (Experiment: mm-RAG) =====
 % PROVISIONAL DRAFT — numbers under main-session review; do not merge into the main text
-% until the review passes. Evidence pointers: VLM2Vec-in repo, mmrag/RESULTS.md +
-% results_summary.json (run name -> job id -> checkpoint), mmrag/REPRO_NEWCLUSTER.md
-% (independent-hardware reproduction), checkpoints at huggingface.co/Icey444/mmrag-ckpts.
+% until the review passes.
+%
+% ---------------------------------------------------------------------------------------
+% REPRODUCTION. Every number below is regenerable; each result block carries a REPRO comment
+% with the exact command, the run name, and the code commit that produced it. Result files
+% live at $MMRAG_DATA/results/<run>.{retrieval.metrics,vqa_top5}.json; adapters at
+% https://huggingface.co/Icey444/mmrag-ckpts (one subfolder per run, folder name = spec).
+%
+%   repo    : github.com/Irisicy4/VLM2Vec-in  branch mmrag
+%   code    : 2f6aaba (eval + MMEB + scaling harness), 95c82b1 (no-context gate)
+%   prose   : eef46eb
+%   env     : export PYTHONPATH=<repo> MMRAG_DATA=<data> HF_HOME=<cache>
+%
+% REPRO(data): rebuild everything from public sources (~1h + downloads; see
+%   mmrag/REPRO_NEWCLUSTER.md sec.0 for the raw URLs)
+%   python3 mmrag/build_infoseek_data.py --data_dir $MMRAG_DATA \
+%       --train_per_entity 10 --max_train 60000 --distractor_articles 20000
+%   # expected: corpus_full 1,421,665 / corpus_small 422,378 over 26,454 articles,
+%   #           queries_train 45,248 / queries_test 71,335   <- must match exactly
+%
+% REPRO(eval-any-checkpoint): the protocol behind every InfoSeek number in this section
+%   CK=<adapter dir | HF id | __profile__ for zero-shot>;  N=<run name>
+%   python3 mmrag/encode_corpus.py --checkpoint $CK --cache $MMRAG_DATA/cache/$N.pt \
+%       --device cuda:0 --bs 192                                        # code 2f6aaba
+%   python3 mmrag/eval_retrieval.py --profile gme2b --checkpoint $CK --name $N \
+%       --max-q 3000 --device cuda:0 --corpus_bs 192 --cache_corpus $MMRAG_DATA/cache/$N.pt
+%   python3 mmrag/eval_vqa.py --retrieval $MMRAG_DATA/results/$N.retrieval.json \
+%       --reader Qwen/Qwen2.5-VL-7B-Instruct --k 5 --max-q 1500 --device cuda:0
+% ---------------------------------------------------------------------------------------
 \subsection{Multimodal: retriever RL from VLM answer success}
 \label{sec:mm_rag}
 We port the indirect-feedback recipe to knowledge-VQA: the retriever is
@@ -31,6 +57,13 @@ accuracy is \emph{required} here: the dense log-likelihood reward fails on [no-g
 ($31.5$), inverting the text-side preference. Slate-level rewards (accuracy over the joint
 top-$k$ context) destabilize training and transfer catastrophically.
 
+% REPRO(repro-table): runs gme2b-zeroshot-3k-repro | sft-lr1e4-h0-repro |
+%   rl-j2e5-nogold-det-repro | rl-j2e5-nogold-det-s3-repro  -- code 2f6aaba
+%   apply REPRO(eval-any-checkpoint) with CK in:
+%     __profile__                                (zero-shot base)
+%     Icey444/mmrag-sft-lr1e4-h0                 (relevance-SFT)
+%     Icey444/mmrag-rl-nogold-judge-2b           (no-gold RL seed 0)
+%     Icey444/mmrag-rl-nogold-judge-2b-seed3     (no-gold RL seed 3)
 \paragraph{Reproduction on independent hardware.} The full pipeline was rebuilt from public
 sources on a different cluster and re-run end to end. The rebuild recovers the corpus and query
 counts exactly ($1{,}421{,}665$ / $422{,}378$ passages, $26{,}454$ articles, $45{,}248$ train /
@@ -40,6 +73,18 @@ bit-identical on accuracy, strict-EM and F1), [no-gold] RL $33.93$ and $34.33$ f
 (recorded $34.13$, $34.27$). The headline effect --- RL minus zero-shot --- reproduces exactly
 at $+3.13$ points.
 
+% REPRO(tab:mm_mmeb): MMEB subset -- code 2f6aaba, needs HF TIGER-Lab/MMEB-eval snapshot
+%   in $MMEB_DIR (images read in place from images.zip; do NOT extract -- 285K small files).
+%   Sample once, then score each arm against the identical subset:
+%   python3 mmrag/mmeb_subset.py sample --out $MMEB_DIR/subset_seed0 \
+%       --per_task 100 --max_pool 20000 --seed 0        # -> 3,700 queries over 37 tasks
+%   for CK/LABEL in __profile__/gme2b-zs, <sft ckpt>/sft-lr1e4-h0, <rl ckpt>/rl-nogold:
+%     python3 mmrag/mmeb_subset.py eval --subset $MMEB_DIR/subset_seed0 \
+%         --checkpoint $CK --name $LABEL --device cuda:0 --bs 24
+%   The sampled manifest + all three results.*.json are committed at
+%   mmrag/mmeb_subset_manifest/ so the exact query set is inspectable without rerunning.
+%   OVEN contamination check (67/100 sampled OVEN images are in the InfoSeek store):
+%     compare basenames of OVEN.json query imgs against mmrag/image_store.open_stores(.,'infoseek')
 \paragraph{Does the gain generalize, or is it InfoSeek overfitting?}
 Table~\ref{tab:mm_mmeb} evaluates all three arms on a fixed random subset of the MMEB image
 tasks ($100$ queries $\times$ $37$ tasks, seed $0$, each task's full candidate pool retained).
@@ -75,6 +120,18 @@ relevance-SFT    & 43.97 & 43.28 & $-2.10$ (0/7) & $+2.73$ (9/2) & $-0.75$ (4/6)
 \end{tabular}
 \end{table}
 
+% REPRO(scaling): runs scale-rows{12k,25k,50k,100k,200k}[-s1,-s2] -- code 2f6aaba.
+%   Needs the enlarged pool (250k rows; build in a SEPARATE data dir, then copy in --
+%   the build verifies corpus_small is byte-identical so pids stay compatible):
+%   python3 mmrag/build_infoseek_data.py --data_dir $MMRAG_BIG \
+%       --train_per_entity 200 --max_train 250000 --distractor_articles 20000
+%   cmp $MMRAG_BIG/built/corpus_small.jsonl $MMRAG_DATA/built/corpus_small.jsonl   # must match
+%   cp  $MMRAG_BIG/built/pool_train.jsonl   $MMRAG_DATA/built/pool_train_big.jsonl
+%   Then one 1-GPU job per cell (all cells in parallel):
+%   bash mmrag/mlx_submit_scale.sh                     # or a single cell locally:
+%   SCALE_CELL=scale-rows25k:25000:500:0 bash mmrag/mlx_entry_scale.sh
+%   Compute axis (the 1500-step numbers) is from the recorded wave, runs
+%   rl-j2e5-nogold-det-1500 and rl-j2e5-nogold-rows8k-1500 in results_summary.json.
 \paragraph{Neither more data nor more compute helps.} Holding the step budget fixed at $500$
 steps and varying only the size of the training pool from $12.5$K to $200$K queries leaves
 accuracy flat: $34.33$, $34.62{\pm}0.19$ (3 seeds), $34.67$, $32.87$, $34.80$. A $16\times$
@@ -88,6 +145,11 @@ three-seed cell at $25$K ($34.62{\pm}0.19$) sits slightly \emph{above} the full-
 configuration, indicating a shallow interior optimum rather than a plateau. Practically: this
 method is cheap by construction and cannot be scaled into a larger win by adding data.
 
+% REPRO(sft-audit): no rerun needed -- this is an analysis of the recorded sweep. Group every
+%   gme2b SFT run in mmrag/results_summary.json by (lr, max_steps, max_train_rows), excluding
+%   names containing 'mix' (different train data) or 'full' (different corpus), and take the
+%   per-config mean over seeds. Best config = lr1e-4 x 2,000 rows (0.3270, 2 seeds);
+%   reported baseline = lr2e-4 x all rows (0.3128, 4 seeds).
 \paragraph{Is the SFT baseline fairly tuned?} We audited it, because the headline claim depends
 on it. The reported baseline is honestly computed --- a $4$-seed mean at the best all-data
 learning rate, not a best-run --- but the sweep has two gaps. The learning-rate grid
@@ -99,6 +161,15 @@ since RL visits ${\sim}2{,}000$ queries against SFT's ${\sim}19{,}200$. Against 
 the advantage narrows from $+2.9$ to $+1.5$ points. We report the exposure-matched number as the
 honest one; the ordering is unchanged.
 
+% REPRO(gate): run gate-gme2b-nogold -- code 95c82b1 (adds --reward_gate_noctx and the
+%   gate/keep_given_{gold,no_gold} instrumentation). Control = nogate-gme2b-nogold, identical
+%   minus the flag.
+%   bash mmrag/mlx_submit_cell.sh "gate-gme2b-nogold" gme2b \
+%     "--pool built/pool_train.jsonl --max_train_rows 0 --max_steps 500 --seed 0 \
+%      --no_force_gold --learning_rate 2e-5 --reward_gate_noctx"
+%   Keep-rates come from the run's own metrics.jsonl, weighted by the per-step counts:
+%     keep_given_gold    = sum(keep_given_gold * n_gold_in_pool)    / sum(n_gold_in_pool)
+%     keep_given_no_gold = sum(keep_given_no_gold * n_no_gold_in_pool) / sum(n_no_gold_in_pool)
 \paragraph{A no-context utility gate does not transfer.} The text side finds that filtering
 training examples by reader utility --- keep $q$ only if $\max_c \text{judge}(c) >
 \text{judge}(\varnothing)$ --- sharply separates correct from incorrect mined labels and rescues

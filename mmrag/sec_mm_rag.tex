@@ -1,7 +1,8 @@
 % ===== Multimodal indirect-feedback RAG (Experiment: mm-RAG) =====
 % PROVISIONAL DRAFT — numbers under main-session review; do not merge into the main text
 % until the review passes. Evidence pointers: VLM2Vec-in repo, mmrag/RESULTS.md +
-% results_summary.json (run name -> job id -> checkpoint).
+% results_summary.json (run name -> job id -> checkpoint), mmrag/REPRO_NEWCLUSTER.md
+% (independent-hardware reproduction), checkpoints at huggingface.co/Icey444/mmrag-ckpts.
 \subsection{Multimodal: retriever RL from VLM answer success}
 \label{sec:mm_rag}
 We port the indirect-feedback recipe to knowledge-VQA: the retriever is
@@ -29,5 +30,84 @@ signal, and a 3B reward reader matches a served 7B one ($33.7$ vs.\ $34.1$). Bin
 accuracy is \emph{required} here: the dense log-likelihood reward fails on [no-gold] pools
 ($31.5$), inverting the text-side preference. Slate-level rewards (accuracy over the joint
 top-$k$ context) destabilize training and transfer catastrophically.
+
+\paragraph{Reproduction on independent hardware.} The full pipeline was rebuilt from public
+sources on a different cluster and re-run end to end. The rebuild recovers the corpus and query
+counts exactly ($1{,}421{,}665$ / $422{,}378$ passages, $26{,}454$ articles, $45{,}248$ train /
+$71{,}335$ test queries), so the comparison is like-for-like. Every arm reproduces within
+$0.002$ absolute: zero-shot $30.80$ (recorded $31.00$), relevance-SFT $31.00$ (recorded $31.00$;
+bit-identical on accuracy, strict-EM and F1), [no-gold] RL $33.93$ and $34.33$ for two seeds
+(recorded $34.13$, $34.27$). The headline effect --- RL minus zero-shot --- reproduces exactly
+at $+3.13$ points.
+
+\paragraph{Does the gain generalize, or is it InfoSeek overfitting?}
+Table~\ref{tab:mm_mmeb} evaluates all three arms on a fixed random subset of the MMEB image
+tasks ($100$ queries $\times$ $37$ tasks, seed $0$, each task's full candidate pool retained).
+One caveat determines how this must be read: MMEB's \textsc{OVEN} task draws its query images
+from the same source as InfoSeek ($67$ of $100$ sampled OVEN images are in the InfoSeek image
+store), so it is \emph{not} held out for our adapters; we therefore report the $36$-task macro
+with OVEN removed as the primary number.
+On genuinely held-out tasks the annotation-free adapter \emph{improves} general embedding
+quality ($+0.83$ points over its base), while relevance-SFT is flat ($-0.03$). The
+meta-task split shows why: SFT trades VQA-style embedding away (${-}2.10$, worse on $7$ of $10$
+tasks and better on none) in exchange for classification ($+2.73$), whereas the indirect reward
+--- which \emph{is} downstream answer success --- improves exactly the VQA-shaped capability
+($+1.80$, better on $8$ of $10$). Neither arm shows the catastrophic forgetting reported for
+in-domain contrastive fine-tuning of strong text embedders; we attribute this to the light
+LoRA touch ($r{=}32$ on a frozen backbone) rather than to anything specific to the objective.
+
+\begin{table}[t]
+\centering\small
+\caption{Generalization to MMEB image tasks after InfoSeek-only training. Macro Precision@1;
+``excl.\ OVEN'' drops the one task whose images overlap InfoSeek. Meta-task deltas are versus the
+zero-shot base, with (tasks better / worse) in parentheses.}
+\label{tab:mm_mmeb}
+\begin{tabular}{lccccc}
+\toprule
+& \multicolumn{2}{c}{macro P@1} & \multicolumn{3}{c}{$\Delta$ vs.\ base by meta-task} \\
+\cmidrule(lr){2-3}\cmidrule(lr){4-6}
+arm & all 37 & excl.\ OVEN & VQA & Classification & Retrieval \\
+\midrule
+zero-shot base   & 43.81 & 43.31 & --- & --- & --- \\
+relevance-SFT    & 43.97 & 43.28 & $-2.10$ (0/7) & $+2.73$ (9/2) & $-0.75$ (4/6) \\
+{}[no-gold] RL & \textbf{44.68} & \textbf{44.14} & $\mathbf{+1.80}$ (8/1) & $+1.09$ (8/2) & $-0.17$ (6/5) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Neither more data nor more compute helps.} Holding the step budget fixed at $500$
+steps and varying only the size of the training pool from $12.5$K to $200$K queries leaves
+accuracy flat: $34.33$, $34.62{\pm}0.19$ (3 seeds), $34.67$, $32.87$, $34.80$. A $16\times$
+increase in available training data buys nothing, and the whole ladder spans $2.0$ points while
+the SFT-to-RL gap is $2.9$--$3.9$. The mechanism is a sampling ceiling: at $500$ steps
+$\times$ batch $4$ the run visits only ${\sim}2{,}000$ queries regardless of pool size, so rows
+beyond ${\sim}10$K are never sampled. Crucially this is \emph{not} a truncated compute curve ---
+tripling the budget at fixed pool makes the model \emph{worse} ($34.13 \to 31.93$ at $41$K,
+$34.07 \to 32.20$ at $8$K), so the recipe is already at or past its optimum. The replicated
+three-seed cell at $25$K ($34.62{\pm}0.19$) sits slightly \emph{above} the full-data headline
+configuration, indicating a shallow interior optimum rather than a plateau. Practically: this
+method is cheap by construction and cannot be scaled into a larger win by adding data.
+
+\paragraph{Is the SFT baseline fairly tuned?} We audited it, because the headline claim depends
+on it. The reported baseline is honestly computed --- a $4$-seed mean at the best all-data
+learning rate, not a best-run --- but the sweep has two gaps. The learning-rate grid
+$\{3\mathrm{e}{-}5, 5\mathrm{e}{-}5, 1\mathrm{e}{-}4, 2\mathrm{e}{-}4\}$ terminates at its own
+argmax, and the training-budget axis was never crossed with the best rate. The strongest SFT
+configuration by multi-seed mean is in fact $1\mathrm{e}{-}4$ at $2{,}000$ rows ($32.70$, 2
+seeds), not the reported $31.28$ --- and $2{,}000$ rows is also the \emph{exposure-matched} cell,
+since RL visits ${\sim}2{,}000$ queries against SFT's ${\sim}19{,}200$. Against that comparator
+the advantage narrows from $+2.9$ to $+1.5$ points. We report the exposure-matched number as the
+honest one; the ordering is unchanged.
+
+\paragraph{A no-context utility gate does not transfer.} The text side finds that filtering
+training examples by reader utility --- keep $q$ only if $\max_c \text{judge}(c) >
+\text{judge}(\varnothing)$ --- sharply separates correct from incorrect mined labels and rescues
+weak configurations. Ported here as a per-query data filter, the gate is a \emph{good detector}
+and still does not pay: it keeps pools containing gold at $62.7\%$ versus $23.3\%$ for gold-free
+pools (a $2.7\times$ separation, stronger than the text side's $1.3\times$), yet downstream
+accuracy does not improve. We attribute the difference to offline versus online filtering: on a
+fixed mined pool, dropping mislabeled examples is pure gain, whereas in an online loop the
+dropped queries are precisely those whose retrieval most needs to change, so filtering removes
+the learning signal for the failure mode being targeted.
 
 \input{fig_mm_scaling}

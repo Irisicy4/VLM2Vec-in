@@ -29,6 +29,39 @@ def pool_logps(q, d, temperature):
     return F.log_softmax(sims, dim=-1), sims
 
 
+def pl_sample_lists(scaled_sims, k, n_lists):
+    """Sample ordered k-lists from the Plackett-Luce model via Gumbel-top-k.
+
+    scaled_sims: (B, M) = sim/temperature over the candidate support.
+    Returns (B, G, k) indices. Sorting Gumbel-perturbed scores is EXACTLY sequential
+    softmax sampling without replacement (Gumbel-Plackett-Luce equivalence), so these
+    are unbiased draws from the factorized policy pi(D|q) = prod_i softmax_remaining(s).
+    """
+    B, M = scaled_sims.shape
+    u = torch.rand(B, n_lists, M, device=scaled_sims.device).clamp_(1e-20, 1 - 1e-7)
+    gumbel = -torch.log(-torch.log(u))
+    return (scaled_sims.unsqueeze(1) + gumbel).topk(k, dim=-1).indices
+
+
+def pl_list_logps(scaled_sims, idx):
+    """Exact conditional-factorized log-probability of ordered lists under Plackett-Luce.
+
+    log pi(D) = sum_i [ s_{d_i} - logsumexp_{d in remaining} s_d ]  — the denominator
+    shrinks at each position (this is the term the top-N pool softmax lacks).
+    scaled_sims: (B, M), differentiable; idx: (B, G, k). Returns (B, G).
+    """
+    B, G, k = idx.shape
+    s = scaled_sims.unsqueeze(1).expand(B, G, scaled_sims.shape[-1])
+    chosen = torch.zeros_like(s, dtype=torch.bool)
+    lp = scaled_sims.new_zeros(B, G)
+    for i in range(k):
+        denom = torch.logsumexp(s.masked_fill(chosen, float("-inf")), dim=-1)
+        s_i = s.gather(-1, idx[:, :, i : i + 1]).squeeze(-1)
+        lp = lp + s_i - denom
+        chosen = chosen.scatter(-1, idx[:, :, i : i + 1], True)
+    return lp
+
+
 def infonce_loss(q, d, temperature=0.02):
     """In-batch contrastive anchor: positive = candidate 0 of each pool; negatives = every other
     doc in the batch. The absolute, cross-query constraint that prevents embedding collapse."""

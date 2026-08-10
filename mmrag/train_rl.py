@@ -30,7 +30,8 @@ from mmrag.encoder import ENCODER_PROFILES, load_encoder  # noqa: E402
 from mmrag.image_store import TarImageStore, open_stores  # noqa: E402
 from mmrag.reader_vlm import LiveVLMReader  # noqa: E402
 from mmrag.rl_core import (  # noqa: E402
-    ValueHead, compute_advantages_and_targets, embedding_ppo_loss, infonce_loss, pool_logps,
+    ValueHead, compute_advantages_and_targets, embedding_ppo_loss, infonce_loss, pl_list_logps,
+    pl_sample_lists, pool_logps,
 )
 
 
@@ -60,7 +61,21 @@ def main():
     ap.add_argument("--image_dataset", default="infoseek", choices=["infoseek", "evqa", "mix"])
     ap.add_argument("--output_dir", required=True)
     # policy / optimization
-    ap.add_argument("--algo", choices=["ppo", "grpo"], default="grpo")
+    ap.add_argument("--algo", choices=["ppo", "grpo", "plgrpo"], default="grpo",
+                    help="ppo/grpo: v1 listwise update over deterministic top-N pools (all pool "
+                         "members weighted 1 — see tag v1-listwise-top8). plgrpo: proper "
+                         "conditional-probability policy gradient — sample G ordered k-lists from "
+                         "the Plackett-Luce policy over a top-M support, exact factorized list "
+                         "log-probs, GRPO group = the G lists (advantage z-scored across them)")
+    ap.add_argument("--pl_group", type=int, default=4, help="plgrpo: lists sampled per query (G)")
+    ap.add_argument("--pl_k", type=int, default=4, help="plgrpo: list length (k)")
+    ap.add_argument("--pl_support", type=int, default=24,
+                    help="plgrpo: candidate support M = top-M by current policy; the PL denominator "
+                         "runs over this set")
+    ap.add_argument("--inner_epochs", type=int, default=1,
+                    help=">1 re-runs the grad forward + optimizer step on the SAME rollout, making "
+                         "the PPO ratio/clip meaningful (with 1 epoch ratio==1 identically and the "
+                         "clip never engages)")
     ap.add_argument("--temperature", type=float, default=0.02, help="policy softmax temperature")
     ap.add_argument("--learning_rate", type=float, default=2e-5)
     ap.add_argument("--batch_size", type=int, default=4)
@@ -199,7 +214,9 @@ def main():
 
     os.makedirs(args.output_dir, exist_ok=True)
     json.dump(vars(args), open(os.path.join(args.output_dir, "args.json"), "w"), indent=2)
-    N = args.num_candidates
+    N = args.pl_support if args.algo == "plgrpo" else args.num_candidates
+    if args.algo == "plgrpo":
+        assert args.no_force_gold, "plgrpo is defined on pure policy pools (--no_force_gold)"
     metrics_log = open(os.path.join(args.output_dir, "metrics.jsonl"), "a")
 
     for step in range(args.max_steps):
@@ -252,7 +269,41 @@ def main():
             noctx_keep_rate = None
             noctx_gate_xtab = None
 
-            if args.reward == "ragacc":
+            pl_idx = old_list_lp = None
+            if args.algo == "plgrpo":
+                # ---- conditional-probability GRPO: sample G ordered k-lists from the PL policy
+                # over the top-M support; group = the G lists of one query ----
+                assert args.reward in ("judge", "logit"), "plgrpo: reward must be judge or logit"
+                _, old_scaled = pool_logps(q_emb, c_emb, args.temperature)      # (B, M) sims/tau
+                pl_idx = pl_sample_lists(old_scaled, args.pl_k, args.pl_group)  # (B, G, k)
+                old_list_lp = pl_list_logps(old_scaled, pl_idx)                 # (B, G)
+                # reader scores each UNIQUE sampled doc once; list reward = mean over positions
+                # (per-document credit — the joint-context scalar variant collapsed, see ragacc)
+                uniq, owner = [], []
+                for b in range(args.batch_size):
+                    docs = sorted(set(pl_idx[b].flatten().tolist()))
+                    owner.append({j: len(uniq) + i for i, j in enumerate(docs)})
+                    r = batch[b]
+                    ans = r.get("answer_aliases") or r["answer"]
+                    uniq.extend({"image": imgs[b], "image_id": r["image_id"],
+                                 "question": r["question"], "context": pools[b][j],
+                                 "answer": ans} for j in docs)
+                if args.reward == "judge":
+                    r_doc = reader.score_judge(uniq, n_rollouts=args.reader_rollouts,
+                                               temperature=args.reader_temperature)
+                else:
+                    r_doc = reader.score_logit(uniq)
+                r_doc = torch.tensor(r_doc, dtype=torch.float32, device=args.device)
+                R = torch.zeros(args.batch_size, args.pl_group, device=args.device)
+                for b in range(args.batch_size):
+                    for g in range(args.pl_group):
+                        ids = [owner[b][j] for j in pl_idx[b, g].tolist()]
+                        R[b, g] = r_doc[ids].mean()
+                raw_mean, gold_mean = R.mean().item(), float("nan")
+                advantages = (R - R.mean(1, keepdim=True)) / (R.std(1, keepdim=True) + 1e-6)
+                value_target = R.new_zeros(args.batch_size)
+                rewards = R
+            elif args.reward == "ragacc":
                 # downstream RAG accuracy as the reward: sample a k-slate per query from the
                 # current policy, reader answers over the JOINT slate context; the scalar reward
                 # is batch-z-scored and applied to the sampled members (REINFORCE on the slate).
@@ -351,34 +402,47 @@ def main():
                     if args.algo == "ppo":
                         value_target = value_target * gate.squeeze(1) + old_values * (1 - gate.squeeze(1))
 
-        # ---- loss forward (grad): re-encode the same pools with the trainable policy ----
-        q_emb_g = enc.encode_queries(questions, imgs, batch_size=args.batch_size, grad=True).float()
-        c_emb_g = enc.encode_docs(flat, batch_size=args.encode_bs, grad=True).float().view(args.batch_size, N, -1)
-        logps, _ = pool_logps(q_emb_g, c_emb_g, args.temperature)
-        values = value_head(q_emb_g)
-        loss, m = embedding_ppo_loss(
-            logps=logps, old_logps=old_logps, advantages=advantages,
-            values=values, old_values=old_values, value_target=value_target,
-            epsilon_low=args.epsilon, epsilon_high=args.epsilon, vf_coef=args.vf_coef,
-            disable_policy=(args.algo == "ppo" and step < args.critic_warmup_steps))
-        if args.contrastive_coef > 0:
-            nce = infonce_loss(q_emb_g, c_emb_g, args.contrastive_temperature)
-            loss = loss + args.contrastive_coef * nce
-            m["loss/infonce"] = nce.item()
+        # ---- loss forward (grad): re-encode the same pools with the trainable policy.
+        # inner_epochs > 1 repeats this on the SAME rollout, so the PPO ratio moves off 1
+        # and the clip actually constrains the update. ----
+        skip_step = False
+        for _ep in range(max(1, args.inner_epochs)):
+            q_emb_g = enc.encode_queries(questions, imgs, batch_size=args.batch_size, grad=True).float()
+            c_emb_g = enc.encode_docs(flat, batch_size=args.encode_bs, grad=True).float().view(args.batch_size, N, -1)
+            if args.algo == "plgrpo":
+                _, scaled_g = pool_logps(q_emb_g, c_emb_g, args.temperature)
+                logps = pl_list_logps(scaled_g, pl_idx)                       # (B, G) list logps
+                eff_old = old_list_lp
+            else:
+                logps, _ = pool_logps(q_emb_g, c_emb_g, args.temperature)
+                eff_old = old_logps
+            values = value_head(q_emb_g)
+            loss, m = embedding_ppo_loss(
+                logps=logps, old_logps=eff_old, advantages=advantages,
+                values=values, old_values=old_values, value_target=value_target,
+                epsilon_low=args.epsilon, epsilon_high=args.epsilon, vf_coef=args.vf_coef,
+                disable_policy=(args.algo == "ppo" and step < args.critic_warmup_steps))
+            if args.contrastive_coef > 0:
+                nce = infonce_loss(q_emb_g, c_emb_g, args.contrastive_temperature)
+                loss = loss + args.contrastive_coef * nce
+                m["loss/infonce"] = nce.item()
 
-        if not torch.isfinite(loss):
+            if not torch.isfinite(loss):
+                opt.zero_grad()
+                nan_streak = getattr(main, "_nan_streak", 0) + 1
+                main._nan_streak = nan_streak
+                print(f"step {step:>4} NON-FINITE loss — skipping optimizer step ({nan_streak} in a row)", flush=True)
+                if nan_streak >= 30:
+                    sys.exit("ABORT: 30 consecutive non-finite losses — model has diverged")
+                skip_step = True
+                break
+            main._nan_streak = 0
+            loss.backward()
+            torch.nn.utils.clip_grad_norm_(params, 1.0)
+            opt.step()
             opt.zero_grad()
-            nan_streak = getattr(main, "_nan_streak", 0) + 1
-            main._nan_streak = nan_streak
-            print(f"step {step:>4} NON-FINITE loss — skipping optimizer step ({nan_streak} in a row)", flush=True)
-            if nan_streak >= 30:
-                sys.exit("ABORT: 30 consecutive non-finite losses — model has diverged")
+        if skip_step:
             continue
-        main._nan_streak = 0
-        loss.backward()
-        torch.nn.utils.clip_grad_norm_(params, 1.0)
-        opt.step()
-        opt.zero_grad()
 
         m.update({"step": step, "loss": loss.item(), "reward/raw_mean": raw_mean,
                   "reward/gold_mean": gold_mean, "retrieval/gold_in_topN": gold_hit / args.batch_size})

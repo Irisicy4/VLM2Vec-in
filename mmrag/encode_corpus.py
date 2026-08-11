@@ -7,9 +7,10 @@ import sys
 
 import torch
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, "/mnt/bn/tns-algo-video-public-my2/yijiangli/project/VLM2Vec-in")
 
 ap = argparse.ArgumentParser()
+ap.add_argument("--profile", default="gme2b")
 ap.add_argument("--checkpoint", default="__profile__")
 ap.add_argument("--cache", required=True)
 ap.add_argument("--device", default="cuda:0")
@@ -38,6 +39,6 @@ hi = n * (a.shard + 1) // a.nshards
 part = corpus[lo:hi]
 out = f"{a.cache}.{a.shard}of{a.nshards}" if a.nshards > 1 else a.cache
 print(f"corpus: {n} total, shard {a.shard}/{a.nshards} -> [{lo}:{hi}) = {len(part)}", flush=True)
-enc = load_encoder("gme2b", checkpoint_path=a.checkpoint, device=a.device, max_len=512)
+enc = load_encoder(a.profile, checkpoint_path=a.checkpoint, device=a.device, max_len=512)
 emb = encode_corpus(enc, part, a.bs, out)
 print("DONE", tuple(emb.shape), out, flush=True)

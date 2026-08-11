@@ -44,7 +44,7 @@ if [ ! -f "$RUN/adapter_model.safetensors" ]; then
 fi
 
 CACHE=$D/cache/corpus_$NAME.pt
-python3 -u $D/encode_corpus.py --checkpoint "$RUN" --cache "$CACHE" --device cuda:0 --bs 192 || exit 6
+python3 -u $D/encode_corpus.py --profile "$PROFILE" --checkpoint "$RUN" --cache "$CACHE" --device cuda:0 --bs 192 || exit 6
 python3 -u mmrag/eval_retrieval.py --profile "$PROFILE" --checkpoint "$RUN" --name "$NAME" \
     --max-q 3000 --device cuda:0 --corpus_bs 192 --cache_corpus "$CACHE" || exit 7
 python3 -u mmrag/eval_vqa.py --retrieval "$D/results/$NAME.retrieval.json" \

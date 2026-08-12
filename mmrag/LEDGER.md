@@ -36,3 +36,14 @@ gold-oracle context 0.503. PROVISIONAL pending review. Evidence = run name in
 
 FINAL: all jobs completed before access ended 2026-08-03. Best-SFT seeds 0.321/0.309/0.313/0.309
 (mean 0.313±0.005). 7B no-gold seeds 0.351/0.353/0.353. See RESUME.md for continuation.
+
+## ERRATUM (2026-08-12, writer-audit): capacity row overstated
+
+The "RL−SFT gap grows with capacity ... +2.2 (2B) / +3.3 (7B, p=4e-4)" row pairs the GOLD-seeded
+7B arm (0.3587) against the MIDDLE 7B SFT rung (sft7b-lr5e5, 0.3260) instead of the best
+(sft7b-lr1e4, 0.3307). Like-for-like (annotation-free arm vs each rung's best-tuned SFT):
+2B 0.3415−0.3207 = +2.08 vs 7B 0.3524−0.3307 = +2.17 — FLAT, not growing. Even gold-vs-best is
++2.80, not +3.3. Caveat: 7B SFT cells are single-seed; 2B best-seed used for symmetry (multi-seed
+2B mean 0.3128 gives +2.87, but no 7B multi-seed SFT exists to pair it with). The fresh
+gme7b-sft + gme7b-v3pure pair (ck-disciplined) is the clean test. Verified against
+results_summary.json cell by cell.

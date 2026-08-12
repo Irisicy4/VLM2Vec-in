@@ -1,0 +1,36 @@
+caption: '[mm-RAG] plppo2ep-gme2b-nogold'
+notifyRequest:
+  silent: true
+jobDefVersion:
+  entrypointMode: FULL_SCRIPT
+  imageMeta:
+    imageVid: d6lj4vjc77u7t7t31hp0
+  lazyDownloadCode: true
+  name: 'mmrag-plppo2ep-gme2b-nogold'
+  resource:
+    arnoldConfig:
+      clusterId: 11
+      groupIds:
+        - 665
+      quotaPool: default
+      preemptible: false
+      bytenasVolumes:
+        - name: tns-algo-video-public-my2
+          accessMode: RW
+      roles:
+        - cpu: 24
+          gpu: 1
+          gpuv: 19
+          memory: 220160
+          name: worker
+          num: 1
+          queueName: compute-543-my2-cloudnative-aigcp-tns.algo.public.pool.minipod.gcpsd.c-guarantee
+    backend: ARNOLD
+jobRunParams:
+  entrypointFullScript: |
+    bash /mnt/bn/tns-algo-video-public-my2/yijiangli/project/VLM2Vec-in/mmrag/mlx_entry_cell.sh
+  envsList:
+    CELL_NAME: plppo2ep-gme2b-nogold
+    CELL_PROFILE: gme2b
+    CELL_TRAIN_ARGS: --pool built/pool_train.jsonl --max_train_rows 0 --max_steps 500 --no_force_gold --learning_rate 2e-5 --reward judge --algo plgrpo --pl_group 4 --pl_k 4 --pl_support 24 --inner_epochs 2 --seed 0
+namespace: /user/yliang.26

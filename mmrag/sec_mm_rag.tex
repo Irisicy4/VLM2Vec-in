@@ -791,6 +791,12 @@ evidence labels are such a proxy --- which is why SFT here barely separates from
 %   bash mmrag/mlx_submit_cell.sh "gate-gme2b-nogold" gme2b \
 %     "--pool built/pool_train.jsonl --max_train_rows 0 --max_steps 500 --seed 0 \
 %      --no_force_gold --learning_rate 2e-5 --reward_gate_noctx"
+%   DIVERSITY (distinct top-5 / 3000, max multiplicity) -- the regime split in one static metric:
+%     gate-gme2b-nogold    2810 (max 7)   vs  nogate-gme2b-nogold 2804 (max 9)   -> gate is
+%       diversity-neutral at the strong rung, matching its accuracy neutrality (0.3367 v 0.3333)
+%     clip-nogold-gate     1824 (max 43)  vs  clip-nogold-base    2810 (max 107) -> a third of
+%       the policy's distinct retrievals lost at the weak rung, alongside R@5 0.291 -> 0.038
+%   Counts verified independently by both sessions; agree to the unit.
 %   Keep-rates come from the run's own metrics.jsonl, weighted by the per-step counts:
 %     keep_given_gold    = sum(keep_given_gold * n_gold_in_pool)    / sum(n_gold_in_pool)
 %     keep_given_no_gold = sum(keep_given_no_gold * n_no_gold_in_pool) / sum(n_no_gold_in_pool)
@@ -804,10 +810,13 @@ well and does not pay. It is a genuine pool-quality detector: it keeps pools con
 $62.7\%$ against $23.3\%$ for gold-free pools, a $2.7\times$ separation and a stronger one than
 the text side's $1.3\times$, at an overall keep rate of $49.8\%$. Yet at the 2B rung the
 downstream effect is neutral --- $33.67$ gated against $33.33$ for the identical ungated control,
-inside seed noise. At the weak rung it is actively harmful: CLIP-L, whose annotation-free RL
+inside seed noise --- and neutral on retrieval diversity too, at $2{,}810$ distinct top-$5$ sets
+gated against $2{,}804$ ungated, which is as close to identical as the metric resolves. At the weak rung it is actively harmful: CLIP-L, whose annotation-free RL
 lifts entity R@5 from $5.4$ to $29.1$, collapses to $3.8$ under the gate, which keeps only
-$20.4\%$ of queries and partially degenerates the retriever with it ($1{,}824$ distinct top-$5$
-sets against $2{,}810$ for its ungated twin) (keep-given-gold $0.800$, but on only $n{=}5$ gold-bearing pools --- the
+$20.4\%$ of queries and takes a third of the policy's retrieval diversity with it ($1{,}824$
+distinct top-$5$ sets against $2{,}810$ ungated). The same regime split therefore shows up twice
+in the same static measurement: at the strong rung the gate costs nothing on either axis, at the
+weak rung it costs both (keep-given-gold $0.800$, but on only $n{=}5$ gold-bearing pools --- the
 detector has almost nothing left to detect). We attribute the difference to offline versus online
 filtering: on a fixed mined pool, dropping mislabeled examples is pure gain, whereas in an online
 loop the dropped queries are precisely those whose retrieval most needs to change, so filtering

@@ -31,7 +31,7 @@ from mmrag.image_store import TarImageStore, open_stores  # noqa: E402
 from mmrag.reader_vlm import LiveVLMReader  # noqa: E402
 from mmrag.rl_core import (  # noqa: E402
     ValueHead, compute_advantages_and_targets, embedding_ppo_loss, infonce_loss, pl_list_logps,
-    pl_sample_lists, pool_logps,
+    pl_sample_lists, pool_logps, rloo_advantages,
 )
 
 
@@ -72,6 +72,18 @@ def main():
     ap.add_argument("--pl_support", type=int, default=24,
                     help="plgrpo: candidate support M = top-M by current policy; the PL denominator "
                          "runs over this set")
+    ap.add_argument("--kl_beta", type=float, default=0.0,
+                    help="plgrpo: k3 KL-to-init on the sampled lists (reference = adapters "
+                         "disabled == the init policy). RL-native anchor replacing InfoNCE.")
+    ap.add_argument("--entropy_coef", type=float, default=0.0,
+                    help="plgrpo: first-position PL entropy bonus over the support (anti-collapse)")
+    ap.add_argument("--baseline", choices=["group_z", "rloo"], default="group_z",
+                    help="plgrpo advantage baseline: per-group z-score (v2 default) or RLOO "
+                         "leave-one-out mean (unbiased, no std division)")
+    ap.add_argument("--pl_behavior_temperature", type=float, default=None,
+                    help="plgrpo: SAMPLE lists at this temperature while scoring log-probs at "
+                         "--temperature; old_logps become the behavior log-probs, so the PPO "
+                         "ratio is the true importance weight (off-policy clipped PG)")
     ap.add_argument("--inner_epochs", type=int, default=1,
                     help=">1 re-runs the grad forward + optimizer step on the SAME rollout, making "
                          "the PPO ratio/clip meaningful (with 1 epoch ratio==1 identically and the "
@@ -269,14 +281,29 @@ def main():
             noctx_keep_rate = None
             noctx_gate_xtab = None
 
-            pl_idx = old_list_lp = None
+            pl_idx = old_list_lp = ref_list_lp = None
             if args.algo == "plgrpo":
                 # ---- conditional-probability GRPO: sample G ordered k-lists from the PL policy
                 # over the top-M support; group = the G lists of one query ----
                 assert args.reward in ("judge", "logit"), "plgrpo: reward must be judge or logit"
                 _, old_scaled = pool_logps(q_emb, c_emb, args.temperature)      # (B, M) sims/tau
-                pl_idx = pl_sample_lists(old_scaled, args.pl_k, args.pl_group)  # (B, G, k)
-                old_list_lp = pl_list_logps(old_scaled, pl_idx)                 # (B, G)
+                if args.pl_behavior_temperature:
+                    # explore at T_b, score at the target temperature; old_logps = BEHAVIOR
+                    # log-probs so the clipped ratio is the true importance weight
+                    _, beh_scaled = pool_logps(q_emb, c_emb, args.pl_behavior_temperature)
+                    pl_idx = pl_sample_lists(beh_scaled, args.pl_k, args.pl_group)
+                    old_list_lp = pl_list_logps(beh_scaled, pl_idx)
+                else:
+                    pl_idx = pl_sample_lists(old_scaled, args.pl_k, args.pl_group)  # (B, G, k)
+                    old_list_lp = pl_list_logps(old_scaled, pl_idx)                 # (B, G)
+                ref_list_lp = None
+                if args.kl_beta > 0:
+                    with enc.ref_ctx():
+                        ref_q = enc.encode_queries(questions, imgs, batch_size=args.batch_size).float()
+                        ref_c = enc.encode_docs(flat, batch_size=args.encode_bs).float().view(
+                            args.batch_size, N, -1)
+                    _, ref_scaled = pool_logps(ref_q, ref_c, args.temperature)
+                    ref_list_lp = pl_list_logps(ref_scaled, pl_idx)             # (B, G) fixed
                 # reader scores each UNIQUE sampled doc once; list reward = mean over positions
                 # (per-document credit — the joint-context scalar variant collapsed, see ragacc)
                 uniq, owner = [], []
@@ -300,7 +327,10 @@ def main():
                         ids = [owner[b][j] for j in pl_idx[b, g].tolist()]
                         R[b, g] = r_doc[ids].mean()
                 raw_mean, gold_mean = R.mean().item(), float("nan")
-                advantages = (R - R.mean(1, keepdim=True)) / (R.std(1, keepdim=True) + 1e-6)
+                if args.baseline == "rloo":
+                    advantages = rloo_advantages(R)
+                else:
+                    advantages = (R - R.mean(1, keepdim=True)) / (R.std(1, keepdim=True) + 1e-6)
                 value_target = R.new_zeros(args.batch_size)
                 rewards = R
             elif args.reward == "ragacc":
@@ -422,6 +452,17 @@ def main():
                 values=values, old_values=old_values, value_target=value_target,
                 epsilon_low=args.epsilon, epsilon_high=args.epsilon, vf_coef=args.vf_coef,
                 disable_policy=(args.algo == "ppo" and step < args.critic_warmup_steps))
+            if args.algo == "plgrpo" and args.kl_beta > 0 and ref_list_lp is not None:
+                # k3 estimator on the sampled lists: exp(ref-pi) - (ref-pi) - 1  >= 0
+                d_lp = ref_list_lp - logps
+                kl3 = (d_lp.exp() - d_lp - 1).mean()
+                loss = loss + args.kl_beta * kl3
+                m["loss/kl_init"] = kl3.item()
+            if args.algo == "plgrpo" and args.entropy_coef > 0:
+                p1 = torch.softmax(scaled_g, dim=-1)
+                ent = -(p1 * torch.log(p1 + 1e-9)).sum(-1).mean()
+                loss = loss - args.entropy_coef * ent
+                m["policy/entropy1"] = ent.item()
             if args.contrastive_coef > 0:
                 nce = infonce_loss(q_emb_g, c_emb_g, args.contrastive_temperature)
                 loss = loss + args.contrastive_coef * nce

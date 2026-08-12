@@ -62,6 +62,14 @@ def pl_list_logps(scaled_sims, idx):
     return lp
 
 
+def rloo_advantages(R):
+    """Leave-one-out baseline over the group dim: A_g = R_g - mean_{h!=g} R_h. (B, G) -> (B, G).
+    Unbiased and scale-preserving — no std division, so degenerate all-equal-reward groups give
+    exactly zero advantage instead of noise amplified by a tiny denominator."""
+    G = R.shape[1]
+    return R - (R.sum(1, keepdim=True) - R) / max(G - 1, 1)
+
+
 def infonce_loss(q, d, temperature=0.02):
     """In-batch contrastive anchor: positive = candidate 0 of each pool; negatives = every other
     doc in the batch. The absolute, cross-query constraint that prevents embedding collapse."""

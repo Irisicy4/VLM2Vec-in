@@ -3,7 +3,7 @@
 # Env: CELL_NAME, CELL_PROFILE (default gme2b), CELL_TRAIN_ARGS (extra train_rl.py flags).
 # Idempotent: exits immediately if results/<name>.vqa_top5.json already exists.
 set -uo pipefail
-ROOT=/mnt/bn/tns-algo-video-public-my2/yijiangli/project/VLM2Vec-in
+ROOT=/mnt/bn/tns-algo-video-public-my2/yijiangli/project/VLM2Vec-rl
 export MMRAG_DATA=/mnt/bn/tns-algo-video-public-my2/yijiangli/data/mmrag_data
 export HF_HOME=/mnt/bn/tns-algo-video-public-my2/yijiangli/hf_home
 export PYTHONPATH=$ROOT

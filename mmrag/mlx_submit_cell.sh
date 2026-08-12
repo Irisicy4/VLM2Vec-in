@@ -2,7 +2,7 @@
 # Submit a generic mm-RAG cell as a 1-GPU MLX job.
 #   usage: mlx_submit_cell.sh "<name>" "<profile>" "<extra train_rl.py args>"
 set -eu
-ROOT=/mnt/bn/tns-algo-video-public-my2/yijiangli/project/VLM2Vec-in
+ROOT=/mnt/bn/tns-algo-video-public-my2/yijiangli/project/VLM2Vec-rl
 MLX=/opt/tiger/mlx_deploy/bin/mlx
 D=/mnt/bn/tns-algo-video-public-my2/yijiangli/data/mmrag_data
 CFGDIR=$ROOT/mmrag/mlx_configs; mkdir -p "$CFGDIR"

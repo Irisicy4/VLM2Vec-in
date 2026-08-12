@@ -187,6 +187,14 @@ class MMRagEncoder:
         ckpt = p["checkpoint"] if checkpoint_path == "__profile__" else checkpoint_path
         return cls(p["model"], checkpoint_path=ckpt, style=p["style"], **kwargs)
 
+    def ref_ctx(self):
+        """Context manager that disables the trainable LoRA adapters, exposing the reference
+        (initial) policy — valid because LoRA-B is zero-initialised, so init policy == base."""
+        import contextlib
+
+        m = self.model.encoder
+        return m.disable_adapter() if hasattr(m, "disable_adapter") else contextlib.nullcontext()
+
     # ---------------- training helpers ----------------
     def trainable_parameters(self):
         return [p for p in self.model.parameters() if p.requires_grad]

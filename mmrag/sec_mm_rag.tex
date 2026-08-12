@@ -413,6 +413,11 @@ the three answer metrics, v2 on the three retrieval metrics.}
 %   Discriminator: the band sweep's `random` cell is varied junk with the same reader -- if it
 %   lands at floor while this sits at +3.3, the constant-vs-varied clause is earned; if it also
 %   lands high, the floor has wider error than the noctx run implies and the band widens to ~3.5.
+%   DIVERSITY-vs-HARM at zero utility (the four failed v3-pure cells, R@5 0.000-0.007):
+%     67 distinct -> +3.33 | 214 -> -0.27 | 338 -> -0.60 | 3000 -> -2.07  (monotone)
+%     Utility held at zero, so the varying quantity is junk VARIETY, not junk usefulness.
+%     Encoder identity still varies -> suggestive, not proof; band-random and siglip2-shuffle
+%     are the controlled tests. Note this ALSO anticipates band-random's result.
 %   DIP-THEN-RECOVER, full fresh series sorted by entity R@5 (deltas vs the 0.1927 floor, pts):
 %     .0003 qwen2b-zs      +0.67
 %     .0040 siglip2-v3pure -0.60      <- collapsed cells, at floor
@@ -572,20 +577,35 @@ cells return $214$ (\textsc{CLIP-L}), $338$ (\textsc{SigLIP2}) and $67$, with mo
 $18.7\%$, $8.7\%$ and $45.0\%$. The separation is an order of magnitude with no overlap and it is
 orthogonal to recall --- \textsc{Qwen2-VL-2B} zero-shot and after v3-pure differ by $45\times$ in
 distinct count while differing by $0.03$ points in R@5. We therefore report the collapse \emph{we} observe --- embedding
-degeneracy --- by this signature rather than by a recall threshold. The scope matters: the text
-side ran the same count on its own collapse cells and found the opposite phenotype. Their total
-collapse (R@5 $6.3$ against a base of $55.5$) returns $242$ distinct sets out of $276$ queries,
-with a modal share of $2.2\%$ --- varied but useless, not degenerate at all. Two different
-failures therefore wear the same name: on our side the embedding \emph{contracts}, on theirs the
-geometry \emph{drifts} out of alignment while staying spread. Only the first is visible to a
-distinct-count, and only the second requires ground truth to see.
+degeneracy --- by this signature rather than by a recall threshold. The scope matters, and it is not the scope we
+first assigned it. The text side ran the same count on its own collapse cells and found the
+opposite phenotype --- their total collapse (R@5 $6.3$ against a base of $55.5$) returns $242$
+distinct sets out of $276$ queries, modal share $2.2\%$: varied but useless, not degenerate. We
+initially recorded that as a modality difference. Our own ladder then falsified it. Under
+v3-pure, \textsc{VLM2Vec-2B} fails just as completely (entity R@5 $15.67 \to 0.70$) while
+returning $3{,}000$ distinct top-$5$ sets out of $3{,}000$ queries --- perfect diversity, zero
+utility. Both phenotypes therefore occur \emph{within} our modality.
 
-That same pair supplies the constant-versus-varied comparison directly, inside one rung: varied
-junk ($2{,}998$ distinct, R@5 $0.03$) scores $19.93$, exactly the floor, while near-constant junk
-($67$ distinct, R@5 $0.00$) scores $22.60$, above it. The reader does not merely ignore degenerate
-context, it does marginally \emph{better} with it than with no context at all --- though one of
-the two arms is trained and the other is not, so the band sweep's random cell, which holds the
-encoder fixed and untrained, remains the clean test.
+Two failures wear one name: the embedding either \emph{contracts}, mapping most queries to a
+handful of fixed sets, or it \emph{drifts} out of alignment while staying fully spread. Which one
+appears tracks the base's pretraining rather than the modality --- the dual-tower and raw-VLM
+rungs contract, and the one contrastively pretrained rung drifts. A natural hypothesis is that
+MMEB-style contrastive pretraining leaves a uniformity-regularized geometry that resists
+contraction, so its failure mode is forced to be misalignment instead; that is one seed and one
+rung, and we flag it as a conjecture rather than a result. The consequence for practice is firmer
+than the explanation: \emph{no single static diagnostic is sufficient, even within one
+modality}. A distinct-count sees contraction and is blind to drift; a recall-against-base
+comparison sees drift and needs ground truth. We recommend reporting the pair.
+
+The four failed v3-pure cells then supply a sharper version of the same comparison, because they
+hold utility fixed at zero and vary only how repetitive the junk is. Ordered by diversity, their
+accuracy relative to the floor falls monotonically: $67$ distinct sets $\to +3.33$, $214 \to
+-0.27$, $338 \to -0.60$, $3{,}000 \to -2.07$. All four retrieve essentially nothing
+(R@5 $0.000$--$0.007$), so what separates a cell that beats the no-context floor from one that
+falls two points below it is not how useful the context is but how \emph{varied} it is. Constant
+junk is discounted; varied junk costs something. Encoder identity still varies across those four,
+so we treat this as strong suggestion rather than proof --- the controlled versions, a random-context
+band and a query-permutation of one encoder's own contexts, are the tests that settle it.
 
 Three further qualifications. The minimum is \emph{bracketed} between R@5 $8.23$ and $15.67$, not
 located. Deviations smaller than ${\sim}3$ points are not interpretable: among the four rungs
@@ -618,7 +638,18 @@ which is why it, and not the curve, is the demonstration.
 %   helpful = passage in ans_pids (answer-bearing); credible-wrong = in gold_pids but NOT
 %   answer-bearing (right entity, no answer); off-topic = neither.
 %
-% PARTIAL RESULTS (fresh, 1 seed): rank10 0.2213 (+2.86 vs floor), rank25 0.1947 (+0.20).
+% RESULTS (fresh, 1 seed): rank10 0.2213 (+2.87) | rank25 0.1947 (+0.20) | rank50 0.1873 (-0.53)
+%   | rank95 0.1773 (-1.53). Monotone decline crossing the floor around rank25-50; sub-floor
+%   deepening is REAL but MILD (-1.53 at the deepest reachable band, vs -6.13 at siglip2-zs).
+%   The -6 regime stays unreached, exactly as the coverage measurement predicted.
+% REGISTRATION SCORING, all three on the record:
+%   runner's rank25-50 dip .......... MISSED (nothing beyond band noise there)
+%   writer's rank10 dip (CW-H model)  MISSED (rank10 is the HIGHEST band, +2.87)
+%   writer's refined post-coverage
+%     (rank50 ~+0.6, rank95 ~-0.1) .. shape right, values within ~1.4pts; closest of the three,
+%     but it was a REFINEMENT made after rank10/25 had landed, so it is a weaker form of
+%     prediction than the two that missed. Do not present it as a clean hit.
+% PARTIAL RESULTS SUPERSEDED ABOVE. Original partial note:
 %   NEITHER is below floor, so BOTH registrations below are already in trouble: the writer's
 %   net-mislead model put the deepest dip at rank10, and rank10 is the HIGHEST intermediate.
 %   DIAGNOSIS of that miss: CW-H treats a helpful and a credible-wrong passage as equal and
@@ -713,8 +744,8 @@ band & helpful & credible-wrong & off-topic & net mislead & VQA acc \\
 \texttt{rank00} ($0$--$5$)    & 0.74 & 0.91 & 3.34 & $+0.17$ & $30.80$ (bound) \\
 \texttt{rank10} ($10$--$15$)  & 0.34 & 0.77 & 3.89 & $\mathbf{+0.42}$ & $22.13$ \\
 \texttt{rank25} ($25$--$30$)  & 0.24 & 0.56 & 4.20 & $+0.32$ & $19.47$ \\
-\texttt{rank50} ($50$--$55$)  & 0.17 & 0.42 & 4.41 & $+0.24$ & \emph{pending} \\
-\texttt{rank95} ($95$--$100$) & 0.10 & 0.28 & 4.62 & $+0.18$ & \emph{pending} \\
+\texttt{rank50} ($50$--$55$)  & 0.17 & 0.42 & 4.41 & $+0.24$ & $18.73$ \\
+\texttt{rank95} ($95$--$100$) & 0.10 & 0.28 & 4.62 & $+0.18$ & $17.73$ \\
 \texttt{random} (off-ranking) & ${\approx}0$ & ${\approx}0$ & $5.00$ & ${\approx}0$ & \emph{pending} \\
 \midrule
 \multicolumn{5}{l}{\emph{reference:} image-alone floor, no context at all} & $19.27$ \\
@@ -724,12 +755,9 @@ band & helpful & credible-wrong & off-topic & net mislead & VQA acc \\
 
 The reporting rule does not depend on the mechanism, and it is firm: on weak rungs, quote
 retrieval. An accuracy-only table would have recorded both of these collapses as improvements.
-The diagnostics are symmetrically limited, which is the transferable lesson: degeneracy is
-detectable statically and without labels, drift only against ground truth. The text side's static
-margin measurement could not have seen our failure mode, and our static distinct-count would not
-have seen theirs --- their collapsed cell sits at $242/276$ and would never have announced itself.
-Neither diagnostic is sufficient alone, and we recommend the pair: distinct-count for contraction,
-recall-against-base for drift.
+The diagnostics are symmetrically limited: degeneracy is detectable statically and without
+labels, drift only against ground truth. Their collapsed cell at $242/276$ --- and ours at
+$3{,}000/3{,}000$ --- would never have announced itself to a distinct-count.
 
 \begin{table}[t]
 \centering\small
@@ -970,7 +998,7 @@ CLIP-L ($\sim$430M)    & CLIP   & \multicolumn{2}{c}{\emph{pending}} & \multicol
 SigLIP2-so400m         & SigLIP & 13.13 & 8.23 & \multicolumn{2}{c}{\emph{pending}} & 18.67 & 0.40 \\
 \midrule
 Qwen2-VL-2B (raw)      & none             & 19.93 & 0.03 & \multicolumn{2}{c}{\emph{pending}} & 22.60 & 0.00 \\
-VLM2Vec-2B             & MMEB contrastive & 17.60 & 15.67 & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} \\
+VLM2Vec-2B             & MMEB contrastive & 17.60 & 15.67 & \multicolumn{2}{c}{\emph{pending}} & 17.20 & 0.70 \\
 GME-2B \emph{(headline)} & GME            & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} \\
 \midrule
 Qwen2-VL-7B (raw)      & none             & 16.20 & 0.47 & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} \\

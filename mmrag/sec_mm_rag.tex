@@ -283,15 +283,17 @@ zero-shot base            & 30.80 & --- & 23.93 & 31.03 & 44.57 & 68.53 & 54.94 
 relevance-SFT             & 31.00 & \emph{pending} & 23.87 & 32.13 & 59.13 & 73.63 & 59.67 \\
 v1 listwise $+$ anchor (1 seed) & 33.33 & --- & 24.87 & 33.61 & 58.70 & 79.40 & 63.96 \\
 v2 PL-PG $+$ anchor       & $33.82 \pm 0.60$ & --- & 25.74 & 34.14 & \textbf{59.82} & \textbf{80.13} & \textbf{65.46} \\
-\textbf{v3-pure} (ours)   & $\mathbf{34.71 \pm 0.19}$ & \emph{pending} & \textbf{25.93} & \textbf{34.77} & 59.42 & 76.09 & 63.46 \\
+\textbf{v3-pure} (ours)   & $\mathbf{34.71 \pm 0.19}$ & $\mathbf{34.71 \pm 0.19}$ & \textbf{25.93} & \textbf{34.77} & 59.42 & 76.09 & 63.46 \\
 \bottomrule
 \end{tabular}
 
 \vspace{2pt}
 {\footnotesize Endpoint is the trained budget: $500$ steps for the RL arms, $600$ for SFT.
-``Max over ckpt'' applies the same intermediate-checkpoint discipline to both arms and is
-\emph{pending} for the two it is being measured on; ``---'' marks arms for which no checkpoint
-curve was run. v3-pure per seed ($0/1/2$): acc $34.47 / 34.73 / 34.93$; McNemar vs.\ SFT
+``Max over ckpt'' applies the same intermediate-checkpoint discipline to both arms; ``---'' marks
+arms for which no checkpoint curve was run. For v3-pure the two columns coincide: the
+half-budget checkpoint scores lower on all three seeds ($33.33/33.93/33.93$ against
+$34.47/34.73/34.93$), so the endpoint \emph{is} the checkpoint maximum and the headline is
+unrevised. v3-pure per seed ($0/1/2$): acc $34.47 / 34.73 / 34.93$; McNemar vs.\ SFT
 $p = 4.8\mathrm{e}{-}5 / 1.3\mathrm{e}{-}5 / 1.8\mathrm{e}{-}6$, vs.\ base
 $p = 4.2\mathrm{e}{-}6 / 3.2\mathrm{e}{-}7 / 5.3\mathrm{e}{-}7$ --- all significant. Those tests
 attach to the \emph{endpoint} comparison; because per-question predictions are stored for every
@@ -989,7 +991,10 @@ $1{,}200$ steps than at $600$ ($31.73$ against $31.00$), while the text side fin
 peaking early. Rather than apply the correction to whichever arm it flatters, we ran the same
 intermediate-checkpoint discipline on both --- a full SFT curve to $1{,}200$ steps and
 checkpoint evaluations of all three v3-pure seeds --- and report a max-over-checkpoint column for
-each (Table~\ref{tab:mm_main}). This is the third fairness audit applied to our own headline,
+each (Table~\ref{tab:mm_main}). The RL half has resolved and it confirmed rather than revised the
+number: every v3-pure seed scores lower at half budget than at the endpoint, so this arm is still
+improving when we stop it and the text side's early-peak pattern does not transfer. The SFT curve
+is still training. This is the third fairness audit applied to our own headline,
 after the SFT tuning sweep and the estimator-correctness rewrite; we would rather find the
 compressions ourselves than have them found for us.
 This matters beyond bookkeeping. On the text side the same audit discipline killed several
@@ -1100,11 +1105,38 @@ above, \textsc{Qwen2-VL-2B} v3-pure should collapse, exactly as \textsc{CLIP-L} 
 the anchored \textsc{Qwen2-VL-2B} cell is the genuinely open one, testing whether the anchor
 extends the \textsc{CLIP-L} bootstrap ($5.4 \to 29.1$ entity R@5) all the way down to a randomly
 initialised retrieval geometry. \textsc{VLM2Vec-2B} (zero-shot R@5 $15.67$) is the boundary probe
-between the two regimes. At $7$B we currently have only the v1 recorded
-wave --- zero-shot $30.6$, SFT $32.6$, annotation-free RL $35.1$/$35.3$/$35.3$ across three
-seeds, gold-seeded RL $35.9$ --- measured before the cluster move and therefore not directly
-comparable to the fresh $2$B numbers above, though the adapter budget is identical across both; the v3-pure $7$B cell is in flight. We defer the
-capacity claim until that table is complete rather than extrapolating it from v1.
+between the two regimes. The $7$B rungs complicate the capacity story rather than confirming it. The recorded v1 wave
+showed a clear gain with scale --- zero-shot $30.60$, SFT $33.07$, annotation-free RL
+$35.13$/$35.27$/$35.33$ across three seeds, gold-seeded RL $35.87$, all measured before the
+cluster move --- but the fresh v3-pure cell at $7$B scores $34.60$, statistically
+indistinguishable from the same recipe's $34.71 \pm 0.19$ at $2$B despite $3.5\times$ the frozen
+backbone and an identical $36.9$M adapter. What scale buys is \emph{retrieval}: entity R@5 rises
+from $76.09$ to $80.97$, above even the anchored $2$B arm's $80.13$. At $7$B the pure recipe
+therefore attains anchored-class recall while keeping v3-class accuracy, and the accuracy ceiling
+still does not move --- the fourth appearance of the same recall/accuracy dissociation. Two
+readings stay open: the recorded capacity gain may have been specific to the v1 recipe, an
+estimator-by-capacity interaction that would be a real finding, or it may be wave and seed noise.
+One seed decides neither, and the two cells that would --- replicate seeds at $7$B and a fresh
+$7$B v1 twin --- are not yet queued. Raw \textsc{Qwen2-VL-7B} meanwhile fails exactly as its $2$B
+counterpart does (entity R@5 $0.00$), so scale does not substitute for retrieval pretraining at
+either size.
+
+The recorded wave's own ``the advantage grows with capacity'' reading also weakens under the
+baseline discipline we already applied at $2$B. That claim pairs the $7$B gold-seeded arm against
+a $7$B SFT cell of $32.60$ --- but $32.60$ is the $5\mathrm{e}{-}5$ rung of a three-point
+learning-rate sweep whose best cell is $1\mathrm{e}{-}4$ at $33.07$. Comparing like with like,
+the same annotation-free arm against each rung's best-tuned SFT, the gap is $+2.08$ at $2$B
+($34.15$ against $32.07$) and $+2.17$ at $7$B ($35.24$ against $33.07$): flat, not growing. The
+larger figure survives only by pairing the gold-seeded arm with the weaker baseline. We therefore
+make no capacity-amplification claim from the recorded wave; the fresh $7$B pair will settle it
+once its matched SFT lands.
+
+One interpretive remark, offered as such. With $7$B v3-pure retrieving the gold entity in the
+top-$5$ for $81\%$ of queries while answering $34.6\%$ of them, and a gold-context oracle reaching
+only ${\approx}50\%$ (recorded wave, so indicative only --- a same-wave oracle is running), the
+binding constraint has moved off the retrieval policy: most of the residual gap is the reader
+failing to use evidence it already has, or the corpus not containing it. That is where further
+gains would have to come from, and it is not where this method operates.
 
 \begin{table}[t]
 \centering\small

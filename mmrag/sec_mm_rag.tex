@@ -367,6 +367,12 @@ the three answer metrics, v2 on the three retrieval metrics.}
 %   20.6x; clip 0.1900 collapsed vs 0.1727 anchored. Both collapsed cells sit in the 0.16-0.20
 %   band of the random-retrieval rungs (qwen2b 0.1993, qwen7b 0.1620) -- i.e. the reader's
 %   image-alone floor. NEVER report these rungs on accuracy alone.
+%   UPDATE: precondition (ii) is now MET. Text side supplied the anchored twins' IN-DOMAIN R@5
+%     [header attached, per the new convention]: trivia 0.5542/0.5746 (2 seeds) and WQ 0.5338,
+%     against bases 0.5810/0.5550 -- within ~2.5 pts of base, versus collapse values of
+%     0.431/0.063. So anchor(self) DOES hold drift at bay on text: established, not inferred, and
+%     the cEM-parity fallback phrasing is no longer needed. The conditional now rests ENTIRELY on
+%     our vlm2vec2b-nogold: if its recall does not recover, the tension is real and sharp.
 %   PENDING, CONDITIONAL CROSS-SIDE ITEM (do not write until BOTH numbers exist): whether
 %   anchor(self) prevents DRIFT as well as contraction. Needs (i) our vlm2vec2b-nogold -- for a
 %   drift-phenotype cell RECALL is the diagnostic, diversity is uninformative-by-saturation since
@@ -733,7 +739,15 @@ which is why it, and not the curve, is the demonstration.
 %   ------------------------------------------------------------------
 %   sum          = 13.13 - 19.27 = -6.13                <- identity, checks the arithmetic
 %
-%   filled:  variedness ____   style ____   conditioning ____   (sum must be -6.13)
+%   LANDED [InfoSeek acc, top-5, n=1500]: siglip2-shuffle = 0.1693 (-2.33 vs floor).
+%     Sanity check requested and passed: distinct top-5 = 2974, max 3 -- identical to the
+%     original siglip2-zs (2974), so the permutation preserved the context multiset and
+%     introduced no accidental degeneracy in the 15-line synthesis.
+%     => conditioning >= 0.1313 - 0.1693 = -3.80 pts (LOWER bound; the <=2.40 pt helpful-content
+%        removal pushes the original UP, so true conditioned harm is at least this).
+%   filled:  variedness ____   style ____   conditioning >= -3.80   (sum must be -6.13)
+%   Do NOT fill the other two until band-random lands -- it is the term that makes both
+%   well-defined, and shuffle alone cannot separate variedness from style.
 %
 % CONFOUND, already bounded: shuffling also removes the original's tiny helpful content
 % (0.0273/5, any-ans 2.4%), worth at most 2.40 pts and pushing the ORIGINAL up. So the measured
@@ -1124,7 +1138,7 @@ consumed & source & v1 listwise $+$ anchor & v3-pure \\
 \midrule
 $1$K  & ck250 of the $3$K-step run  & \emph{pending} & --- \\
 $2$K  & ck500 of the $3$K-step run  & \emph{pending} & --- \\
-$2$K  & final, $500$ steps, $200$K pool & 34.80 & \emph{pending} (\texttt{v3-rows200k}) \\
+$2$K  & final, $500$ steps, $200$K pool & 34.80 & $33.47$ \\
 $2$K  & final, $500$ steps, $45$K pool  & --- & $\mathbf{34.71 \pm 0.19}$ (3 seeds)$^{\dagger}$ \\
 $4$K  & ck1000                      & \emph{pending} & --- \\
 $6$K  & ck1500                      & \emph{pending} & --- \\

@@ -273,22 +273,29 @@ L2 top-$5$ VQA with a frozen \textsc{Qwen2.5-VL-7B} reader ($n{=}1{,}500$), toke
 cover-EM vs.\ official aliases. All rows are fresh same-cluster retrains on the rebuilt data.
 $\pm$ is the standard deviation over seeds; single-seed rows are marked.}
 \label{tab:mm_main}
-\begin{tabular}{lcccccc}
+\begin{tabular}{lccccccc}
 \toprule
-arm & VQA acc & strict-EM & F1 & ent.\ R@1 & ent.\ R@5 & ans.\ R@5 \\
+& \multicolumn{2}{c}{VQA accuracy} & & & & & \\
+\cmidrule(lr){2-3}
+arm & endpoint & max over ckpt & strict-EM & F1 & ent.\ R@1 & ent.\ R@5 & ans.\ R@5 \\
 \midrule
-zero-shot base            & 30.80 & 23.93 & 31.03 & 44.57 & 68.53 & 54.94 \\
-relevance-SFT             & 31.00 & 23.87 & 32.13 & 59.13 & 73.63 & 59.67 \\
-v1 listwise $+$ anchor (1 seed) & 33.33 & 24.87 & 33.61 & 58.70 & 79.40 & 63.96 \\
-v2 PL-PG $+$ anchor       & $33.82 \pm 0.60$ & 25.74 & 34.14 & \textbf{59.82} & \textbf{80.13} & \textbf{65.46} \\
-\textbf{v3-pure} (ours)   & $\mathbf{34.71 \pm 0.19}$ & \textbf{25.93} & \textbf{34.77} & 59.42 & 76.09 & 63.46 \\
+zero-shot base            & 30.80 & --- & 23.93 & 31.03 & 44.57 & 68.53 & 54.94 \\
+relevance-SFT             & 31.00 & \emph{pending} & 23.87 & 32.13 & 59.13 & 73.63 & 59.67 \\
+v1 listwise $+$ anchor (1 seed) & 33.33 & --- & 24.87 & 33.61 & 58.70 & 79.40 & 63.96 \\
+v2 PL-PG $+$ anchor       & $33.82 \pm 0.60$ & --- & 25.74 & 34.14 & \textbf{59.82} & \textbf{80.13} & \textbf{65.46} \\
+\textbf{v3-pure} (ours)   & $\mathbf{34.71 \pm 0.19}$ & \emph{pending} & \textbf{25.93} & \textbf{34.77} & 59.42 & 76.09 & 63.46 \\
 \bottomrule
 \end{tabular}
 
 \vspace{2pt}
-{\footnotesize v3-pure per seed ($0/1/2$): acc $34.47 / 34.73 / 34.93$; McNemar vs.\ SFT
+{\footnotesize Endpoint is the trained budget: $500$ steps for the RL arms, $600$ for SFT.
+``Max over ckpt'' applies the same intermediate-checkpoint discipline to both arms and is
+\emph{pending} for the two it is being measured on; ``---'' marks arms for which no checkpoint
+curve was run. v3-pure per seed ($0/1/2$): acc $34.47 / 34.73 / 34.93$; McNemar vs.\ SFT
 $p = 4.8\mathrm{e}{-}5 / 1.3\mathrm{e}{-}5 / 1.8\mathrm{e}{-}6$, vs.\ base
-$p = 4.2\mathrm{e}{-}6 / 3.2\mathrm{e}{-}7 / 5.3\mathrm{e}{-}7$ --- all significant.
+$p = 4.2\mathrm{e}{-}6 / 3.2\mathrm{e}{-}7 / 5.3\mathrm{e}{-}7$ --- all significant. Those tests
+attach to the \emph{endpoint} comparison; because per-question predictions are stored for every
+evaluation, they will be recomputed on the max-over-checkpoint pair once both columns exist.
 v2 per seed ($0/2/3$): $34.27 / 33.07 / 34.13$. Entity R@10: base $76.63$, SFT $79.83$,
 v1 $85.73$, v2 $85.73$, v3-pure $82.23$. Bold marks the best trained arm per column: v3-pure on
 the three answer metrics, v2 on the three retrieval metrics.}
@@ -974,6 +981,15 @@ ${\sim}19{,}200$. Against that comparator the advantage narrows from $+3.71$ to 
 which is still an order of magnitude larger than v3-pure's seed spread of $0.19$, though we
 cannot attach a McNemar $p$ to it because that cell is a recorded run without per-question
 predictions. We report the exposure-matched number as the honest one; the ordering is unchanged.
+A further asymmetry remained until late, and we closed it in both directions at once. Reading an
+arm at its trained endpoint can understate it, and the recorded sweep shows SFT doing better at
+$1{,}200$ steps than at $600$ ($31.73$ against $31.00$), while the text side finds its RL arms
+peaking early. Rather than apply the correction to whichever arm it flatters, we ran the same
+intermediate-checkpoint discipline on both --- a full SFT curve to $1{,}200$ steps and
+checkpoint evaluations of all three v3-pure seeds --- and report a max-over-checkpoint column for
+each (Table~\ref{tab:mm_main}). This is the third fairness audit applied to our own headline,
+after the SFT tuning sweep and the estimator-correctness rewrite; we would rather find the
+compressions ourselves than have them found for us.
 This matters beyond bookkeeping. On the text side the same audit discipline killed several
 apparent annotation-free wins, and the surviving text result is that reward-based training pays
 exactly where the annotation is a weak proxy for what the reader needs. InfoSeek's entity-level

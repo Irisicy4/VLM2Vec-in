@@ -1,0 +1,36 @@
+caption: '[mm-RAG] qwen7b-nogold'
+notifyRequest:
+  silent: true
+jobDefVersion:
+  entrypointMode: FULL_SCRIPT
+  imageMeta:
+    imageVid: d6lj4vjc77u7t7t31hp0
+  lazyDownloadCode: true
+  name: 'mmrag-qwen7b-nogold'
+  resource:
+    arnoldConfig:
+      clusterId: 11
+      groupIds:
+        - 665
+      quotaPool: default
+      preemptible: false
+      bytenasVolumes:
+        - name: tns-algo-video-public-my2
+          accessMode: RW
+      roles:
+        - cpu: 24
+          gpu: 1
+          gpuv: 19
+          memory: 220160
+          name: worker
+          num: 1
+          queueName: compute-543-my2-cloudnative-aigcp-tns.algo.public.pool.minipod.gcpsd.c-guarantee
+    backend: ARNOLD
+jobRunParams:
+  entrypointFullScript: |
+    bash /mnt/bn/tns-algo-video-public-my2/yijiangli/project/VLM2Vec-rl/mmrag/mlx_entry_cell.sh
+  envsList:
+    CELL_NAME: qwen7b-nogold
+    CELL_PROFILE: qwen7b
+    CELL_TRAIN_ARGS: --pool built/pool_train.jsonl --max_train_rows 0 --max_steps 500 --no_force_gold --reward judge --algo grpo --learning_rate 1e-5 --seed 0 --encode_bs 32 --reader_batch_size 8
+namespace: /user/yliang.26

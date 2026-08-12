@@ -1217,6 +1217,16 @@ the trainer samples each batch independently, so an example can recur across ste
 $200$K pool the birthday bound puts expected collisions at $0.5\%$ at $2$K draws and $2.9\%$ at
 $12$K, the largest budget shown. We write ``drawn'' rather than ``unique'' for that reason.
 
+The v3 arm's own two points on this axis do not yet settle its shape, and the reason is worth
+stating rather than resolving. Within the $200$K pool it rises, $33.47$ at $2$K drawn to $34.80$
+at $6$K, where v1's matched pair is flat ($34.80 \to 34.57$). Read alone that suggests the
+corrected estimator extracts something from extra data that v1 does not. But the $2$K endpoint of
+that rise is a single seed, and our other measurement at the same budget --- the three-seed
+headline cell, drawn from the smaller pool --- sits at $34.71$, which is level with the $6$K point
+rather than $1.3$ below it. So either the big-pool $2$K cell is a low draw and there is no rise,
+or pool composition depresses it and the rise is real. A replicate seed at $2$K decides between
+them more directly than the deeper budgets do, and we draw no growth conclusion until it exists.
+
 \emph{Status: the dense curve is in flight and the conclusion is not yet fixed.} We state in
 advance how it will be read, so that neither outcome can be written up as the one we wanted.
 The three v1 endpoints already in hand fall monotonically --- $34.80$ at $2$K consumed, $34.57$
@@ -1259,7 +1269,7 @@ $2$K  & final, $500$ steps, $200$K pool & 34.80 & $33.47$ \\
 $2$K  & final, $500$ steps, $45$K pool  & --- & $\mathbf{34.71 \pm 0.19}$ (3 seeds)$^{\dagger}$ \\
 $4$K  & ck1000                      & \emph{pending} & --- \\
 $6$K  & ck1500                      & \emph{pending} & --- \\
-$6$K  & final, $1{,}500$ steps      & 34.57 (2 seeds) & \emph{pending} \\
+$6$K  & final, $1{,}500$ steps      & 34.57 (2 seeds) & $34.80$ \\
 $8$K  & ck2000                      & \emph{pending} & --- \\
 $10$K & ck2500                      & \emph{pending} & --- \\
 $12$K & final, $3{,}000$ steps      & 33.07 & \emph{pending} \\

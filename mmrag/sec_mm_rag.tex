@@ -705,6 +705,32 @@ which is why it, and not the curve, is the demonstration.
 %   removed help (the 2.4% of queries that had any answer-bearing passage, all flipping). So if
 %   shuffled lands at floor, the harm-removal effect is AT LEAST the full 6.13 points, not less.
 %   Reading (a) firing is therefore a conservative result, and can be stated as a lower bound.
+% ===== DECOMPOSITION SKELETON for the -6.13 deficit at siglip2-zs (fill when cells land) =====
+% Amended registrations (runner + writer, both before band-random and shuffle reported):
+%   band-random: PRIMARY expectation now ~-2 (the varied-junk penalty implied by the 67/214/338/
+%     3000 monotone). Runner's original "reproduces the floor" is SUPERSEDED, kept on record.
+%   siglip2-shuffle: reading (a) "shuffle ~ floor" is WITHDRAWN -- shuffled context is maximally
+%     varied by construction, so its baseline is the varied-junk line, not the no-context floor.
+%
+% THREE-TERM decomposition, not two. The runner's version assumed style contributes nothing;
+% shuffled context is siglip2-RETRIEVED passages (what images in general find confusable), which
+% is not the same population as a uniform corpus draw. Separating it costs nothing and each term
+% is then a difference of two MEASURED cells, with no additivity assumption beyond the identity:
+%
+%   variedness   = band-random      - floor(19.27)      <- uniform-corpus junk vs no context
+%   style        = shuffle          - band-random       <- siglip2's passage population vs uniform
+%   conditioning = siglip2-zs(13.13)- shuffle           <- passages confusable WITH THIS IMAGE
+%   ------------------------------------------------------------------
+%   sum          = 13.13 - 19.27 = -6.13                <- identity, checks the arithmetic
+%
+%   filled:  variedness ____   style ____   conditioning ____   (sum must be -6.13)
+%
+% CONFOUND, already bounded: shuffling also removes the original's tiny helpful content
+% (0.0273/5, any-ans 2.4%), worth at most 2.40 pts and pushing the ORIGINAL up. So the measured
+% (siglip2-zs - shuffle) UNDERSTATES conditioned harm; the conditioning term is a LOWER bound.
+% Readings: style ~ 0 => confusability confirmed and quantified; conditioning ~ 0 (shuffle stays
+% at -6) => query-conditioning irrelevant, the deficit is a property of siglip2's passage
+% population, and the confusability account dies.
 % TWO PRE-REGISTRATIONS, both before any band reported, both to be scored explicitly:
 %   (runner) rank00 ~ 0.3080; random ~ the 0.1927 floor; some intermediate band below floor,
 %     guessed at rank25-rank50; monotone fall from rank00 into the dip.

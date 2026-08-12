@@ -516,6 +516,81 @@ retrieval ($0.40$ and $0.47$) differ by $2.5$ points. Most importantly, this cur
 the shape but cannot isolate the cause. Only the \textsc{SigLIP2} pair holds the encoder fixed,
 which is why it, and not the curve, is the demonstration.
 
+% REPRO(tab:mm_bands): WITHIN-ENCODER relevance sweep -- the causal pin for the dip. ONE encoder
+%   (gme2b zero-shot), reader context = the 5 passages in rank band B of ITS OWN stored ranking.
+%   Nothing varies but where in the ranking the context is taken from: same 1500-query seed-0
+%   sample, same reader, no training anywhere.
+%   Bands from gme2b-zeroshot-3k-repro.retrieval.json (topk is stored 100 deep, so rank95-100 is
+%   the last five available -- the design cannot go deeper without re-running retrieval):
+%     rank00 = topk[0:5]  rank10 = [10:15]  rank25 = [25:30]  rank50 = [50:55]  rank95 = [95:100]
+%     random = 5 drawn from the corpus outside topk, seed 0
+%   Synthesize gme2b-band-*.retrieval.json by band-slicing, then REPRO(eval-any-checkpoint)'s
+%   eval_vqa step on each. Runs gme2b-band-{rank00,rank10,rank25,rank50,rank95,random}.
+%   rank00 IS the original top-5, so it must reproduce 0.3080 -- that cell is the sanity bound.
+%
+%   CONTEXT COMPOSITION is not a proxy: it is measured from the same json (gold_pids / ans_pids
+%   are stored per query), n=3000, computed by the writer session, no GPU:
+%     band     helpful/5  cred-wrong/5  off-topic/5   CW-H
+%     rank00     0.743       0.913         3.344      +0.170
+%     rank10     0.343       0.765         3.892      +0.422   <- max net mislead
+%     rank25     0.244       0.561         4.195      +0.317
+%     rank50     0.173       0.417         4.410      +0.244
+%     rank95     0.102       0.281         4.617      +0.179
+%   helpful = passage in ans_pids (answer-bearing); credible-wrong = in gold_pids but NOT
+%   answer-bearing (right entity, no answer); off-topic = neither.
+%
+% TWO PRE-REGISTRATIONS, both before any band reported, both to be scored explicitly:
+%   (runner) rank00 ~ 0.3080; random ~ the 0.1927 floor; some intermediate band below floor,
+%     guessed at rank25-rank50; monotone fall from rank00 into the dip.
+%   (writer) the dip should be at RANK10, from the composition table above: net mislead
+%     (credible-wrong minus helpful) peaks there at +0.422 and decays monotonically afterwards,
+%     because absolute credible-wrong density falls with depth even as its RATIO to helpful rises
+%     (1.23 -> 2.76). If the deepest dip is at rank25-50 instead, the CW-H account is wrong and
+%     something else -- plausibility rising with proximity, say -- is doing the work.
+%   FALSIFIER for both: if NO intermediate band falls below the floor, the cross-encoder dip was
+%     an encoder-identity artifact, the confound paragraph becomes the finding rather than the
+%     caveat, and both registrations above are reported as missed.
+\paragraph{Pinning the dip within one encoder.} The eight-cell curve cannot separate retrieval
+quality from encoder identity, so we run the controlled version: one encoder
+(\textsc{GME-2B} zero-shot), and the reader's context taken from rank band $B$ of \emph{its own}
+ranking rather than from the top. Nothing varies but depth --- same queries, same reader, no
+training. Table~\ref{tab:mm_bands} gives the design with its context composition, which is
+measured rather than assumed: because the evaluation records which passages are answer-bearing
+and which belong to the gold entity, each band's mix of \emph{helpful} (answer-bearing),
+\emph{credible-but-wrong} (right entity, no answer) and \emph{off-topic} passages is known
+exactly. Two features of that mix set up the test. Absolute credible-but-wrong density
+\emph{falls} with depth ($0.91 \to 0.28$ per five passages) while its ratio to helpful passages
+\emph{rises} ($1.23 \to 2.76$), so the net misleading load --- credible-wrong minus helpful ---
+peaks early, at band $10$--$15$, and decays thereafter. We therefore registered a sharper
+prediction than the shape alone: if the misleading-context account is right, the deepest dip
+should sit at that band. Accuracies are pending; both registrations, and the falsifier that
+would retire the whole account, are recorded above the table.
+
+\begin{table}[t]
+\centering\small
+\caption{Within-encoder relevance sweep: \textsc{GME-2B} zero-shot throughout, context drawn from
+rank band $B$ of its own ranking. Composition columns are \emph{measured} over the same
+$3{,}000$-query rankings (passages per five-passage context); accuracy is \emph{pending}.
+``Helpful'' $=$ answer-bearing, ``credible-wrong'' $=$ gold entity but no answer, and net mislead
+$=$ the difference. The \texttt{rank00} band is the original top-$5$, so its accuracy is a sanity
+bound rather than a new measurement.}
+\label{tab:mm_bands}
+\begin{tabular}{lccccc}
+\toprule
+band & helpful & credible-wrong & off-topic & net mislead & VQA acc \\
+\midrule
+\texttt{rank00} ($0$--$5$)    & 0.74 & 0.91 & 3.34 & $+0.17$ & $30.80$ (bound) \\
+\texttt{rank10} ($10$--$15$)  & 0.34 & 0.77 & 3.89 & $\mathbf{+0.42}$ & \emph{pending} \\
+\texttt{rank25} ($25$--$30$)  & 0.24 & 0.56 & 4.20 & $+0.32$ & \emph{pending} \\
+\texttt{rank50} ($50$--$55$)  & 0.17 & 0.42 & 4.41 & $+0.24$ & \emph{pending} \\
+\texttt{rank95} ($95$--$100$) & 0.10 & 0.28 & 4.62 & $+0.18$ & \emph{pending} \\
+\texttt{random} (off-ranking) & ${\approx}0$ & ${\approx}0$ & $5.00$ & ${\approx}0$ & \emph{pending} \\
+\midrule
+\multicolumn{5}{l}{\emph{reference:} image-alone floor, no context at all} & $19.27$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
 The reporting rule does not depend on the mechanism, and it is firm: on weak rungs, quote
 retrieval. An accuracy-only table would have recorded both of these collapses as improvements.
 

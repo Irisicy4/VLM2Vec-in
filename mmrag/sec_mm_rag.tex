@@ -362,10 +362,17 @@ the three answer metrics, v2 on the three retrieval metrics.}
 %   (0.054 -> 0.291) repeats on SigLIP2 and completes that row. Pre-agreed with the runner:
 %   if it repeats, "the anchor is what makes weak rungs learnable at all" gets its own sentence;
 %   if it does not, the CLIP-L rescue was rung-specific and the sentence stays out.
-%   PENDING: no-context floor, eval_vqa --no-context (reader answers from the image alone, same
-%   1500-query seed-0 sample, RETRIEVAL-INDEPENDENT). Lands as
-%   results/gme2b-zeroshot-3k-repro.vqa_noctx.json -- the filename carries the retrieval json it
-%   piggybacks on, but the number applies to every rung. Recorded-wave reference 0.1867.
+%   MEASURED: no-context floor = 0.1927 (strictEM 0.0860, F1 0.1623), eval_vqa --no-context,
+%   n=1500 seed-0, fresh wave, results/gme2b-zeroshot-3k-repro.vqa_noctx.json. The filename
+%   carries the retrieval json it piggybacks on, but the number is RETRIEVAL-INDEPENDENT and
+%   applies to every rung. Recorded-wave reference was 0.1867.
+%   Deltas vs floor (all fresh): qwen2b-zs +0.0067 (R@5 .0003) | clip-v3pure -0.0027 (.0043) |
+%     siglip2-v3pure -0.0060 (.0040) | qwen7b-zs -0.0307 (.0047) | clipb32-zs -0.0413 (.0260) |
+%     siglip2-zs -0.0613 (.0823).
+%   NOISE BAND: the four sub-0.5% R@5 rungs span +0.67 to -3.07 pts, and two cells at .0040 vs
+%   .0047 R@5 differ by 2.5 pts -- so only deviations >3 pts are interpretable. siglip2-zs
+%   (-6.13) is the only cell clearly outside it; clipb32-zs (-4.13) is the second. Do NOT lean
+%   on qwen7b's -3.07: it sits inside the band.
 %   WITHIN-RUNG evidence for the misleading-context reading, all fresh, all in tab:mm_ladder:
 %     siglip2 zs      R@5 0.0823 (weakly relevant, wrong) -> acc 0.1313
 %     siglip2 v3pure  R@5 0.0040 (noise)                  -> acc 0.1867   same encoder
@@ -471,13 +478,24 @@ retriever is worth $5.5$ points \emph{more} accuracy. \textsc{CLIP-L} shows the 
 weakly ($19.00$ collapsed against $17.27$ for its anchored twin).
 
 The reading this supports is that the two failure modes are not equivalent for the reader:
-plausible-but-wrong context actively misleads it, whereas noise is ignored and the reader falls
-back on the image. The cross-rung numbers are consistent --- raw \textsc{Qwen2-VL-2B}, retrieving
-at essentially random (R@5 $0.03$), scores $19.93$, in the same band as the collapsed cells. One
-point does not fit cleanly: raw \textsc{Qwen2-VL-7B} (R@5 $0.47$) scores $16.20$, below that
-band, which is either floor noise or mild distraction; we have not resolved which and do not
-claim otherwise. We are measuring the no-context floor directly rather than inferring it from
-these rungs, which will settle the reading; the recorded-wave reference is $18.67$.
+noise is ignored, and the reader falls back on the image; plausible-but-wrong context actively
+misleads it. We measured the fallback level directly rather than inferring it, by running the
+reader with \emph{no} retrieved context on the same $1{,}500$-query sample: the image-alone floor
+is $19.27$. The collapsed cells sit on it --- \textsc{SigLIP2} $18.67$ ($-0.60$) and
+\textsc{CLIP-L} $19.00$ ($-0.27$) --- so ``noise is ignored'' is now a measurement rather than an
+analogy.
+
+Two cautions keep this from being read as more than it is. First, accuracy on junk context
+carries a $\pm 3$-point band: among the four rungs retrieving at R@5 below $0.5$, scores range
+from $+0.67$ above floor (raw \textsc{Qwen2-VL-2B}) to $-3.07$ below it (raw
+\textsc{Qwen2-VL-7B}), and two cells with effectively identical retrieval ($0.40$ and $0.47$)
+differ by $2.5$ points. Only deviations larger than that band carry any mechanistic weight, which
+is what makes \textsc{SigLIP2}'s zero-shot deficit the load-bearing observation: at R@5 $8.23$ it
+sits $6.13$ points below floor, twice the band. Second, the two cells that sit clearly below
+floor are also the two with the most weakly-relevant retrieval (\textsc{CLIP-B/32} $-4.13$ at R@5
+$2.60$; \textsc{SigLIP2} $-6.13$ at $8.23$), which is consistent with the deficit growing as
+retrieval becomes relevant enough to be believed --- but two points do not establish a trend, and
+we do not claim one.
 
 The reporting rule does not depend on the mechanism, and it is firm: on weak rungs, quote
 retrieval. An accuracy-only table would have recorded both of these collapses as improvements.
@@ -659,7 +677,9 @@ most of the bootstrap along with it.
 crosses backbone capacity with pretraining regime. ``Capacity'' here means the size of the
 \emph{frozen} backbone, not the trainable-parameter count: every cell in the table, at every
 rung, trains the same $36.9$M LoRA adapter ($r{=}32$, $\alpha{=}64$) and updates nothing else,
-so moving down a row changes what the adapter is attached to and not how much is being learned. The three $2$B rows
+so moving down a row changes what the adapter is attached to and not how much is being learned.
+The same holds across the joint text/multimodal comparisons, where parameter parity is by
+construction and has been audited on both sides. The three $2$B rows
 (\textsc{Qwen2-VL-2B} raw, \textsc{VLM2Vec-2B}, \textsc{GME-2B}) and the three $7$B rows hold the
 backbone fixed and vary only how much retrieval pretraining the encoder has had --- none,
 MMEB-style contrastive, or GME --- which separates ``the recipe needs a big model'' from ``the

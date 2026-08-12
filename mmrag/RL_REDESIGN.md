@@ -70,3 +70,26 @@ cleaner at no cost; beating 0.342 means it's better.
   plateau ~0.345 at 2–6k visited, degradation at 12k. Joint conclusion: these recipes are a
   few-thousand-example correction, not a scalable training paradigm; capacity is the only
   lever that moved either ceiling.
+
+## Anchor taxonomy, amended (2026-08-12, after cross-side falsification)
+
+The text side proposed: external positive -> binding; self-argmax positive -> inert BY
+CONSTRUCTION; stochastic positive -> destructive. Our data falsifies the middle clause as
+stated: every binding anchor quoted above (nce 0.48-0.63 at end of training) is a SELF-ARGMAX
+positive (no_force_gold: candidate 0 = own top-1), not an external one.
+
+The repair is the negative SCOPE, not the positive type alone. Our infonce_loss ranks the
+positive against ALL B x P docs in the batch — cross-query negatives from other entities'
+pools — while the argmax was taken only over the query's own pool. The CE task therefore
+contains comparisons the argmax does not automatically win, and at contrastive temperature
+0.03 those cross-entity margins keep the loss alive.
+
+  Amended rule: an anchor is inert iff its negative set is contained in the comparison set
+  over which its positive was selected. Self-argmax + own-pool negatives = born satisfied.
+  Self-argmax + cross-query negatives = binding (ours). External positive = binding
+  regardless. Stochastic positive = harmful regardless.
+
+Consequence for the joint writeup: our +0.009-0.011 from anchor removal is the removal of a
+binding SELF-ARGMAX anchor — i.e. the proxy being traded away was "top-1 stability under
+cross-entity contrast," not gold relevance. That makes the objective/proxy trade purer: no
+label enters even through the anchor, and pure RL still wins.

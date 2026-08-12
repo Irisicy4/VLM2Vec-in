@@ -7,7 +7,7 @@ import sys
 
 import torch
 
-sys.path.insert(0, "/mnt/bn/tns-algo-video-public-my2/yijiangli/project/VLM2Vec-in")
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 ap = argparse.ArgumentParser()
 ap.add_argument("--profile", default="gme2b")

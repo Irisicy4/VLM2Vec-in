@@ -643,6 +643,33 @@ which is why it, and not the curve, is the demonstration.
 %   misleading. Weak dual-tower encoders retrieve exactly those. The measure therefore
 %   undercounts misleading content for weak encoders, and deep ranks of a strong encoder are a
 %   different KIND of wrong from the top ranks of a weak one.
+% AMENDED KILL CONDITION (agreed with the runner after the coverage measurement above):
+%   a no-sub-floor sweep BOUNDS the credible-wrong-type effect within the composition range the
+%   bands cover (any-ans 0.076-0.449) and says NOTHING about the regime the dip lives in
+%   (siglip2-zs, any-ans 0.024). Report as "bounded for one wrongness type, regime not reached".
+%   Never as "artifact". Writer's refined registration logged alongside: rank50 ~ +0.6,
+%   rank95 ~ -0.1, no sub-floor band, for the coverage reason rather than because the dip is fake.
+%
+% DECISIVE TEST for the -6.1 cell instead: siglip2-shuffle (runner, running). siglip2-zs's OWN
+%   retrieved contexts permuted ACROSS queries, seed 0. Same encoder, same marginal junk
+%   distribution, same style; the single destroyed variable is QUERY-CONDITIONING. Deeper gme2b
+%   bands were rejected for this and rightly: a strong encoder's rank-500 is semantically adjacent
+%   TEXT junk, whereas the hypothesis is VISUALLY confusable wrong entities, which no depth of a
+%   text-side ranking can synthesize.
+%   Pre-registered readings: (a) shuffled ~ floor while original sits at -6.13 => misleading power
+%   is query-CONDITIONED, i.e. the retriever finds passages confusable WITH THIS IMAGE, and the
+%   gold-entity-only blind spot in our composition measure becomes the explanation of record;
+%   (b) shuffled also sub-floor => a style/content property of siglip2 contexts, query-independent,
+%   and the confusability story dies; (c) intermediate => partial conditioning, report the split.
+%   COMPOSITION OF THE SHUFFLED CONDITION, precomputed by the writer session from
+%   siglip2-zs-fresh.retrieval.json under the same seed-0 permutation (2/3000 fixed points):
+%     original  helpful 0.0273  cw 0.0860  off 4.8867  any-ans 0.0240
+%     shuffled  helpful 0.0000  cw 0.0010  off 4.9990  any-ans 0.0000
+%   IMPORTANT for interpretation: shuffling removes the tiny HELP as well as the harm, so the
+%   confound runs AGAINST reading (a) and is bounded. At most 2.40 accuracy points can be lost to
+%   removed help (the 2.4% of queries that had any answer-bearing passage, all flipping). So if
+%   shuffled lands at floor, the harm-removal effect is AT LEAST the full 6.13 points, not less.
+%   Reading (a) firing is therefore a conservative result, and can be stated as a lower bound.
 % TWO PRE-REGISTRATIONS, both before any band reported, both to be scored explicitly:
 %   (runner) rank00 ~ 0.3080; random ~ the 0.1927 floor; some intermediate band below floor,
 %     guessed at rank25-rank50; monotone fall from rank00 into the dip.

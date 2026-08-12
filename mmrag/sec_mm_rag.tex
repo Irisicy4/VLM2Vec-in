@@ -623,9 +623,10 @@ accuracy relative to the floor falls monotonically: $67$ distinct sets $\to +3.3
 -0.27$, $338 \to -0.60$, $3{,}000 \to -2.07$. All four retrieve essentially nothing
 (R@5 $0.000$--$0.007$), so what separates a cell that beats the no-context floor from one that
 falls two points below it is not how useful the context is but how \emph{varied} it is. Constant
-junk is discounted; varied junk costs something. Encoder identity still varies across those four,
-so we treat this as strong suggestion rather than proof --- the controlled versions, a random-context
-band and a query-permutation of one encoder's own contexts, are the tests that settle it.
+junk is discounted; varied junk costs something. Encoder identity varies across those four, so the
+controlled version is what settles it, and it agrees: uniform random context, maximally varied at
+$3{,}000$ distinct sets, scores $17.00$ --- $2.27$ below the no-context floor, and $5.6$ points
+below the constant-junk cell at equally useless retrieval.
 
 Three further qualifications. The minimum is \emph{bracketed} between R@5 $8.23$ and $15.67$, not
 located. Deviations smaller than ${\sim}3$ points are not interpretable: among the four rungs
@@ -749,9 +750,20 @@ which is why it, and not the curve, is the demonstration.
 %     introduced no accidental degeneracy in the 15-line synthesis.
 %     => conditioning >= 0.1313 - 0.1693 = -3.80 pts (LOWER bound; the <=2.40 pt helpful-content
 %        removal pushes the original UP, so true conditioned harm is at least this).
-%   filled:  variedness ____   style ____   conditioning >= -3.80   (sum must be -6.13)
-%   Do NOT fill the other two until band-random lands -- it is the term that makes both
-%   well-defined, and shuffle alone cannot separate variedness from style.
+%   COMPLETE [all InfoSeek acc, top-5, n=1500, fresh, 1 seed]:
+%     no context (noctx)          0.192667
+%     gme2b-band-random           0.170000   distinct 3000/3000 max 1 (maximal variety, as designed)
+%     siglip2-shuffle             0.169333   distinct 2974 max 3 (== original: permutation clean)
+%     siglip2-zs-fresh            0.131333
+%   =>  variedness   -2.27 | style -0.07 | conditioning >= -3.80 | sum -6.13 = observed (exact)
+%   The identity is telescoping, so closure checks arithmetic, NOT the science. The content is
+%   the split. Conditioning is a LOWER bound (<=2.40 pts of helpful content also removed).
+% REGISTRATION SCORING (band-random): writer's ~-2 diversity prediction FIRED; runner's original
+%   "reproduces the floor ~0.19" MISSED. Runner's shuffle reading (a) had already been withdrawn
+%   and replaced by (a') before landing, and (a') is what occurred.
+% CONSTANT-vs-VARIED, now direct: band-random (3000 distinct, varied junk) -2.27 vs qwen2b-v3pure
+%   (67 distinct, constant junk) +3.33 -- 5.6 pts apart at equally useless retrieval. The
+%   trained-arm caveat on the qwen2b cell stands.
 %
 % CONFOUND, already bounded: shuffling also removes the original's tiny helpful content
 % (0.0273/5, any-ans 2.4%), worth at most 2.40 pts and pushing the ORIGINAL up. So the measured
@@ -811,6 +823,33 @@ band & helpful & credible-wrong & off-topic & net mislead & VQA acc \\
 \bottomrule
 \end{tabular}
 \end{table}
+
+Four controls now decompose the largest sub-floor deficit we observe, \textsc{SigLIP2}
+zero-shot's $-6.13$, into terms that are each a difference of two measured cells. Reading no
+context ($19.27$), uniform random context ($17.00$), \textsc{SigLIP2}'s own retrieved contexts
+permuted across queries ($16.93$), and its real query-conditioned contexts ($13.13$):
+\[
+\underbrace{-2.27}_{\text{varied junk}} \;+\; \underbrace{-0.07}_{\text{passage style}}
+\;+\; \underbrace{-3.80}_{\text{query-conditioned}} \;=\; -6.13 .
+\]
+The identity is exact by construction, which makes it a check on the arithmetic rather than
+evidence; the content is in the split. Most of the damage --- at least $3.80$ points, a lower
+bound because permuting also removes the small amount of genuinely helpful context --- comes from
+the retrieval being \emph{conditioned on the query}: passages this retriever selected as similar
+to \emph{this} image. Simply showing the reader varied junk costs $2.27$. The particular
+character of \textsc{SigLIP2}'s passages, as opposed to random ones, costs essentially nothing
+($0.07$), which we can now say was measured rather than assumed. The pipeline behind the
+random-context arm reproduces its source run bit-identically, so the differences are attributable
+to the manipulations alone.
+
+This also identifies what our composition measure was missing. It counts a passage as
+misleading only if it belongs to the gold entity, and \textsc{SigLIP2}'s contexts contain almost
+none of those ($0.086$ per five) --- far too few to explain a six-point drop. The decomposition
+says the harm is query-conditioned, so the misleading passages are ones selected for
+\emph{this} image while belonging to some other entity: visually confusable near-misses, which
+our gold-entity-only measure scores as off-topic. That is a limitation of the measure, not of the
+effect, and it is why the cross-encoder curve and the within-encoder band sweep probe different
+kinds of wrongness.
 
 The reporting rule does not depend on the mechanism, and it is firm: on weak rungs, quote
 retrieval. An accuracy-only table would have recorded both of these collapses as improvements.

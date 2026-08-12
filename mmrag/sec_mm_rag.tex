@@ -646,6 +646,10 @@ which is why it, and not the curve, is the demonstration.
 %   Synthesize gme2b-band-*.retrieval.json by band-slicing, then REPRO(eval-any-checkpoint)'s
 %   eval_vqa step on each. Runs gme2b-band-{rank00,rank10,rank25,rank50,rank95,random}.
 %   rank00 IS the original top-5, so it must reproduce 0.3080 -- that cell is the sanity bound.
+%   PIPELINE CHECK PASSED: gme2b-band-rank00 reproduces gme2b-zeroshot-3k-repro BIT-IDENTICALLY
+%   on all three L2 metrics (acc 0.3080, strictEM 0.239333, F1 0.310266; 462/1500 correct), not
+%   merely within noise. The band-slicing + synthesized-json + eval path is therefore validated
+%   end to end, and any difference between bands is attributable to the band alone.
 %
 %   CONTEXT COMPOSITION is not a proxy: it is measured from the same json (gold_pids / ans_pids
 %   are stored per query), n=3000, computed by the writer session, no GPU:
@@ -788,14 +792,15 @@ would retire the whole account, are recorded above the table.
 rank band $B$ of its own ranking. Composition columns are \emph{measured} over the same
 $3{,}000$-query rankings (passages per five-passage context); accuracy is \emph{pending}.
 ``Helpful'' $=$ answer-bearing, ``credible-wrong'' $=$ gold entity but no answer, and net mislead
-$=$ the difference. The \texttt{rank00} band is the original top-$5$, so its accuracy is a sanity
-bound rather than a new measurement.}
+$=$ the difference. The \texttt{rank00} band is the original top-$5$; it reproduces the source run
+bit-identically on accuracy, strict-EM and F1, which validates the band pipeline rather than
+measuring anything new.}
 \label{tab:mm_bands}
 \begin{tabular}{lccccc}
 \toprule
 band & helpful & credible-wrong & off-topic & net mislead & VQA acc \\
 \midrule
-\texttt{rank00} ($0$--$5$)    & 0.74 & 0.91 & 3.34 & $+0.17$ & $30.80$ (bound) \\
+\texttt{rank00} ($0$--$5$)    & 0.74 & 0.91 & 3.34 & $+0.17$ & $30.80$ (check) \\
 \texttt{rank10} ($10$--$15$)  & 0.34 & 0.77 & 3.89 & $\mathbf{+0.42}$ & $22.13$ \\
 \texttt{rank25} ($25$--$30$)  & 0.24 & 0.56 & 4.20 & $+0.32$ & $19.47$ \\
 \texttt{rank50} ($50$--$55$)  & 0.17 & 0.42 & 4.41 & $+0.24$ & $18.73$ \\

@@ -68,7 +68,16 @@ SERIES = [
 # pool is the no-reuse guarantee. v3 additionally admits 45,248 because the headline 3-seed cell
 # (500 steps on all of pool_train) is a legitimate 2k-consumed point -- but it is a DIFFERENT
 # query distribution from its own 6k/12k continuations, which the prose flags as provisional.
-CONSUMPTION_AVAIL = {"v1": {200000}, "v3": {200000, 45248}}
+# Each CURVE is pinned to ONE available-pool size so it never mixes query distributions.
+CONSUMPTION_AVAIL = {"v1": {200000}, "v3": {200000}}
+
+# Off-curve markers: same consumption axis, different query distribution, so they are drawn as
+# hollow unconnected points rather than joined into a curve. The v3 headline cell (500 steps on
+# all 45,248 rows of pool_train, <=10 q/entity) is a legitimate 2k-draw result but belongs to a
+# different distribution from its own 6k/12k continuations on pool_train_big (200 q/entity).
+# Once v3-rows200k lands, the matched big-pool cell joins the curve and this marker becomes the
+# composition comparison rather than a substitute for it.
+CONSUMPTION_OFFCURVE = [("v3", "v3-pure", {45248}, "v3-pure (45k pool, off-curve)", "#009E73", "D")]
 
 # Recorded-wave points come from results_summary.json; same config-equivalence idea, but the
 # axes dict is all we have. Reference = the recorded full-pool no-gold cell.
@@ -245,7 +254,8 @@ def draw(ax, points, colour, marker, label, filled=True, lw=2.0):
 
 
 def consumed_of(D, run, a):
-    """Unique examples consumed = batch_size x steps.
+    """Examples DRAWN = batch_size x steps (near-distinct, not exactly unique -- see
+    draw_consumption).
 
     A checkpoint eval is named "<parent>-ck<STEP>"; it inherits the parent's config and its
     step count is the checkpoint's, not the parent's final budget. Everything else consumed
@@ -295,7 +305,10 @@ def collect_consumption(D, ref_run, recipe, avail_rows):
 
 
 def draw_consumption(D, out_path, min_points=3):
-    """Second figure: accuracy vs unique examples consumed, with a best-so-far envelope.
+    """Second figure: accuracy vs examples DRAWN (4 x steps), with a best-so-far envelope.
+
+    "Drawn", not "unique": train_rl.py re-samples each batch, so examples recur across
+    steps at the birthday rate (0.5% at 2k draws over the 200k pool, 2.94% at 12k).
 
     Emits nothing until at least one series has `min_points` points -- a two-point "curve"
     would invite reading a trend that is not measured yet.
@@ -306,6 +319,13 @@ def draw_consumption(D, out_path, min_points=3):
         series.append((recipe, label, colour, marker, pts))
         print(f"  consumption {recipe}: " + (", ".join(
             f"{x}:{[r for r, _ in pts[x]]}" for x in sorted(pts)) or "no points yet"))
+    offcurve = []
+    for recipe, ref_run, avail, label, colour, marker in CONSUMPTION_OFFCURVE:
+        pts = collect_consumption(D, ref_run, recipe, avail)
+        if pts:
+            offcurve.append((label, colour, marker, pts))
+            print(f"  consumption {recipe} OFF-CURVE ({label}): " + ", ".join(
+                f"{x}:{[r for r, _ in pts[x]]}" for x in sorted(pts)))
     if not any(len(pts) >= min_points for *_, pts in series):
         print(f"  consumption figure NOT written — no series has {min_points}+ points yet "
               f"(checkpoint evals in flight). Re-run when they land.")
@@ -336,18 +356,28 @@ def draw_consumption(D, out_path, min_points=3):
             accs = [a for _, a in pts[x]]
             if len(accs) > 1:
                 ax.vlines(x, min(accs), max(accs), color=colour, lw=2, alpha=0.55, zorder=2)
+    for label, colour, marker, pts in offcurve:
+        for x in sorted(pts):
+            accs = [a for _, a in pts[x]]
+            ax.plot([x], [statistics.mean(accs)], marker=marker, ms=6, zorder=3,
+                    markerfacecolor="white", markeredgecolor=colour, markeredgewidth=1.4,
+                    linestyle="none", label=label)
+            if len(accs) > 1:
+                ax.vlines(x, min(accs), max(accs), color=colour, lw=2, alpha=0.4, zorder=2)
+            label = None  # legend entry once
     ax.set_xscale("log")
-    seen = sorted({x for *_, pts in series for x in pts})
+    seen = sorted({x for *_, pts in series for x in pts}
+                  | {x for _l, _c, _m, pts in offcurve for x in pts})
     ax.set_xticks(seen)
     ax.set_xticklabels([f"{x//1000}k" if x >= 1000 else str(x) for x in seen], fontsize=7.5)
-    ax.set_xlabel("unique VQA examples consumed (batch $\\times$ steps; no reuse)", fontsize=9)
+    ax.set_xlabel("VQA examples drawn ($4 \\times$ steps; $\\leq$3% resampled)", fontsize=9)
     ax.set_ylabel("VQA accuracy (7B reader, top-5)", fontsize=9)
     ax.tick_params(labelsize=8)
     ax.minorticks_off()
     for s in ("top", "right"):
         ax.spines[s].set_visible(False)
     ax.grid(axis="y", color="#dddddd", lw=0.6, zorder=0)
-    ax.legend(fontsize=7, frameon=False, loc="lower left")
+    ax.legend(fontsize=7, frameon=False, loc="center left")
     fig.tight_layout()
     for ext in (".pdf", ".png"):
         fig.savefig(out_path + ext, bbox_inches="tight")
@@ -359,7 +389,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default="mmrag/fig_mm_scaling")
     ap.add_argument("--consumption-out", default="mmrag/fig_mm_consumption",
-                    help="second figure: accuracy vs unique examples consumed")
+                    help="second figure: accuracy vs examples drawn (4 x steps)")
     ap.add_argument("--repo", default=os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     args = ap.parse_args()
     D = data_dir()
@@ -422,7 +452,7 @@ def main():
     for ext in (".pdf", ".png"):
         fig.savefig(args.out + ext, bbox_inches="tight")
     print("wrote", args.out + ".pdf/.png")
-    print("\n--- consumption axis (unique examples consumed) ---")
+    print("\n--- consumption axis (examples drawn = 4 x steps) ---")
     draw_consumption(D, args.consumption_out)
 
     print("\nPROVENANCE (paste into the figure's REPRO comment):")

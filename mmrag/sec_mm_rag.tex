@@ -381,7 +381,12 @@ MMEB-style contrastive, or GME --- which separates ``the recipe needs a big mode
 recipe needs a model that can already retrieve.'' The small CLIP and SigLIP rungs establish the
 floor at which the annotation-free loop can no longer bootstrap: the reward is informative only
 once the policy's own top-$M$ sometimes contains an answerable passage, which is the same
-condition the gate result above exposes at CLIP-L. At $7$B we currently have only the v1 recorded
+condition the gate result above exposes at CLIP-L. \textsc{CLIP-B/32} sets that floor about as
+low as it can go --- zero-shot entity R@5 of $2.60$ over $422$K passages, which is not
+meaningfully better than drawing at random, against a VQA accuracy of $15.13$ that the reader is
+therefore producing from the image alone. Whether the loop can bootstrap from a retriever that
+starts with no usable signal at all is precisely what the \textsc{CLIP-B/32} v3 cell tests, and
+we have no basis for guessing the answer before it lands. At $7$B we currently have only the v1 recorded
 wave --- zero-shot $30.6$, SFT $32.6$, annotation-free RL $35.1$/$35.3$/$35.3$ across three
 seeds, gold-seeded RL $35.9$ --- measured before the cluster move and therefore not directly
 comparable to the fresh $2$B numbers above; the v3-pure $7$B cell is in flight. We defer the
@@ -401,7 +406,7 @@ inferred from a neighbouring rung.}}
 \cmidrule(lr){3-4}\cmidrule(lr){5-6}\cmidrule(lr){7-8}
 encoder & retrieval pretraining & acc & R@5 & acc & R@5 & acc & R@5 \\
 \midrule
-CLIP-B/32 ($\sim$150M) & CLIP   & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} \\
+CLIP-B/32 ($\sim$150M) & CLIP   & 15.13 & 2.60 & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} \\
 CLIP-L ($\sim$430M)    & CLIP   & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} \\
 SigLIP2-so400m         & SigLIP & 13.13 & 8.23 & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} \\
 \midrule
@@ -445,11 +450,14 @@ judgements at all --- so the scaling question that matters practically is whethe
 of them buys accuracy. That question is about examples \emph{consumed}, not about examples
 \emph{available}, and the two come apart here: at batch $4$ a $500$-step run touches
 ${\sim}2{,}000$ queries whether the pool holds $12$K or $200$K. Table~\ref{tab:mm_consumption}
-therefore holds the model (\textsc{GME-2B}) and the recipe fixed, draws from the $200$K pool so
-that no example is ever reused, and lets compute follow data: the $x$-axis is unique examples
-consumed, read off intermediate checkpoints as well as final ones so that a run past its peak
-cannot masquerade as a data-limited one (Figure~\ref{fig:mm_consumption}). We report
-best-over-checkpoints for the same reason.
+therefore holds the model (\textsc{GME-2B}) and the recipe fixed, draws from the $200$K pool, and
+lets compute follow data: the $x$-axis is the number of training examples \emph{drawn}
+($4 \times$ steps), read off intermediate checkpoints as well as final ones so that a run past its
+peak cannot masquerade as a data-limited one (Figure~\ref{fig:mm_consumption}). We report
+best-over-checkpoints for the same reason. Draws are near-distinct rather than exactly distinct:
+the trainer samples each batch independently, so an example can recur across steps, but over the
+$200$K pool the birthday bound puts expected collisions at $0.5\%$ at $2$K draws and $2.9\%$ at
+$12$K, the largest budget shown. We write ``drawn'' rather than ``unique'' for that reason.
 
 \emph{Status: the dense curve is in flight and the conclusion is not yet fixed.} We state in
 advance how it will be read, so that neither outcome can be written up as the one we wanted.
@@ -464,13 +472,15 @@ envelope rises across the range once the dense checkpoints land, the growth clai
 and our earlier ``ceiling'' framing was an artefact of reading final-step numbers on over-trained
 runs --- in which case we will say so, and say which reading was wrong.
 
-One methodological caveat we cannot remove by choosing words carefully: the v3 point at $2$K
-consumed is the headline three-seed cell, which drew from \texttt{pool\_train}
+One methodological point, since it would otherwise weaken the comparison exactly where the two
+recipes are closest. The headline three-seed v3 cell draws from \texttt{pool\_train}
 ($\leq 10$ queries per entity), whereas its $6$K and $12$K continuations draw from
-\texttt{pool\_train\_big} ($200$ per entity). The v1 curve is internally consistent because every
-one of its points comes from the same $200$K pool; the v3 curve is not, and the composition
-controls we have disagree in sign at one seed each. The v3 curve's low end should therefore be
-treated as provisional until a $2$K big-pool v3 cell exists.
+\texttt{pool\_train\_big} ($200$ per entity), so taken alone it would make the v3 curve mix two
+query distributions where the v1 curve mixes none. We therefore report the matched
+\texttt{pool\_train\_big} cell at the same budget as the curve's $2$K point and keep the headline
+cell as a second entry beside it. The pair is not redundant: under v1 the analogous
+pool-composition controls disagree in sign across budgets, so a matched pair under v3 measures
+whether that inconsistency is a property of the recipe or of the sampling.
 
 \begin{table}[t]
 \centering\small
@@ -487,7 +497,8 @@ consumed & source & v1 listwise $+$ anchor & v3-pure \\
 \midrule
 $1$K  & ck250 of the $3$K-step run  & \emph{pending} & --- \\
 $2$K  & ck500 of the $3$K-step run  & \emph{pending} & --- \\
-$2$K  & final, $500$ steps          & 34.80 & $\mathbf{34.71 \pm 0.19}$ (3 seeds)$^{\dagger}$ \\
+$2$K  & final, $500$ steps, $200$K pool & 34.80 & \emph{pending} (\texttt{v3-rows200k}) \\
+$2$K  & final, $500$ steps, $45$K pool  & --- & $\mathbf{34.71 \pm 0.19}$ (3 seeds)$^{\dagger}$ \\
 $4$K  & ck1000                      & \emph{pending} & --- \\
 $6$K  & ck1500                      & \emph{pending} & --- \\
 $6$K  & final, $1{,}500$ steps      & 34.57 (2 seeds) & \emph{pending} \\
@@ -498,8 +509,9 @@ $12$K & final, $3{,}000$ steps      & 33.07 & \emph{pending} \\
 \end{tabular}
 
 \vspace{2pt}
-{\footnotesize $^{\dagger}$drawn from \texttt{pool\_train}, not the $200$K pool the other v3 rows
-use --- see the caveat in the text.}
+{\footnotesize $^{\dagger}$drawn from \texttt{pool\_train} ($\leq 10$ queries/entity), not the
+$200$K \texttt{pool\_train\_big} ($200$/entity) the other v3 rows use. Once
+\texttt{v3-rows200k} lands, the two $2$K rows form a matched pool-composition pair under v3.}
 \end{table}
 
 \input{fig_mm_consumption}

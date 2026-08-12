@@ -45,8 +45,15 @@ import matplotlib.pyplot as plt  # noqa: E402
 FREE_KEYS = {"seed", "max_train_rows", "pool", "output_dir", "data_dir", "n_distractor_articles"}
 
 # Reference runs defining each fresh-wave series (must exist in $MMRAG_DATA/runs/).
-# `pools` = the pool files admissible for that series; anything else is a different experiment
-# (e.g. the scale-small* control, which draws the same row counts from the small pool).
+# `pools` = the pool files admissible for that series; anything else is a different experiment.
+#
+# The excluded case is scale-small12k/25k: pool-COMPOSITION controls that draw the same row
+# counts from pool_train (<=10 queries/entity) rather than pool_train_big, i.e. a different
+# query distribution at the same pool size. They are deliberately OFF the figure -- their
+# divergence from the ladder is an open finding with an inconsistent sign at one seed each
+# (12.5k: small 0.3467 vs big 0.3433; 25k: small 0.3340 vs big 0.3462), so plotting them would
+# invite reading a composition effect that the data does not yet support. If they are ever
+# added, they must be faint unconnected markers labelled as controls, never ladder points.
 SERIES = [
     # key, reference run,   label,                            colour,    marker, pools
     ("v1", "scale-rows12k", "v1 listwise $+$ anchor (fresh)", "#0072B2", "o",
@@ -66,6 +73,15 @@ SERIES = [
 # identical to the reference and pollute the 41k point (measured: 9 runs instead of 4).
 # RECORDED_FAMILY restricts the series to the rows-ladder family and its seed replicates.
 # It is a structural rule, not a value list -- new seeds are picked up automatically.
+# Membership was checked by hand: the regex admits exactly {det, det-s2/s3/s4, rows2k, rows8k};
+# config equivalence alone additionally admits mix x3 + frozen + 7B-reward (9 runs at 41k
+# averaging 0.3640 rather than 4 averaging 0.3415).
+#
+# Why not fix this by adding the missing axes to results_summary.json instead? Because the
+# recorded runs' args.json files died with the old scratch, so any axes added now would be
+# derived from the run NAMES -- the same epistemics as this regex, but laundered into the
+# results file where it would read as harvested provenance. A name-based rule that says it is
+# name-based, in the plotting script, is the honest version.
 RECORDED_REF = "rl-j2e5-nogold-det"
 RECORDED_FREE = {"max_train_rows", "seed"}
 RECORDED_FAMILY = re.compile(r"^rl-j2e5-nogold-(det|rows\d+k)(-s\d+)?$")

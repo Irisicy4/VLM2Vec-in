@@ -185,9 +185,21 @@ because inertness is about a point and collapse is about a trajectory.
 Cross-project vocabulary (both papers): anchor(self) = positive is the policy's own top-1
 (all 39 of our anchored runs, audited); anchor(ext) = external/gold positive (their gold arms);
 anchor(stoch) = sampled positive (destructive, both sides' history). "Anchored" is NOT the
-same column across projects without these tags. The sparse-regime rescue is demonstrated by
-BOTH self and ext types -> collapse prevention needs contrastive geometry, not labels or a
-particular positive.
+same column across projects without these tags.
+
+CORRECTION (writer-caught, 8f cross-checked): my earlier claim that collapse prevention is
+"demonstrated by both anchor types" was WRONG. Both text-side collapse cells are anchor(self)
+— the same type as all 39 of ours — so the cross-modal collapse result is a SAME-TYPE
+replication. Their one anchor(ext) removal (mus_gold cc0: Hot cEM 39.6->30.8) lost the gold
+advantage WITHOUT retrieval collapse — a different failure mode.
+
+Refinement on the refinement: "collapse prevention belongs to the self type" also overreaches,
+because type and regime are CONFOUNDED in the ext cell — external positives exist only where
+gold labels exist, and gold seeding keeps pools reward-dense, which is precisely the regime
+where NO anchor is needed for stability. The ext cell therefore never faced collapse risk and
+cannot test whether ext anchors prevent collapse. Accurate statement: collapse prevention is
+demonstrated ONLY for anchor(self), on two modalities; anchor(ext)'s collapse-prevention
+capacity is untested and structurally hard to test.
 
 PRE-REGISTERED READINGS for the ladder cells in flight, per the restoring-force account:
 - siglip2-nogold (anchor(self), zs R@5 0.082): rescue should repeat (CLIP-L pattern).

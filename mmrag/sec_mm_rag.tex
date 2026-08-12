@@ -902,7 +902,9 @@ $71{,}335$ test queries), so the comparison is like-for-like. Every released v1-
 reproduces within $0.2$ points absolute: zero-shot $30.80$ (recorded $31.00$), relevance-SFT
 $31.00$ (recorded $31.00$; bit-identical on accuracy, strict-EM and F1), no-gold RL $33.93$ and
 $34.33$ for two seeds (recorded $34.13$, $34.27$). The headline v1 effect --- RL minus zero-shot
---- reproduces exactly at $+3.13$ points. Residual deficits of $0.2$ points on two arms are fp16
+--- reproduces exactly at $+3.13$ points. The gold-context oracle reproduces too, at $50.40$
+against a recorded $50.30$, which matters because it is the quantity the headroom analysis above
+is measured against. Residual deficits of $0.2$ points on two arms are fp16
 matmul and top-$k$ tie nondeterminism on a freshly built index, not a protocol difference; the
 SFT arm came out bit-exact on all three L2 metrics. All v2/v3 numbers in this section are fresh
 retrains on that same rebuilt cluster, so the anchor and estimator comparisons are internally
@@ -1064,10 +1066,14 @@ most of the bootstrap along with it.
 %     a FRESH gme7b-v1 twin. Do not resolve this in prose until one exists.
 %   qwen7b-v3pure LANDED acc 0.2060, entR@5 0.0000, distinct 1342 -- MIXED phenotype (neither the
 %     67-338 contracted band nor the ~3000 spread band). Reported as mixed, not forced.
-%   BOTTLENECK REMARK is cross-wave: 7B v3 retrieval/accuracy are fresh, the ~0.503 gold-context
-%     oracle is RECORDED wave and no fresh oracle cell exists. Labelled indicative in the prose;
-%     a fresh oracle would firm it up (synthesize a retrieval json with gold_pids as topk, then
-%     eval_vqa -- no training, one eval).
+%   BOTTLENECK REMARK is now FULLY SAME-WAVE. Fresh gold-context oracle = 0.5040 (strictEM 0.3560,
+%     n=1500, mode=gold), file gme2b-zeroshot-3k-repro.vqa_gold.json via eval_vqa --gold-context
+%     (feeds ans_pids-else-gold_pids as context; the filename carries the source retrieval json
+%     but the number is retrieval-independent, same convention as the noctx floor).
+%     Reproduces the recorded 0.503 to +0.001, so it is itself a repro'd quantity and is cited as
+%     one in the reproduction paragraph.
+%     Headroom arithmetic, all fresh: (0.3471-0.1927)/(0.5040-0.1927) = 0.4960 captured;
+%     residual to oracle 0.1569.
 %     -- REPRO(train) with --profile <rung>
 %   clipb16: the profile exists (978adfd) but NO cell is planned -- B/32 covers the floor
 %     question. Do not add a clipb16 row to the table.
@@ -1132,12 +1138,15 @@ larger figure survives only by pairing the gold-seeded arm with the weaker basel
 make no capacity-amplification claim from the recorded wave; the fresh $7$B pair will settle it
 once its matched SFT lands.
 
-One interpretive remark, offered as such. With $7$B v3-pure retrieving the gold entity in the
-top-$5$ for $81\%$ of queries while answering $34.6\%$ of them, and a gold-context oracle reaching
-only ${\approx}50\%$ (recorded wave, so indicative only --- a same-wave oracle is running), the
-binding constraint has moved off the retrieval policy: most of the residual gap is the reader
-failing to use evidence it already has, or the corpus not containing it. That is where further
-gains would have to come from, and it is not where this method operates.
+One interpretive remark, offered as such, but on numbers that are now all from the same wave.
+Feeding the reader the annotated gold passage directly --- an oracle over the same $1{,}500$
+queries --- yields $50.40$, against the image-alone floor of $19.27$. The headline arm's $34.71$
+therefore captures just under half of the retrievable headroom, $49.6\%$, and $15.7$ points remain
+between it and perfect retrieval. Those remaining points are mostly not top-$5$ entity recall:
+$7$B v3-pure already puts the gold entity in the top-$5$ for $81\%$ of queries and still answers
+only $34.6\%$ of them. What is left is answer-bearing rank quality \emph{within} the retrieved set
+and the reader's ability to extract from evidence it has been given --- neither of which is what
+this method optimises, and both of which bound what any retrieval improvement alone could buy.
 
 \begin{table}[t]
 \centering\small

@@ -50,3 +50,23 @@ v1 cc0 0.3373 (recorded); plgrpo anchored 0.3427/0.3293 (s0/s1). Fresh-retrain n
 Success criterion: any cc0 cell ≥ anchored v1 fresh-retrain (0.333) means the anchor is
 replaceable; matching the anchored plgrpo mean (~0.336) means the redesign is strictly
 cleaner at no cost; beating 0.342 means it's better.
+
+## Cross-side notes (from the text session, 2026-08-12)
+
+- **Binding vs inert anchor.** Our anchored runs' InfoNCE loss stays at 0.48–0.63 through the
+  final quarter of training (nogate 0.80→0.48, plgrpo 1.02→0.61, plgrpo-s3 1.04→0.63) — the
+  anchor gradient never dies. The text side's equivalent decayed to 0.0000 by step 240 (its
+  positive = own top-1 was trivially satisfied). Registered joint prediction: anchor removal
+  helps where the anchor is binding (us: +0.009–0.011, observed) and does nothing where it is
+  inert (them: cells rag-plgcc0 in flight). If both hold, the rule is "check your anchor's
+  loss curve before concluding anything about anchors."
+- **Scope warning (theirs, adopted):** dropping the anchor is safe for POOL-RESTRICTED PL
+  (top-M support, our v3) but collapsed outright on text when the partition function was
+  normalized over the full corpus (R@5 1–11 vs base 55) until a frozen-base trust region was
+  added. If v4 ever moves to corpus-wide normalization, expect to need KL-to-frozen-base —
+  and note their failure was a drift-blind KL reference, not KL itself.
+- **Ceiling story confirmed on both sides.** Their step sweep (SQuAD 10k pool, 0.6B):
+  47.2 → 49.0 (peak at ~6.4k visited) → 47.8 → 48.6 with recall monotonically falling; our 2B:
+  plateau ~0.345 at 2–6k visited, degradation at 12k. Joint conclusion: these recipes are a
+  few-thousand-example correction, not a scalable training paradigm; capacity is the only
+  lever that moved either ceiling.

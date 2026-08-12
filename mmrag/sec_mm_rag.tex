@@ -298,12 +298,20 @@ the three answer metrics, v2 on the three retrieval metrics.}
 %   no-gold 31.2 anchor-free, vs 39.6 anchored gold). Our anchored tie 0.343/0.341 p=0.93 is
 %   recorded wave, v1 recipe. The MM v3 mirror is UNTESTABLE by construction (plgrpo asserts
 %   no_force_gold) -- do not describe it as a cross-modal replication.
-% PRE-REGISTERED 2026-08-13 (runner session), IN FLIGHT: clip-v3pure -- no anchor on a weak
-%   retriever whose pools are mostly signal-free -- reproduces the reward-sparse regime inside
-%   our own modality. If reward density is the deciding variable it should COLLAPSE (retrieval
-%   below its zero-shot base) like the text cells; if the split is structural it should merely
-%   underperform its anchored twin (clip-nogold-base, R@5 0.291). Report which branch fired,
-%   including if the density lean misses.
+% PRE-REGISTERED 2026-08-13 (runner session): clip-v3pure -- no anchor on a weak retriever whose
+%   pools are mostly signal-free -- reproduces the reward-sparse regime inside our own modality.
+%   Registered branches: COLLAPSE below its own zero-shot if reward density is the deciding
+%   variable; merely underperform its anchored twin (clip-nogold-base R@5 0.291) if structural.
+%   OUTCOME: collapse. Density branch fired on both sides' registrations; structural branch dead.
+% REPLICATION (fresh, 1 seed): siglip2-v3pure 0.1867 acc / entR@5 0.0040 vs siglip2-zs-fresh
+%   0.1313 / 0.0823 -- a 20.6x fall, fresh-vs-fresh (unlike the CLIP-L zero-shot, which is
+%   recorded wave). Two independent weak rungs now show destruction, not just failure to learn.
+%   ANTI-DIAGNOSTIC ACCURACY, measured: siglip2 acc ROSE 0.1313 -> 0.1867 while retrieval fell
+%   20.6x; clip 0.1900 collapsed vs 0.1727 anchored. Both collapsed cells sit in the 0.16-0.20
+%   band of the random-retrieval rungs (qwen2b 0.1993, qwen7b 0.1620) -- i.e. the reader's
+%   image-alone floor. NEVER report these rungs on accuracy alone.
+%   PENDING: siglip2-nogold (anchored twin) -- tests whether the CLIP-L anchor rescue
+%   (0.054 -> 0.291) repeats on SigLIP2 and completes that row.
 \paragraph{What the anchor buys, and what it costs.} v2 and v3 differ by one term, so the
 comparison isolates the InfoNCE anchor exactly. The anchor is worth about $+4$ points of tail
 recall (entity R@5 $80.13$ vs.\ $76.09$; R@10 $85.73$ vs.\ $82.23$) and costs about $0.9$ points
@@ -370,14 +378,23 @@ the discriminating cell and it has now settled. \textsc{CLIP-L} v3-pure puts a w
 whose pools are mostly signal-free, into the reward-sparse regime inside our own modality; the
 registered branches were collapse below its own zero-shot base if reward density is the deciding
 variable, versus merely underperforming its anchored twin if the split is structural. It
-\emph{collapsed}: entity R@5 $0.43$, against $29.13$ for the anchored twin trained identically
-and below even its own zero-shot retrieval. The density branch fired, so the structural
-explanation is dead and the two-jobs account is now measured on a complete $2\times2$ across
-modalities: the identical estimator that gains on a reward-dense base collapses outright on a
-reward-sparse one. One measurement caveat worth keeping: at these rungs VQA accuracy is
-\emph{not} diagnostic --- collapsed v3-pure scores $19.00$ against the anchored twin's $17.27$,
-because a reader that answers from the image alone is barely affected by which useless passages
-it is shown. Only retrieval reveals the collapse.
+\emph{collapsed}: entity R@5 $0.43$, against $29.13$ for the anchored twin trained identically,
+and $12.6\times$ below its own zero-shot retrieval. \textsc{SigLIP2} then replicated it
+independently --- $8.23 \to 0.40$, a $20.6\times$ fall --- so at both measured weak rungs pure RL
+does not merely fail to learn: it destroys the retrieval ability the encoder started with. The
+density branch fired, the structural explanation is dead, and the two-jobs account is now
+measured on a complete $2\times2$ across modalities: the identical estimator that gains on a
+reward-dense base collapses outright on a reward-sparse one.
+
+One measurement warning follows, and it is not a technicality. At these rungs VQA accuracy is
+\emph{anti}-diagnostic. Collapsed \textsc{CLIP-L} scores $19.00$ against its anchored twin's
+$17.27$, and collapsed \textsc{SigLIP2} scores $18.67$ against its \emph{own} zero-shot $13.13$
+--- accuracy \emph{rose} by $5.5$ points while retrieval fell twentyfold. Both collapsed cells
+land in the same $16$--$20$ band as the rungs that retrieve at random
+(Table~\ref{tab:mm_ladder}), which is what a reader falling back on the image alone produces;
+destroying retrieval evidently stops it being actively misled by plausible-but-wrong passages.
+Whatever the mechanism, the lesson for reporting is firm: on weak rungs, quote retrieval. An
+accuracy-only table would have recorded these two collapses as improvements.
 
 \begin{table}[t]
 \centering\small
@@ -598,7 +615,7 @@ encoder & retrieval pretraining & acc & R@5 & acc & R@5 & acc & R@5 \\
 \midrule
 CLIP-B/32 ($\sim$150M) & CLIP   & 15.13 & 2.60 & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} \\
 CLIP-L ($\sim$430M)    & CLIP   & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} \\
-SigLIP2-so400m         & SigLIP & 13.13 & 8.23 & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} \\
+SigLIP2-so400m         & SigLIP & 13.13 & 8.23 & \multicolumn{2}{c}{\emph{pending}} & 18.67 & 0.40 \\
 \midrule
 Qwen2-VL-2B (raw)      & none             & 19.93 & 0.03 & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} \\
 VLM2Vec-2B             & MMEB contrastive & 17.60 & 15.67 & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} \\

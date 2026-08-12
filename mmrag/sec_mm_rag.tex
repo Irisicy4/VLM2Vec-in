@@ -64,26 +64,127 @@ retrieved passage. Evaluation is two-level: L1 retrieval recall over the full co
 \textsc{Qwen2.5-VL-7B} reader over the top-$5$ passages ($n{=}1{,}500$), scored by
 token-boundary cover-EM against the official answer aliases.
 
-\paragraph{Method.} The retriever is a policy over passages,
-$\pi(d \mid q) = \mathrm{softmax}(\langle e(q), e(d)\rangle / \tau)$ with $\tau{=}0.02$,
-restricted to the support $\mathcal{M}_q$ of the $M{=}24$ passages the \emph{live} policy ranks
-highest (corpus embeddings are re-encoded with the current policy every $100$ steps). An action
-is an \emph{ordered list} of $k{=}4$ passages; we draw $G{=}4$ lists per query by Gumbel-top-$k$,
-which is exactly sequential softmax sampling without replacement, and score them with the exact
-Plackett--Luce conditional factorization
-\[
-\log \pi(d_1,\dots,d_k \mid q) \;=\; \sum_{i=1}^{k}\Big[ s_{d_i} - \log\!\!\sum_{d \in \mathcal{M}_q \setminus \{d_{<i}\}}\!\! e^{s_d} \Big],
-\qquad s_d = \langle e(q), e(d)\rangle/\tau ,
-\]
-whose denominator shrinks at each position --- the term a top-$N$ pool softmax lacks. The frozen
-reader scores each \emph{unique} sampled passage once ($4$ rollouts at temperature $0.7$,
-cover-EM against the official aliases); a list's reward is the mean over its $k$ positions, so
-credit is assigned per document rather than to a joint context. Advantages are $z$-scored across
-the $G$ lists of the same query. The surrogate is the usual clipped objective, but with a single
-inner epoch the importance ratio is identically $1$ at the point of differentiation, so the clip
-never engages and the update is exactly the group-baselined Plackett--Luce policy gradient; we
-report it as such rather than as PPO. There is no critic ($\lambda_{\mathrm{vf}}{=}0$).
-Figure~\ref{fig:mm-v3-arch} shows the whole loop.
+\paragraph{Background: GRPO.} Group-Relative Policy Optimization removes the value network from
+PPO by replacing the learned baseline with a within-group statistic. For a prompt $q$ it samples a
+group of $G$ outputs $\{o_1,\dots,o_G\}$ from the behaviour policy $\pi_{\theta_{\mathrm{old}}}$,
+scores each with a reward $r_i$, and standardizes the rewards inside the group,
+\begin{equation}
+\hat{A}_i \;=\; \frac{r_i - \mathrm{mean}(\{r_j\}_{j=1}^{G})}{\mathrm{std}(\{r_j\}_{j=1}^{G})},
+\label{eq:grpo_adv}
+\end{equation}
+then maximizes the token-level clipped surrogate
+\begin{equation}
+\mathcal{J}_{\mathrm{GRPO}}(\theta) \;=\;
+\mathbb{E}\Big[\frac{1}{G}\sum_{i=1}^{G}\frac{1}{|o_i|}\sum_{t=1}^{|o_i|}
+\min\big(\rho_{i,t}\hat{A}_i,\;
+\mathrm{clip}(\rho_{i,t},1-\epsilon,1+\epsilon)\hat{A}_i\big)\Big]
+\;-\;\beta\, D_{\mathrm{KL}}\!\left(\pi_\theta \,\|\, \pi_{\mathrm{ref}}\right),
+\label{eq:grpo}
+\end{equation}
+with the per-token importance ratio
+$\rho_{i,t} = \pi_\theta(o_{i,t}\mid q,o_{i,<t}) / \pi_{\theta_{\mathrm{old}}}(o_{i,t}\mid q,o_{i,<t})$.
+Three properties carry over to any instantiation: the group replaces the critic, the advantage is
+invariant to the reward's scale and offset, and the ratio in \eqref{eq:grpo} presumes the action
+factorizes into conditionals that can be evaluated exactly.
+
+\paragraph{From token sequences to ranked lists.} A retriever emits neither tokens nor a single
+item, so instantiating \eqref{eq:grpo} requires four substitutions; Table~\ref{tab:mm_grpo_map}
+summarizes them and Figure~\ref{fig:mm-v3-arch} shows the resulting loop.
+
+\emph{(i) The action is an ordered list.} Scores come from the encoder,
+$s_\theta(q,d) = \langle e_\theta(q), e_\theta(d)\rangle/\tau$ with $\tau{=}0.02$, and the policy
+is a softmax over a support $\mathcal{M}_q$ of the $M{=}24$ passages the \emph{live} policy ranks
+highest:
+\begin{equation}
+\pi_\theta(d \mid q, \mathcal{S}) \;=\;
+\frac{\exp s_\theta(q,d)}{\sum_{d' \in \mathcal{S}} \exp s_\theta(q,d')} .
+\label{eq:item_policy}
+\end{equation}
+An action is an ordered list $D=(d_1,\dots,d_k)$, $k{=}4$, drawn from $\mathcal{M}_q$ without
+replacement.
+
+\emph{(ii) Plackett--Luce replaces autoregressive factorization.} Drawing $k$ items without
+replacement \emph{is} a Plackett--Luce process, so the list log-probability factorizes exactly,
+with a denominator that shrinks as items are consumed:
+\begin{equation}
+\log \pi_\theta(D \mid q) \;=\; \sum_{i=1}^{k}\Big[\, s_\theta(q,d_i)
+\;-\; \log \!\!\!\sum_{d \,\in\, \mathcal{M}_q \setminus \{d_1,\dots,d_{i-1}\}} \!\!\! \exp s_\theta(q,d) \,\Big].
+\label{eq:pl}
+\end{equation}
+We sample $D$ by Gumbel-top-$k$, which is exactly this sequential sampler, so the draws are
+unbiased under \eqref{eq:pl}. This is the term a top-$N$ pool softmax lacks: scoring every pool
+member against one fixed denominator treats the $k$ selections as independent, which is not the
+distribution the sampler induces.
+
+\emph{(iii) The reward is per passage, not per action.} The frozen reader scores each
+\emph{unique} sampled passage once --- $N_{\mathrm{roll}}{=}4$ answers sampled at $T{=}0.7$,
+credited by token-boundary cover-EM against the official alias set $\mathcal{A}^\star$ --- and a
+list's reward is the mean over its positions:
+\begin{equation}
+r(q,d) = \frac{1}{N_{\mathrm{roll}}}\sum_{n=1}^{N_{\mathrm{roll}}}
+\mathbb{1}\big[\,y_n \text{ covers some } a \in \mathcal{A}^\star \big],
+\quad y_n \sim \text{Reader}(\cdot \mid \text{image}, \text{question}, d),
+\qquad
+R(D) = \frac{1}{k}\sum_{i=1}^{k} r(q,d_i).
+\label{eq:reward}
+\end{equation}
+Credit is therefore assigned per document rather than to a joint context, which matters: the
+variant that rewards the reader's accuracy over the concatenated top-$k$ slate --- one scalar for
+the whole action, the literal analogue of a sequence-level reward --- destabilizes training and
+transfers poorly.
+
+\emph{(iv) The group is over lists.} Advantages are \eqref{eq:grpo_adv} applied to
+$\{R(D_g)\}_{g=1}^{G}$ with $G{=}4$ lists per query, and the surrogate becomes list-level:
+\begin{equation}
+\mathcal{J}(\theta) \;=\; \mathbb{E}\Big[\frac{1}{G}\sum_{g=1}^{G}
+\min\big(\rho_g \hat{A}_g,\; \mathrm{clip}(\rho_g,1-\epsilon,1+\epsilon)\hat{A}_g\big)\Big],
+\qquad
+\rho_g = \frac{\pi_\theta(D_g \mid q)}{\pi_{\theta_{\mathrm{old}}}(D_g \mid q)} .
+\label{eq:ours}
+\end{equation}
+Two terms of \eqref{eq:grpo} are gone. There is no length normalization, because every action has
+the same length $k$. And $\beta{=}0$: we use no KL to a reference policy, and no critic.
+
+\emph{What the update actually is.} With a single inner epoch, $\theta = \theta_{\mathrm{old}}$ at
+the point of differentiation, so $\rho_g \equiv 1$, the clip never engages, and \eqref{eq:ours}
+reduces to REINFORCE with a group baseline,
+\begin{equation}
+\nabla_\theta \mathcal{J}(\theta) \;=\; \mathbb{E}\Big[\frac{1}{G}\sum_{g=1}^{G}
+\hat{A}_g \, \nabla_\theta \log \pi_\theta(D_g \mid q)\Big].
+\label{eq:reinforce}
+\end{equation}
+We report the method as this rather than as PPO. One structural remark: the support
+$\mathcal{M}_q$ in \eqref{eq:item_policy}--\eqref{eq:pl} is itself policy-dependent --- it is the
+current policy's own top-$M$, with the index re-encoded every $100$ steps --- so the partition
+function runs over a moving \emph{restricted} set rather than the whole corpus. That restriction
+is doing the work an explicit KL would otherwise do, which is why $\beta{=}0$ costs nothing here
+(an explicit KL is in fact measurably harmful, Table~\ref{tab:mm_v3add}). It also scopes the
+result: the same estimator normalized over a full corpus collapsed on the text side until a
+frozen-base trust region was restored.
+
+\begin{table}[t]
+\centering\small
+\caption{Instantiating GRPO for retrieval. Left: the standard formulation, Eqs.\
+\eqref{eq:grpo_adv}--\eqref{eq:grpo}. Right: this work (\textsc{v3-pure}), Eqs.\
+\eqref{eq:item_policy}--\eqref{eq:reinforce}. The group baseline is the one component that
+carries over unchanged.}
+\label{tab:mm_grpo_map}
+\begin{tabular}{lll}
+\toprule
+component & standard GRPO & this work \\
+\midrule
+action              & token sequence $o=(o_1,\dots,o_T)$ & ordered list $D=(d_1,\dots,d_k)$, $k{=}4$ \\
+action space        & vocabulary, with repetition & top-$M$ support, $M{=}24$, without replacement \\
+factorization       & autoregressive $\pi(o_t\mid q,o_{<t})$ & Plackett--Luce, shrinking denominator \eqref{eq:pl} \\
+reward              & one scalar per sequence & per passage; list reward $=$ positional mean \eqref{eq:reward} \\
+length term         & $1/|o_i|$ per sequence & none needed --- $|D|$ fixed at $k$ \\
+baseline            & group mean/std over $G$ outputs & \emph{unchanged}: group mean/std over $G$ lists \\
+critic              & none (GRPO's point) & none ($\lambda_{\mathrm{vf}}{=}0$) \\
+trust region        & $\beta\,D_{\mathrm{KL}}(\pi_\theta\|\pi_{\mathrm{ref}})$ & $\beta{=}0$; the top-$M$ support restricts it \\
+ratio / clip        & active across inner epochs & inert: one inner epoch $\Rightarrow \rho_g \equiv 1$ \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 \input{fig_mm_v3_arch}
 
@@ -459,13 +560,18 @@ MMEB-style contrastive, or GME --- which separates ``the recipe needs a big mode
 recipe needs a model that can already retrieve.'' The small CLIP and SigLIP rungs establish the
 floor at which the annotation-free loop can no longer bootstrap: the reward is informative only
 once the policy's own top-$M$ sometimes contains an answerable passage, which is the same
-condition the gate result above exposes at CLIP-L. Two rungs already sit at that floor.
-\textsc{CLIP-B/32} retrieves at entity R@5 $2.60$ over $422$K passages and raw
-\textsc{Qwen2-VL-2B} at $0.03$ --- the latter is random retrieval, so without retrieval
-pretraining the zero-shot policy offers the reward literally nothing to select among. Their VQA
-accuracies ($15.13$ and $19.93$) are the reader answering from the image alone. The pretraining
-question therefore becomes ``can the loop bootstrap from random?'', and the anchored and pure
-cells answer different halves of it. We register the expectations: by the density rule established
+condition the gate result above exposes at CLIP-L. The zero-shot column already answers the
+pretraining half of the question on its own, and the answer is unusually clean. Raw
+\textsc{Qwen2-VL-2B} retrieves at entity R@5 $0.03$ and raw \textsc{Qwen2-VL-7B} at $0.47$: both
+are at or near random over $422$K passages, so $3.5\times$ the parameters buys essentially
+nothing. \textsc{GME-2B} --- the \emph{same} 2B backbone plus retrieval pretraining --- sits at
+$68.53$, three orders of magnitude above the raw 7B. Zero-shot retrieval ability comes from
+retrieval pretraining, not from backbone scale. \textsc{CLIP-B/32} at $2.60$ sits at the same
+floor. The accompanying VQA accuracies ($19.93$, $16.20$, $15.13$) are all the reader answering
+from the image alone; the small differences among them are noise in the junk context rather than
+signal, and no ordering should be read into them. What the training columns then test is
+sharper than ``does the recipe scale'': it is whether the reward can \emph{create} retrieval
+ability that parameter count alone did not. We register the expectations: by the density rule established
 above, \textsc{Qwen2-VL-2B} v3-pure should collapse, exactly as \textsc{CLIP-L} v3-pure did;
 the anchored \textsc{Qwen2-VL-2B} cell is the genuinely open one, testing whether the anchor
 extends the \textsc{CLIP-L} bootstrap ($5.4 \to 29.1$ entity R@5) all the way down to a randomly
@@ -498,7 +604,7 @@ Qwen2-VL-2B (raw)      & none             & 19.93 & 0.03 & \multicolumn{2}{c}{\e
 VLM2Vec-2B             & MMEB contrastive & 17.60 & 15.67 & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} \\
 GME-2B \emph{(headline)} & GME            & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} \\
 \midrule
-Qwen2-VL-7B (raw)      & none             & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} \\
+Qwen2-VL-7B (raw)      & none             & 16.20 & 0.47 & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} \\
 VLM2Vec-7B             & MMEB contrastive & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} \\
 GME-7B                 & GME              & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} \\
 \bottomrule

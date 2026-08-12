@@ -93,3 +93,30 @@ Consequence for the joint writeup: our +0.009-0.011 from anchor removal is the r
 binding SELF-ARGMAX anchor — i.e. the proxy being traded away was "top-1 stability under
 cross-entity contrast," not gold relevance. That makes the objective/proxy trade purer: no
 label enters even through the anchor, and pure RL still wins.
+
+## Anchor taxonomy, final (margin-at-temperature) — 2026-08-12
+
+Both single-factor rules died on the other side's data: "self-argmax -> inert by construction"
+(theirs) is falsified by our binding self-argmax runs; "inert iff negatives within the
+positive's comparison set" (ours) is falsified by their inert self-argmax + cross-query cell.
+
+Surviving rule (theirs, adopted): **an anchor is inert iff no in-scope negative sits within
+~O(few*tau) of the positive.** Positive type and negative scope matter only through the
+margins they induce.
+
+Direct measurement on our side (base policy, B=4 batches, P=24 pools, 48 queries, ctemp=0.03):
+gap between own-top-1 and the best cross-query doc, in units of tau: min 0.00, p10 2.21,
+median 6.38, p90 9.07; 17% of queries competitive (gap < 3*tau); 0% inverted (gap < 0).
+Exactly the predicted signature of our runs: a minority of live margins keeps InfoNCE at
+~0.5 (binding) while the argmax positive always wins its own row (never destructive).
+Their inert cell: same construction, but B=4 Trivia batches put cross-query docs topically
+far away — gaps >> tau, loss born at 0.44 and gone by step 240.
+
+Reading of the v3 result under the final rule: what anchor removal deleted was hard-margin
+uniformity pressure on the ~17% of queries with near-entity competitors — which is
+recall-shaped by definition. Pure RL reallocates those queries' gradient from "keep the top-1
+separated" to "rank what the reader can answer from," hence R@5 down, accuracy up.
+
+Discriminating cell (pre-registered, in flight on the text side): plgcc0-ng removes their
+inert anchor -> margin rule predicts no-op; our withdrawn scope rule predicted small positive.
+plgcc0-gold removes a binding external anchor -> tests proxy-for-objective transfer.

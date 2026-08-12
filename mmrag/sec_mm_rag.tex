@@ -83,6 +83,9 @@ the $G$ lists of the same query. The surrogate is the usual clipped objective, b
 inner epoch the importance ratio is identically $1$ at the point of differentiation, so the clip
 never engages and the update is exactly the group-baselined Plackett--Luce policy gradient; we
 report it as such rather than as PPO. There is no critic ($\lambda_{\mathrm{vf}}{=}0$).
+Figure~\ref{fig:mm-v3-arch} shows the whole loop.
+
+\input{fig_mm_v3_arch}
 
 \paragraph{What supervision enters, precisely.} The headline recipe (\emph{v3-pure}) carries
 \emph{no} contrastive term ($\lambda_{\mathrm{InfoNCE}}{=}0$) and \emph{no} gold passage: pools
@@ -99,7 +102,10 @@ random distractor articles, drawn per seed, giving $173{,}726$--$174{,}471$ acro
 ($173{,}755$ at seed $0$) --- so the annotation shapes the training corpus. (iii) Evaluation
 never uses either: every reported retrieval number searches the full $422{,}378$-passage corpus.
 That train/eval corpus asymmetry makes training cheaper and evaluation strictly harder, and it is
-identical across all arms including SFT.
+identical across all arms including SFT. Dropping the contrastive term is safe \emph{here} but is
+not safe in general --- the same removal collapses the text-modality twin of this experiment ---
+so the recipe as stated carries a reward-density scope condition, set out with the anchor
+analysis below.
 
 \paragraph{A note on v1, v2, v3.} Our earlier runs (\emph{v1}, frozen at tag
 \texttt{v1-listwise-top8}) label their update ``GRPO''/``PPO'', but it is neither: pools are the
@@ -171,6 +177,32 @@ the three answer metrics, v2 on the three retrieval metrics.}
 %   20k-passage sampled bank, B=4 batches x P=24 pools = 48 queries, contrastive temperature
 %   0.03; gap_i = (sim(q_i, own top-1) - max cross-query pool doc sim) / tau.
 %   Text-side row measured by the text session: trl-projects .../rag/PAPER_TABLES.md Table 8d.
+%
+% REPRO(anchor-scope): the collapse counter-example is the text side's exact anchor-removal twin
+%   of v3 -- their runs plgcc0_{trivia,wq}_ng vs the anchored twins, measured in their session
+%   (trl-projects; cite as a joint note, same as the margin-table text row): Trivia R@5 43.1 vs
+%   base 58.1, WQ R@5 6.3 vs base 55.5 -- collapse, the opposite of our v3-pure. Our reward
+%   density: mean per-passage reward ~0.26. Full write-up: VLM2Vec-rl RL_REDESIGN.md @ c21de4c.
+%   Supporting our side: v1-cc0 (recorded wave, 1 seed) rl-j2e5-nogold-cc0 = 0.3373, i.e. BOTH
+%   our estimators survive anchor removal.
+%   SETTLED 2026-08-13: clip-v3pure (job a1eb5830, fresh, 1 seed) COLLAPSED -- entity R@5 0.0043
+%   vs anchored twin clip-nogold-base 0.2913, below even CLIP-L's own zero-shot. Density branch
+%   fired on BOTH sides' pre-registrations; the structural branch is dead. Text-side estimator
+%   confirmed sampled-list PL (G=8, k=5), so no estimator confound. See RL_REDESIGN.md @ b0ebe54.
+%   Accuracy is NOT diagnostic at this rung: clip-v3pure 0.1900 > clip-nogold-base 0.1727 while
+%   its retrieval is 68x worse -- the reader answers from the image alone. Quote retrieval.
+%   WAVE: CLIP-L zero-shot 0.054 is RECORDED wave (no fresh clip-zeroshot exists on this
+%   cluster); the 0.0043-vs-0.2913 comparison that carries the claim is fresh-vs-fresh.
+%   Gold-convergence joint note: text side PAPER_TABLES 8f @ df8df3b8 (Hot cEM gold 30.8 vs
+%   no-gold 31.2 anchor-free, vs 39.6 anchored gold). Our anchored tie 0.343/0.341 p=0.93 is
+%   recorded wave, v1 recipe. The MM v3 mirror is UNTESTABLE by construction (plgrpo asserts
+%   no_force_gold) -- do not describe it as a cross-modal replication.
+% PRE-REGISTERED 2026-08-13 (runner session), IN FLIGHT: clip-v3pure -- no anchor on a weak
+%   retriever whose pools are mostly signal-free -- reproduces the reward-sparse regime inside
+%   our own modality. If reward density is the deciding variable it should COLLAPSE (retrieval
+%   below its zero-shot base) like the text cells; if the split is structural it should merely
+%   underperform its anchored twin (clip-nogold-base, R@5 0.291). Report which branch fired,
+%   including if the density lean misses.
 \paragraph{What the anchor buys, and what it costs.} v2 and v3 differ by one term, so the
 comparison isolates the InfoNCE anchor exactly. The anchor is worth about $+4$ points of tail
 recall (entity R@5 $80.13$ vs.\ $76.09$; R@10 $85.73$ vs.\ $82.23$) and costs about $0.9$ points
@@ -196,14 +228,55 @@ which is why a self-argmax positive can be binding but never destructive.
 Read under that rule, what removing the anchor deleted was hard-margin uniformity pressure on the
 ${\sim}17\%$ of queries with a near-entity competitor --- pressure that is recall-shaped by
 definition. Pure RL reallocates those queries' gradient from ``keep the top-$1$ separated'' to
-``rank what the reader can answer from,'' hence recall down and accuracy up. Two practical
+``rank what the reader can answer from,'' hence recall down and accuracy up. Three practical
 consequences follow, and they are the transferable part: check the anchor's loss curve before
-concluding anything about anchors, and choose v2 or v3 by which metric you are shipping.
+concluding anything about anchors; choose v2 or v3 by which metric you are shipping; and note
+that v3-pure is demonstrated on a \emph{retrieval-pretrained} base (\textsc{GME-2B}; the 7B cell
+is pending), while on weak bases the anchored variant is not optional --- anchored \textsc{CLIP-L}
+learns entity R@5 $5.4 \to 29.1$ where the pure variant collapses to $0.43$ (the \textsc{CLIP-L}
+zero-shot $5.4$ is a recorded-wave number --- the trained cells are fresh, and we have no fresh
+\textsc{CLIP-L} zero-shot; the $0.43$ vs.\ $29.13$ comparison that carries the argument is
+within-wave).
 The in-domain trade understates the effect, however. Out of domain
 (Table~\ref{tab:mm_evqa}) the same two arms tie on entity recall while v3 leads
 \emph{answer}-level R@5 by $6.49$ points and accuracy by $3.27$ --- so what the anchor buys is
 specifically entity recall that stops carrying answers once the domain changes. The
-proxy/objective trade is the whole story, and it is sharper off-domain than on.
+proxy/objective trade is the whole story, and it is sharper off-domain than on. A related
+observation from the text side sharpens what the anchor was carrying: with the anchor removed
+their multi-hop gold and no-gold arms \emph{converge} ($30.8$ vs.\ $31.2$ HotpotQA cover-EM,
+against $39.6$ for the anchored gold arm), so on text the advantage of gold supervision was
+flowing through the contrastive positive rather than through the pools. Our recorded gold-versus-
+no-gold tie ($34.3$ vs.\ $34.1$, McNemar $p{=}0.93$) is the mirror image with the anchor
+\emph{present}, where gold-in-pool adds nothing. We flag the asymmetry rather than claim a
+cross-modal replication: the matching multimodal cell cannot be run, because the pure estimator
+asserts annotation-free pools by construction, so the convergence itself is text-measured and
+only its anchored endpoint is confirmed here.
+
+\emph{A scope condition, from a counter-example on the other modality.} Everything above holds in
+a reward-dense regime: our mean per-passage reward is ${\approx}0.26$, so most pools carry signal.
+The text side ran the exact anchor-removal twin of v3 and its arms \emph{collapsed} --- TriviaQA
+R@5 $43.1$ against a base of $58.1$, WebQuestions R@5 $6.3$ against $55.5$ --- the opposite of
+what we observe. Anchor removal is therefore not safe in general. The cross-query contrastive term
+evidently has a second, regime-dependent role, collapse prevention, that our setting never
+exercises; we claim anchor-freedom only where the reward is dense, and establishing the boundary
+is ongoing. This also scopes the margin rule rather than falsifying it: margin-at-temperature
+correctly predicts the anchor's \emph{ranking} pressure, inert versus binding, but is silent
+about collapse prevention, which surfaces only under sparse reward --- which is why the text
+side's \emph{inert} anchor could be removed and the model still collapse. Within our own
+modality both estimators survive removal (v1 at $\lambda_{\mathrm{InfoNCE}}{=}0$ scores $33.73$,
+recorded wave, one seed), so the split is not an artefact of the policy gradient. We pre-registered
+the discriminating cell and it has now settled. \textsc{CLIP-L} v3-pure puts a weak retriever,
+whose pools are mostly signal-free, into the reward-sparse regime inside our own modality; the
+registered branches were collapse below its own zero-shot base if reward density is the deciding
+variable, versus merely underperforming its anchored twin if the split is structural. It
+\emph{collapsed}: entity R@5 $0.43$, against $29.13$ for the anchored twin trained identically
+and below even its own zero-shot retrieval. The density branch fired, so the structural
+explanation is dead and the two-jobs account is now measured on a complete $2\times2$ across
+modalities: the identical estimator that gains on a reward-dense base collapses outright on a
+reward-sparse one. One measurement caveat worth keeping: at these rungs VQA accuracy is
+\emph{not} diagnostic --- collapsed v3-pure scores $19.00$ against the anchored twin's $17.27$,
+because a reader that answers from the image alone is barely affected by which useless passages
+it is shown. Only retrieval reveals the collapse.
 
 \begin{table}[t]
 \centering\small
@@ -386,12 +459,18 @@ MMEB-style contrastive, or GME --- which separates ``the recipe needs a big mode
 recipe needs a model that can already retrieve.'' The small CLIP and SigLIP rungs establish the
 floor at which the annotation-free loop can no longer bootstrap: the reward is informative only
 once the policy's own top-$M$ sometimes contains an answerable passage, which is the same
-condition the gate result above exposes at CLIP-L. \textsc{CLIP-B/32} sets that floor about as
-low as it can go --- zero-shot entity R@5 of $2.60$ over $422$K passages, which is not
-meaningfully better than drawing at random, against a VQA accuracy of $15.13$ that the reader is
-therefore producing from the image alone. Whether the loop can bootstrap from a retriever that
-starts with no usable signal at all is precisely what the \textsc{CLIP-B/32} v3 cell tests, and
-we have no basis for guessing the answer before it lands. At $7$B we currently have only the v1 recorded
+condition the gate result above exposes at CLIP-L. Two rungs already sit at that floor.
+\textsc{CLIP-B/32} retrieves at entity R@5 $2.60$ over $422$K passages and raw
+\textsc{Qwen2-VL-2B} at $0.03$ --- the latter is random retrieval, so without retrieval
+pretraining the zero-shot policy offers the reward literally nothing to select among. Their VQA
+accuracies ($15.13$ and $19.93$) are the reader answering from the image alone. The pretraining
+question therefore becomes ``can the loop bootstrap from random?'', and the anchored and pure
+cells answer different halves of it. We register the expectations: by the density rule established
+above, \textsc{Qwen2-VL-2B} v3-pure should collapse, exactly as \textsc{CLIP-L} v3-pure did;
+the anchored \textsc{Qwen2-VL-2B} cell is the genuinely open one, testing whether the anchor
+extends the \textsc{CLIP-L} bootstrap ($5.4 \to 29.1$ entity R@5) all the way down to a randomly
+initialised retrieval geometry. \textsc{VLM2Vec-2B} (zero-shot R@5 $15.67$) is the boundary probe
+between the two regimes. At $7$B we currently have only the v1 recorded
 wave --- zero-shot $30.6$, SFT $32.6$, annotation-free RL $35.1$/$35.3$/$35.3$ across three
 seeds, gold-seeded RL $35.9$ --- measured before the cluster move and therefore not directly
 comparable to the fresh $2$B numbers above; the v3-pure $7$B cell is in flight. We defer the
@@ -415,7 +494,7 @@ CLIP-B/32 ($\sim$150M) & CLIP   & 15.13 & 2.60 & \multicolumn{2}{c}{\emph{pendin
 CLIP-L ($\sim$430M)    & CLIP   & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} \\
 SigLIP2-so400m         & SigLIP & 13.13 & 8.23 & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} \\
 \midrule
-Qwen2-VL-2B (raw)      & none             & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} \\
+Qwen2-VL-2B (raw)      & none             & 19.93 & 0.03 & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} \\
 VLM2Vec-2B             & MMEB contrastive & 17.60 & 15.67 & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} \\
 GME-2B \emph{(headline)} & GME            & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} \\
 \midrule

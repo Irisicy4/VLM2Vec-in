@@ -1289,6 +1289,12 @@ $200$K \texttt{pool\_train\_big} ($200$/entity) the other v3 rows use. Once
 %   (configs in mmrag/mlx_configs/). Every cell is the V1 RECIPE -- verified in args.json:
 %   algo=grpo, contrastive_coef=0.3 -- so it predates v3 and says nothing about the headline arm.
 %   25k per-seed (mean 34.62 +/- 0.19): scale-rows25k 34.87 / -s1 34.60 / -s2 34.40.
+%   v3 cells on this axis: v3-rows25k 0.3400 (25k pool) and v3-rows200k 0.3347 (200k pool), both
+%     2k drawn, 1 seed each, fresh. SHARED CELL WARNING: 0.3347 is also the left endpoint of the
+%     consumption fork, so when v3-rows200k-s1/-s2 (jobs aac4d3f9 / 844029d3) land, BOTH this
+%     paragraph and the consumption paragraph need revisiting together. If the replicates come in
+%     near 0.347 the 0.3347 cell was a low draw and this row should become a 3-seed mean; if near
+%     0.335 then pool composition matters at fixed consumption and that is a finding in itself.
 %   Compute-axis rows, v1 RECORDED wave (results_summary.json @ 8be8e67), within-wave pairs:
 %     rl-j2e5-nogold-det 34.13 -> -det-1500 31.93 (-2.20) at 41K
 %     rl-j2e5-nogold-rows8k 34.07 -> -rows8k-1500 32.20 (-1.87) at 8K
@@ -1306,7 +1312,11 @@ pool from $12.5$K to $200$K queries leaves accuracy flat --- $34.33$, $34.62 \pm
 $34.67$, $32.87$, $34.80$, a $2.0$-point spread against a $3.7$-point RL-to-SFT gap
 (Table~\ref{tab:mm_scaling} and Figure~\ref{fig:mm_scaling}) --- because rows beyond the visited
 ${\sim}2{,}000$ are never sampled. Pool size beyond the visited count is irrelevant: data only
-matters if it is consumed. Raising the budget at fixed pool likewise costs accuracy in every pair
+matters if it is consumed. The corrected estimator behaves the same way where we have measured it
+--- v3-pure scores $34.00$ at a $25$K pool and $33.47$ at $200$K, an $8\times$ range spanning
+$0.53$ points, both single seeds against a fresh-retrain spread of $0.2$--$0.6$ --- so this
+control is not an artefact of the v1 recipe either. The $200$K cell is the one whose replicates
+are pending, and it is shared with the consumption analysis above. Raising the budget at fixed pool likewise costs accuracy in every pair
 we have ($34.13 \to 31.93$ at $41$K and $34.07 \to 32.20$ at $8$K, both v1 recorded wave and
 therefore compared within-wave), which is the observation the consumption curve exists to
 resolve --- whether that is over-training or a genuine data ceiling cannot be told apart from
@@ -1319,16 +1329,20 @@ the fixed-pool budget pairs. Every cell is the v1 listwise recipe --- the \textt
 runs predate v3. The flatness here is why Table~\ref{tab:mm_consumption} measures consumption
 instead.}
 \label{tab:mm_scaling}
-\begin{tabular}{lc}
+\begin{tabular}{lcc}
 \toprule
-setting & v1 listwise $+$ anchor \\
+setting & v1 listwise $+$ anchor & v3-pure \\
 \midrule
-\multicolumn{2}{l}{\emph{pool size at $500$ steps} (${\sim}2{,}000$ consumed throughout)} \\
-\quad $12.5$K / $25$K / $50$K / $100$K / $200$K & 34.33 / $34.62 \pm 0.19$ / 34.67 / 32.87 / 34.80 \\
+\multicolumn{3}{l}{\emph{pool size at $500$ steps} (${\sim}2{,}000$ drawn throughout)} \\
+\quad $12.5$K  & 34.33 & --- \\
+\quad $25$K    & $34.62 \pm 0.19$ (3 seeds) & 34.00 \\
+\quad $50$K    & 34.67 & --- \\
+\quad $100$K   & 32.87 & --- \\
+\quad $200$K   & 34.80 & 33.47 \\
 \midrule
-\multicolumn{2}{l}{\emph{budget at fixed pool}} \\
-\quad $41$K, $500 \to 1{,}500$ steps (recorded) & $34.13 \to 31.93$ \\
-\quad $8$K, $500 \to 1{,}500$ steps (recorded)  & $34.07 \to 32.20$ \\
+\multicolumn{3}{l}{\emph{budget at fixed pool}} \\
+\quad $41$K, $500 \to 1{,}500$ steps (recorded) & $34.13 \to 31.93$ & --- \\
+\quad $8$K, $500 \to 1{,}500$ steps (recorded)  & $34.07 \to 32.20$ & --- \\
 \bottomrule
 \end{tabular}
 \end{table}

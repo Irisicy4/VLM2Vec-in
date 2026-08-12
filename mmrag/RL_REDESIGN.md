@@ -225,3 +225,19 @@ Same anchor term, two restoring jobs by regime AND modality: against contraction
 against drift there. Joint-table rule: a signature column, never the bare word "collapse".
 Symmetric limitation now explicit: our static count would have missed their failure exactly
 as their static margin measurement missed ours.
+
+## Boundary probe verdict + phenotype revision (2026-08-12 evening)
+
+vlm2vec2b-v3pure (zs R@5 0.157, the registered boundary probe): **FAILED — acc 0.1720,
+R@5 0.007 (22x below its zero-shot). So v3-pure's working range is bracketed: fails at 0.157,
+works at 0.685. Pure RL requires a GME-class base.**
+
+**And it failed by the TEXT phenotype: distinct-top5 = 3000/3000 (max 1) — maximal diversity,
+zero utility. Misalignment DRIFT, not contraction.** The "degeneracy=MM, drift=text" split
+recorded earlier today is falsified as a modality rule: the MM ladder now contains BOTH
+phenotypes (contraction at clip/siglip2/raw-qwen2b; drift at vlm2vec2b). Phenotype correlates
+with something else — candidate: contrastive-pretraining structure of the base (VLM2Vec is
+MMEB-contrastive-trained with strong uniformity, resisting contraction but free to drift;
+CLIP/SigLIP dual towers and raw VLMs contract). One-seed evidence, hypothesis only.
+Consequence: the diagnostic-PAIR recommendation (distinct-count + recall-vs-base) upgrades
+from "covers both modalities" to "required within a single modality."

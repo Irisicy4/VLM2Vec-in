@@ -311,7 +311,18 @@ the three answer metrics, v2 on the three retrieval metrics.}
 %   band of the random-retrieval rungs (qwen2b 0.1993, qwen7b 0.1620) -- i.e. the reader's
 %   image-alone floor. NEVER report these rungs on accuracy alone.
 %   PENDING: siglip2-nogold (anchored twin) -- tests whether the CLIP-L anchor rescue
-%   (0.054 -> 0.291) repeats on SigLIP2 and completes that row.
+%   (0.054 -> 0.291) repeats on SigLIP2 and completes that row. Pre-agreed with the runner:
+%   if it repeats, "the anchor is what makes weak rungs learnable at all" gets its own sentence;
+%   if it does not, the CLIP-L rescue was rung-specific and the sentence stays out.
+%   PENDING: no-context floor, eval_vqa --no-context (reader answers from the image alone, same
+%   1500-query seed-0 sample, RETRIEVAL-INDEPENDENT). Lands as
+%   results/gme2b-zeroshot-3k-repro.vqa_noctx.json -- the filename carries the retrieval json it
+%   piggybacks on, but the number applies to every rung. Recorded-wave reference 0.1867.
+%   WITHIN-RUNG evidence for the misleading-context reading, all fresh, all in tab:mm_ladder:
+%     siglip2 zs      R@5 0.0823 (weakly relevant, wrong) -> acc 0.1313
+%     siglip2 v3pure  R@5 0.0040 (noise)                  -> acc 0.1867   same encoder
+%     qwen2b  zs      R@5 0.0003 (random)                 -> acc 0.1993   consistent
+%     qwen7b  zs      R@5 0.0047                          -> acc 0.1620   DOES NOT FIT; unresolved
 \paragraph{What the anchor buys, and what it costs.} v2 and v3 differ by one term, so the
 comparison isolates the InfoNCE anchor exactly. The anchor is worth about $+4$ points of tail
 recall (entity R@5 $80.13$ vs.\ $76.09$; R@10 $85.73$ vs.\ $82.23$) and costs about $0.9$ points
@@ -386,15 +397,25 @@ density branch fired, the structural explanation is dead, and the two-jobs accou
 measured on a complete $2\times2$ across modalities: the identical estimator that gains on a
 reward-dense base collapses outright on a reward-sparse one.
 
-One measurement warning follows, and it is not a technicality. At these rungs VQA accuracy is
-\emph{anti}-diagnostic. Collapsed \textsc{CLIP-L} scores $19.00$ against its anchored twin's
-$17.27$, and collapsed \textsc{SigLIP2} scores $18.67$ against its \emph{own} zero-shot $13.13$
---- accuracy \emph{rose} by $5.5$ points while retrieval fell twentyfold. Both collapsed cells
-land in the same $16$--$20$ band as the rungs that retrieve at random
-(Table~\ref{tab:mm_ladder}), which is what a reader falling back on the image alone produces;
-destroying retrieval evidently stops it being actively misled by plausible-but-wrong passages.
-Whatever the mechanism, the lesson for reporting is firm: on weak rungs, quote retrieval. An
-accuracy-only table would have recorded these two collapses as improvements.
+One measurement warning follows, and it is not a technicality: on these rungs VQA accuracy is
+\emph{anti}-diagnostic. \textsc{SigLIP2} supplies the cleanest demonstration, because it is a
+within-rung comparison --- one encoder, two retrievers, nothing else varied. Zero-shot it
+retrieves weakly relevant but wrong passages (entity R@5 $8.23$) and scores $13.13$; after the
+collapse it retrieves essentially noise (R@5 $0.40$) and scores $18.67$. The \emph{worse}
+retriever is worth $5.5$ points \emph{more} accuracy. \textsc{CLIP-L} shows the same sign more
+weakly ($19.00$ collapsed against $17.27$ for its anchored twin).
+
+The reading this supports is that the two failure modes are not equivalent for the reader:
+plausible-but-wrong context actively misleads it, whereas noise is ignored and the reader falls
+back on the image. The cross-rung numbers are consistent --- raw \textsc{Qwen2-VL-2B}, retrieving
+at essentially random (R@5 $0.03$), scores $19.93$, in the same band as the collapsed cells. One
+point does not fit cleanly: raw \textsc{Qwen2-VL-7B} (R@5 $0.47$) scores $16.20$, below that
+band, which is either floor noise or mild distraction; we have not resolved which and do not
+claim otherwise. We are measuring the no-context floor directly rather than inferring it from
+these rungs, which will settle the reading; the recorded-wave reference is $18.67$.
+
+The reporting rule does not depend on the mechanism, and it is firm: on weak rungs, quote
+retrieval. An accuracy-only table would have recorded both of these collapses as improvements.
 
 \begin{table}[t]
 \centering\small

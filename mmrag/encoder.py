@@ -35,11 +35,15 @@ GME_IMAGE_TOKENS = "<|vision_start|><|image_pad|><|vision_end|>"
 _MODELS_DIR = "/lus/lfs1aip2/scratch/u6ko/icywang.u6ko/mmrag_data/models"
 ENCODER_PROFILES = {
     "gme2b": {"model": "Alibaba-NLP/gme-Qwen2-VL-2B-Instruct", "checkpoint": None, "style": "gme"},
-    "gme7b": {"model": f"{_MODELS_DIR}/gme-Qwen2-VL-7B-Instruct", "checkpoint": None, "style": "gme"},
+    "gme7b": {"model": "Alibaba-NLP/gme-Qwen2-VL-7B-Instruct", "checkpoint": None, "style": "gme"},
     "vlm2vec2b": {"model": "Qwen/Qwen2-VL-2B-Instruct",
                   "checkpoint": "TIGER-Lab/VLM2Vec-Qwen2VL-2B", "style": "vlm2vec"},
-    "vlm2vec7b": {"model": f"{_MODELS_DIR}/Qwen2-VL-7B-Instruct",
+    "vlm2vec7b": {"model": "Qwen/Qwen2-VL-7B-Instruct",
                   "checkpoint": "TIGER-Lab/VLM2Vec-Qwen2VL-7B", "style": "vlm2vec"},
+    # retrieval-pretraining ladder at fixed backbone: raw instruction-tuned Qwen2-VL used as an
+    # embedder (last-token pooling, vlm2vec-style prompt) with NO retrieval training at all
+    "qwen2b": {"model": "Qwen/Qwen2-VL-2B-Instruct", "checkpoint": None, "style": "vlm2vec"},
+    "qwen7b": {"model": "Qwen/Qwen2-VL-7B-Instruct", "checkpoint": None, "style": "vlm2vec"},
     # capacity-ladder weak rungs: dual-tower encoders (mmrag/clip_encoder.py)
     "clip": {"model": "openai/clip-vit-large-patch14-336", "checkpoint": None, "style": "clip"},
     "siglip2": {"model": "google/siglip2-so400m-patch16-384", "checkpoint": None, "style": "clip"},

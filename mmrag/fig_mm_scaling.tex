@@ -1,4 +1,9 @@
-% Figure block for the multimodal scaling subsection (fig_mm_scaling.pdf).
+% Figure block for the multimodal scaling subsection (fig_mm_scaling.pdf). TWO PANELS:
+% top = VQA acc (from .vqa_top5.json), bottom = in-domain entity R@5 (from
+% .retrieval.metrics.json) for the SAME runs; the join is on run name, which the
+% config-equivalence collector already keys on. Both panels share series/colour/marker so an
+% arm reads vertically. Oracle is ANNOTATED not plotted -- at 0.504 a line would stretch the
+% accuracy panel to 0.51 and flatten every curve. Retrieval has no oracle analogue.
 % v2 token-boundary cover-EM, 1500-q fixed eval, Qwen2.5-VL-7B reader over top-5, InfoSeek val,
 % 422K-passage corpus. Whiskers = seed min--max where more than one seed exists.
 %
@@ -27,18 +32,21 @@
 \begin{figure}[t]
 \centering
 \includegraphics[width=0.72\textwidth]{fig_mm_scaling.pdf}
-\caption{\textbf{Control: at fixed compute, pool size is irrelevant beyond the visited count.}
-Downstream VQA accuracy of the frozen \textsc{Qwen2.5-VL-7B} reader (top-$5$) for
-\textsc{GME-Qwen2-VL-2B} retrievers trained on nested InfoSeek query subsets at fixed compute
-($500$ updates throughout). Across a $16\times$ range of \emph{available} training data the curve
-is flat to within $2$ points, because at $500$ steps $\times$ batch $4$ only ${\sim}2{,}000$
-queries are ever \emph{consumed} --- which is why the data-scaling result is
-Table~\ref{tab:mm_consumption}, on a consumption axis, and this figure is only its control.
-\emph{Both ladder series are the v1 listwise recipe} (anchored, deterministic top-$8$): filled
-circles are fresh same-cluster retrains, open squares the pre-cluster-move recorded wave, shown
-separately because absolute levels are not comparable across waves. The single \textsc{v3-pure}
-point is the headline three-seed cell at $45{,}248$ available queries (all of
-\texttt{pool\_train}, a different and smaller pool file than the ladder's). Dashed lines are the
-fresh zero-shot and relevance-SFT reproductions. Whiskers: seed min--max.}
+\caption{\textbf{Control: at fixed compute, pool size is irrelevant beyond the visited count ---
+and the two metrics do not agree.} Top: downstream VQA accuracy (frozen \textsc{Qwen2.5-VL-7B},
+top-$5$). Bottom: in-domain entity R@5 for the \emph{same} runs, so an arm reads vertically.
+\textsc{GME-Qwen2-VL-2B} retrievers on nested InfoSeek query subsets at fixed compute ($500$
+updates). Across a $16\times$ range of \emph{available} data both curves are flat to within a
+couple of points, because at $500$ steps $\times$ batch $4$ only ${\sim}2{,}000$ queries are ever
+\emph{drawn} --- the data-scaling result is Table~\ref{tab:mm_consumption}, on a consumption axis,
+and this figure is its control. Plotting both metrics matters: the $100$K cell is the
+\emph{worst} accuracy on the ladder and the \emph{best} entity R@5, so a single-metric version of
+this plot would silently pick a side of a dissociation that recurs throughout the section. Filled
+circles are fresh same-cluster v1 retrains, open squares the pre-cluster-move recorded wave (shown
+separately because absolute levels are not comparable across waves), diamonds v3-pure; the hollow
+diamond is the $45{,}248$-query \texttt{pool\_train} headline cell, a different query distribution
+from the big-pool ladder and therefore drawn unconnected. Dashed lines are the fresh zero-shot and
+relevance-SFT reproductions; the gold-context oracle ($50.40$) is annotated rather than drawn,
+being far enough above the data to flatten it. Whiskers: seed min--max.}
 \label{fig:mm_scaling}
 \end{figure}

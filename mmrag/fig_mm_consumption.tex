@@ -27,20 +27,21 @@
 \begin{figure}[t]
 \centering
 \includegraphics[width=0.66\textwidth]{fig_mm_consumption.pdf}
-\caption{\textbf{Data scaling on the axis that matters: examples actually drawn.} Downstream
-VQA accuracy against the number of (image, question, answer) triples the run has drawn
-($4 \times$ steps), holding the model (\textsc{GME-Qwen2-VL-2B}) and the recipe fixed and drawing
-from the $200$K pool. Draws are near-distinct: each batch is sampled independently, so an example
-can recur across steps, but the birthday bound over the $200$K pool caps expected collisions at
-$2.9\%$ at $12$K draws and $0.5\%$ at $2$K. Compute follows data by construction,
-so this is the curve that answers ``does collecting more cheap VQA supervision buy accuracy?''
---- unlike the fixed-compute control in Figure~\ref{fig:mm_scaling}, where enlarging the pool
-changes nothing because the consumed count does not move. Dashed overlay is the best-so-far
-envelope, drawn so that a run past its peak cannot be misread as data-limited. Hollow markers are
-results at the same budget from a different query distribution (the v3 headline cell on the
-$45$K pool), shown unconnected because they are not points of the curve. \textbf{The dense
-intermediate-checkpoint cells and every v3 curve point are still in flight}; the joined points
-shown are final-step v1 runs, and the paragraph text states in advance how either shape will be
-read.}
+\caption{\textbf{Data scaling on the axis that matters --- examples actually drawn --- for both
+metrics.} Top: VQA accuracy. Bottom: in-domain entity R@5 for the \emph{same} runs. Accuracy and
+retrieval are plotted against the number of (image, question, answer) triples drawn
+($4 \times$ steps), holding model and recipe fixed and drawing from the $200$K pool. Draws are
+near-distinct: each batch is sampled independently, so an example can recur across steps, but the
+birthday bound caps expected collisions at $2.9\%$ at $12$K draws and $0.5\%$ at $2$K. Compute
+follows data by construction, so this is the curve that answers ``does collecting more cheap VQA
+supervision buy accuracy?'' --- unlike the fixed-compute control in Figure~\ref{fig:mm_scaling},
+where enlarging the pool changes nothing because the drawn count does not move. The two panels
+disagree, which is the point of showing both: v3-pure gains accuracy from $2$K to $6$K while its
+entity R@5 slightly \emph{falls}. Dashed overlay is the best-so-far envelope, so a run past its
+peak cannot be misread as data-limited; hollow markers are results at the same budget from a
+different query distribution (the $45$K-pool headline cell and its half-budget checkpoints), shown
+unconnected because they are not points of the curve. \textbf{The v3 curve's left endpoint is a
+single seed and its replicates are pending}; see the text for why the apparent rise is not yet
+separable from a low draw.}
 \label{fig:mm_consumption}
 \end{figure}

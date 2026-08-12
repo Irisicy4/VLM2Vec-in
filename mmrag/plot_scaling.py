@@ -58,10 +58,10 @@ SERIES = [
     # key, reference run,   label,                            colour,    marker, pools
     ("v1", "scale-rows12k", "v1 listwise $+$ anchor (fresh)", "#0072B2", "o",
      {"built/pool_train_big.jsonl"}),
-    # v3-pure (all of pool_train) is the ~45k point of the v3 curve; the v3 scaling cells use
-    # the big pool, so this series legitimately spans both files. Flagged in the caption.
-    ("v3", "v3-pure", "v3-pure (fresh)", "#009E73", "D",
-     {"built/pool_train.jsonl", "built/pool_train_big.jsonl"}),
+    # v3 curve = big pool only, matching the consumption axis. The 45,248-row pool_train headline
+    # cell is a DIFFERENT query distribution (<=10 vs 200 queries/entity), so it is drawn as an
+    # off-curve marker rather than joined into the line -- same rule, both axes.
+    ("v3", "v3-pure", "v3-pure (fresh)", "#009E73", "D", {"built/pool_train_big.jsonl"}),
 ]
 
 # Consumption axis: which AVAILABLE pool sizes each series may draw its points from. The 200k
@@ -108,6 +108,12 @@ REFERENCE_ARMS = [
     ("sft-lr1e4-h0-repro", "relevance-SFT", "#D55E00", (0, (1, 2))),
 ]
 
+# The gold-context oracle (0.5040) is ~15 accuracy points above every scaling cell. Drawing it as
+# a line would stretch the accuracy panel from 0.30 to 0.51 and flatten the curves the figure
+# exists to show, so it is ANNOTATED off-scale instead of plotted. Retrieval has no oracle
+# analogue, so the note appears on the accuracy panel only.
+ORACLE_RUN = "gme2b-zeroshot-3k-repro"
+
 # Flags added to train_rl.py's argparser AFTER some runs were launched, with their defaults.
 # An older run's args.json simply lacks these keys; a newer run carries them at their default.
 # Without this map, config equivalence treats "key absent" and "key present at default" as a
@@ -140,6 +146,21 @@ def acc_of(D, run):
     if not os.path.exists(p):
         return None
     return json.load(open(p))["acc"]
+
+
+def r5_of(D, run):
+    """Fresh-wave in-domain entity R@5, or None. Paired with acc_of so both panels of a figure
+    are drawn from the SAME run — the join is on run name, which the config-equivalence
+    machinery already gives us."""
+    p = os.path.join(D, "results", f"{run}.retrieval.metrics.json")
+    if not os.path.exists(p):
+        return None
+    return json.load(open(p))["entity_recall"]["5"]
+
+
+# Which metric each panel shows: (key, getter, axis label, reference-arm index into the tuple)
+PANELS = [("acc", acc_of, "VQA accuracy (7B reader, top-5)"),
+          ("r5", r5_of, "in-domain entity R@5")]
 
 
 def args_of(D, run):
@@ -202,10 +223,10 @@ def collect_fresh(D, ref_run, recipe, pools):
         if a.get("pool") not in pools:
             continue
         n = n_queries(D, a)
-        acc = acc_of(D, run)
+        acc, r5 = acc_of(D, run), r5_of(D, run)
         if n is None or acc is None:
             continue
-        out.setdefault(n, []).append((run, acc))
+        out.setdefault(n, []).append((run, acc, r5))
     return out, ref
 
 
@@ -234,33 +255,63 @@ def collect_recorded(repo_root):
         rows = ax.get("max_train_rows")
         # recorded axes store either an int or the string "all(~41k)"
         n = rows if isinstance(rows, int) else 41000
-        out.setdefault(n, []).append((name, top5["acc"]))
+        out.setdefault(n, []).append((name, top5["acc"], (r.get("entity_R") or {}).get("5")))
     return out
 
 
-def draw(ax, points, colour, marker, label, filled=True, lw=2.0):
-    xs = sorted(points)
+def draw(ax, points, colour, marker, label, mi, filled=True, lw=2.0):
+    """Draw one series on one panel. `mi` selects the metric: 1 = acc, 2 = entity R@5."""
+    xs = sorted(x for x in points if any(p[mi] is not None for p in points[x]))
     if not xs:
         return 0
-    ys = [statistics.mean(a for _, a in points[x]) for x in xs]
+    ys = [statistics.mean(p[mi] for p in points[x] if p[mi] is not None) for x in xs]
     ax.plot(xs, ys, color=colour, lw=lw, marker=marker, ms=6, zorder=3, label=label,
             markerfacecolor=colour if filled else "white",
             markeredgecolor=colour, markeredgewidth=1.4)
     for x in xs:
-        accs = [a for _, a in points[x]]
-        if len(accs) > 1:
-            ax.vlines(x, min(accs), max(accs), color=colour, lw=2, alpha=0.55, zorder=2)
+        v = [p[mi] for p in points[x] if p[mi] is not None]
+        if len(v) > 1:
+            ax.vlines(x, min(v), max(v), color=colour, lw=2, alpha=0.55, zorder=2)
     return len(xs)
+
+
+def style_panel(ax, ylabel, xticks=None, xlabels=None, xlabel=None):
+    ax.set_xscale("log")
+    if xticks:
+        ax.set_xticks(xticks)
+        ax.set_xticklabels(xlabels, fontsize=7.5)
+    ax.minorticks_off()
+    ax.set_ylabel(ylabel, fontsize=8.5)
+    ax.tick_params(labelsize=8)
+    for sp in ("top", "right"):
+        ax.spines[sp].set_visible(False)
+    ax.grid(axis="y", color="#dddddd", lw=0.6, zorder=0)
+    if xlabel:
+        ax.set_xlabel(xlabel, fontsize=9)
+
+
+def ref_lines(D, ax, mi):
+    """Reference arms on a panel, plus the off-scale oracle note on the accuracy panel."""
+    getter = acc_of if mi == 1 else r5_of
+    for run, label, colour, dash in REFERENCE_ARMS:
+        v = getter(D, run)
+        if v is None:
+            continue
+        ax.axhline(v, color=colour, lw=1.2, ls=dash, zorder=1)
+        ax.annotate(f"{label} ({v:.3f})", xy=(1.02, v), xycoords=("axes fraction", "data"),
+                    fontsize=7, color=colour, va="center")
+    if mi == 1:
+        p = os.path.join(D, "results", f"{ORACLE_RUN}.vqa_gold.json")
+        if os.path.exists(p):
+            o = json.load(open(p))["acc"]
+            ax.annotate(f"gold-context oracle {o:.3f} — off scale", xy=(0.015, 0.90),
+                        xycoords="axes fraction", fontsize=6.6, color="#555555", style="italic")
 
 
 def consumed_of(D, run, a):
     """Examples DRAWN = batch_size x steps (near-distinct, not exactly unique -- see
-    draw_consumption).
-
-    A checkpoint eval is named "<parent>-ck<STEP>"; it inherits the parent's config and its
-    step count is the checkpoint's, not the parent's final budget. Everything else consumed
-    batch_size x max_steps. Returns (consumed, args) or (None, None).
-    """
+    draw_consumption). A checkpoint eval is named "<parent>-ck<STEP>": it inherits the parent's
+    config and its step count is the checkpoint's, not the parent's final budget."""
     m = re.match(r"^(?P<parent>.+)-ck(?P<step>\d+)$", run)
     if m:
         pa = args_of(D, m.group("parent"))
@@ -300,88 +351,73 @@ def collect_consumption(D, ref_run, recipe, avail_rows):
             continue
         acc = acc_of(D, run)
         if acc is not None:
-            out.setdefault(n, []).append((run, acc))
+            out.setdefault(n, []).append((run, acc, r5_of(D, run)))
     return out
 
 
 def draw_consumption(D, out_path, min_points=3):
-    """Second figure: accuracy vs examples DRAWN (4 x steps), with a best-so-far envelope.
+    """Second figure: accuracy AND retrieval vs examples DRAWN (4 x steps), two stacked panels.
 
-    "Drawn", not "unique": train_rl.py re-samples each batch, so examples recur across
-    steps at the birthday rate (0.5% at 2k draws over the 200k pool, 2.94% at 12k).
+    "Drawn", not "unique": train_rl.py re-samples each batch, so examples recur across steps at
+    the birthday rate (0.5% at 2k draws over the 200k pool, 2.94% at 12k).
 
-    Emits nothing until at least one series has `min_points` points -- a two-point "curve"
-    would invite reading a trend that is not measured yet.
+    Two panels rather than one because the metrics DISAGREE along this axis (v3 rises in accuracy
+    from 2k to 6k while its entity R@5 falls), and a single-metric plot silently picks a side of
+    that dissociation. Same series, colours and markers in both panels so one arm reads
+    vertically. Emits nothing until a series has `min_points` points.
     """
-    series = []
+    series, offcurve = [], []
     for recipe, ref_run, label, colour, marker, _pools in SERIES:
         pts = collect_consumption(D, ref_run, recipe, CONSUMPTION_AVAIL[recipe])
         series.append((recipe, label, colour, marker, pts))
         print(f"  consumption {recipe}: " + (", ".join(
-            f"{x}:{[r for r, _ in pts[x]]}" for x in sorted(pts)) or "no points yet"))
-    offcurve = []
+            f"{x}:{[p[0] for p in pts[x]]}" for x in sorted(pts)) or "no points yet"))
     for recipe, ref_run, avail, label, colour, marker in CONSUMPTION_OFFCURVE:
         pts = collect_consumption(D, ref_run, recipe, avail)
         if pts:
             offcurve.append((label, colour, marker, pts))
             print(f"  consumption {recipe} OFF-CURVE ({label}): " + ", ".join(
-                f"{x}:{[r for r, _ in pts[x]]}" for x in sorted(pts)))
+                f"{x}:{[p[0] for p in pts[x]]}" for x in sorted(pts)))
     if not any(len(pts) >= min_points for *_, pts in series):
-        print(f"  consumption figure NOT written — no series has {min_points}+ points yet "
-              f"(checkpoint evals in flight). Re-run when they land.")
+        print(f"  consumption figure NOT written — no series has {min_points}+ points yet.")
         return False
 
-    fig, ax = plt.subplots(figsize=(5.2, 3.3), dpi=200)
-    for run, label, colour, dash in REFERENCE_ARMS:
-        acc = acc_of(D, run)
-        if acc is not None:
-            ax.axhline(acc, color=colour, lw=1.2, ls=dash, zorder=1)
-            ax.annotate(f"{label} ({acc:.3f})", xy=(1.02, acc), xycoords=("axes fraction", "data"),
-                        fontsize=7, color=colour, va="center")
-    for _recipe, label, colour, marker, pts in series:
-        if not pts:
-            continue
-        xs = sorted(pts)
-        ys = [statistics.mean(a for _, a in pts[x]) for x in xs]
-        ax.plot(xs, ys, color=colour, lw=1.6, marker=marker, ms=6, zorder=3, label=label,
-                markerfacecolor=colour, markeredgecolor=colour)
-        # best-so-far envelope: a run past its peak must not read as data-limited
-        env, best = [], float("-inf")
-        for y in ys:
-            best = max(best, y)
-            env.append(best)
-        if env != ys:
-            ax.plot(xs, env, color=colour, lw=1.0, ls=(0, (2, 2)), alpha=0.8, zorder=2)
-        for x in xs:
-            accs = [a for _, a in pts[x]]
-            if len(accs) > 1:
-                ax.vlines(x, min(accs), max(accs), color=colour, lw=2, alpha=0.55, zorder=2)
-    for label, colour, marker, pts in offcurve:
-        for x in sorted(pts):
-            accs = [a for _, a in pts[x]]
-            ax.plot([x], [statistics.mean(accs)], marker=marker, ms=6, zorder=3,
-                    markerfacecolor="white", markeredgecolor=colour, markeredgewidth=1.4,
-                    linestyle="none", label=label)
-            if len(accs) > 1:
-                ax.vlines(x, min(accs), max(accs), color=colour, lw=2, alpha=0.4, zorder=2)
-            label = None  # legend entry once
-    ax.set_xscale("log")
+    fig, axes = plt.subplots(2, 1, figsize=(5.4, 5.0), dpi=200, sharex=True,
+                             gridspec_kw={"hspace": 0.13})
     seen = sorted({x for *_, pts in series for x in pts}
                   | {x for _l, _c, _m, pts in offcurve for x in pts})
-    ax.set_xticks(seen)
-    ax.set_xticklabels([f"{x//1000}k" if x >= 1000 else str(x) for x in seen], fontsize=7.5)
-    ax.set_xlabel("VQA examples drawn ($4 \\times$ steps; $\\leq$3% resampled)", fontsize=9)
-    ax.set_ylabel("VQA accuracy (7B reader, top-5)", fontsize=9)
-    ax.tick_params(labelsize=8)
-    ax.minorticks_off()
-    for s in ("top", "right"):
-        ax.spines[s].set_visible(False)
-    ax.grid(axis="y", color="#dddddd", lw=0.6, zorder=0)
-    ax.legend(fontsize=7, frameon=False, loc="center left")
-    fig.tight_layout()
+    for ax, (key, _getter, ylab) in zip(axes, PANELS):
+        mi = 1 if key == "acc" else 2
+        ref_lines(D, ax, mi)
+        for _recipe, label, colour, marker, pts in series:
+            if draw(ax, pts, colour, marker, label if mi == 1 else None, mi, lw=1.6):
+                xs = sorted(x for x in pts if any(p[mi] is not None for p in pts[x]))
+                ys = [statistics.mean(p[mi] for p in pts[x] if p[mi] is not None) for x in xs]
+                env, best = [], float("-inf")
+                for y in ys:
+                    best = max(best, y); env.append(best)
+                if env != ys:
+                    ax.plot(xs, env, color=colour, lw=1.0, ls=(0, (2, 2)), alpha=0.8, zorder=2)
+        for label, colour, marker, pts in offcurve:
+            lab = label if mi == 1 else None
+            for x in sorted(pts):
+                v = [p[mi] for p in pts[x] if p[mi] is not None]
+                if not v:
+                    continue
+                ax.plot([x], [statistics.mean(v)], marker=marker, ms=6, zorder=3,
+                        markerfacecolor="white", markeredgecolor=colour, markeredgewidth=1.4,
+                        linestyle="none", label=lab)
+                if len(v) > 1:
+                    ax.vlines(x, min(v), max(v), color=colour, lw=2, alpha=0.4, zorder=2)
+                lab = None
+        style_panel(ax, ylab)
+    axes[-1].set_xticks(seen)
+    axes[-1].set_xticklabels([f"{x//1000}k" if x >= 1000 else str(x) for x in seen], fontsize=7.5)
+    axes[-1].set_xlabel("VQA examples drawn ($4 \\times$ steps; $\\leq$3% resampled)", fontsize=9)
+    axes[0].legend(fontsize=7, frameon=False, loc="lower left")
     for ext in (".pdf", ".png"):
         fig.savefig(out_path + ext, bbox_inches="tight")
-    print("wrote", out_path + ".pdf/.png  (dashed = best-so-far envelope)")
+    print("wrote", out_path + ".pdf/.png  (2 panels; dashed = best-so-far envelope)")
     return True
 
 
@@ -394,64 +430,56 @@ def main():
     args = ap.parse_args()
     D = data_dir()
 
-    fig, ax = plt.subplots(figsize=(5.6, 3.4), dpi=200)
+    fig, axes = plt.subplots(2, 1, figsize=(5.8, 5.0), dpi=200, sharex=True,
+                             gridspec_kw={"hspace": 0.13})
     provenance = []
-
-    # horizontal reference arms
-    for run, label, colour, dash in REFERENCE_ARMS:
-        acc = acc_of(D, run)
-        if acc is None:
-            print(f"  reference {run}: NOT FOUND, skipped")
-            continue
-        ax.axhline(acc, color=colour, lw=1.2, ls=dash, zorder=1)
-        ax.annotate(f"{label} ({acc:.3f})", xy=(1.02, acc), xycoords=("axes fraction", "data"),
-                    fontsize=7, color=colour, va="center")
-        provenance.append(f"{label}: {run} = {acc:.4f}")
-
-    # recorded wave first (background), then the fresh series
     rec = collect_recorded(args.repo)
-    n = draw(ax, rec, C_RECORDED, "s", "v1 listwise (recorded wave)", filled=False, lw=1.4)
-    if n:
+    if rec:
         provenance.append("recorded v1: " + ", ".join(
-            f"{x}={statistics.mean(a for _, a in rec[x]):.4f}(n={len(rec[x])})" for x in sorted(rec)))
-
+            f"{x}={statistics.mean(p[1] for p in rec[x]):.4f}(n={len(rec[x])})" for x in sorted(rec)))
+    fresh = []
     for recipe, ref_run, label, colour, marker, pools in SERIES:
         pts, ref = collect_fresh(D, ref_run, recipe, pools)
         if ref is None:
-            print(f"  series {recipe}: reference run {ref_run} has no args.json, skipped")
-            continue
-        n = draw(ax, pts, colour, marker, label)
-        if recipe == "v3" and len(pts) == 1:
-            x = next(iter(pts))
-            y = statistics.mean(a for _, a in pts[x])
-            ax.annotate(f"v3-pure, {x/1000:.0f}k pool\n(v3 scaling cells in flight)",
-                        xy=(x, y), xytext=(-4, 14), textcoords="offset points",
-                        fontsize=6.5, color=colour, ha="right")
-        print(f"  series {recipe} (ref {ref_run}): {n} pool sizes — "
-              + ", ".join(f"{x}:{[r for r, _ in pts[x]]}" for x in sorted(pts)))
-        if n:
+            print(f"  series {recipe}: reference {ref_run} has no args.json, skipped"); continue
+        fresh.append((recipe, label, colour, marker, pts))
+        print(f"  series {recipe} (ref {ref_run}): "
+              + ", ".join(f"{x}:{[p[0] for p in pts[x]]}" for x in sorted(pts)))
+        if pts:
             provenance.append(f"{label}: " + ", ".join(
-                f"{x}={statistics.mean(a for _, a in pts[x]):.4f}(n={len(pts[x])})" for x in sorted(pts)))
+                f"{x}={statistics.mean(p[1] for p in pts[x]):.4f}(n={len(pts[x])})" for x in sorted(pts)))
 
-    ax.set_xscale("log")
-    ax.set_xlabel("training-pool size (queries available; 500 updates throughout)", fontsize=9)
-    ax.set_ylabel("VQA accuracy (7B reader, top-5)", fontsize=9)
-    ax.tick_params(labelsize=8)
-    # Ticks are the v1 ladder's own pool sizes. v3-pure sits at 45,248 (all of pool_train),
-    # close to the ladder's 50k point but a DIFFERENT pool file, so it is annotated rather
-    # than given a colliding tick.
-    ax.set_xticks([2000, 8000, 12500, 25000, 50000, 100000, 200000])
-    ax.set_xticklabels(["2k", "8k", "12.5k", "25k", "50k", "100k", "200k"], fontsize=7.5)
-    ax.minorticks_off()
-    ax.tick_params(axis="x", pad=2)
-    for s in ("top", "right"):
-        ax.spines[s].set_visible(False)
-    ax.grid(axis="y", color="#dddddd", lw=0.6, zorder=0)
-    ax.legend(fontsize=7, frameon=False, loc="lower left", ncol=1)
-    fig.tight_layout()
+    for ax, (key, getter, ylab) in zip(axes, PANELS):
+        mi = 1 if key == "acc" else 2
+        ref_lines(D, ax, mi)
+        draw(ax, rec, C_RECORDED, "s", "v1 listwise (recorded wave)" if mi == 1 else None,
+             mi, filled=False, lw=1.4)
+        for _recipe, label, colour, marker, pts in fresh:
+            draw(ax, pts, colour, marker, label if mi == 1 else None, mi)
+        for _recipe, ref_run, avail, olabel, ocolour, omarker in CONSUMPTION_OFFCURVE:
+            opts, _ = collect_fresh(D, ref_run, _recipe, {"built/pool_train.jsonl"})
+            lab = olabel if mi == 1 else None
+            for x in sorted(opts):
+                v = [q[mi] for q in opts[x] if q[mi] is not None]
+                if not v:
+                    continue
+                ax.plot([x], [statistics.mean(v)], marker=omarker, ms=6, zorder=3,
+                        markerfacecolor="white", markeredgecolor=ocolour, markeredgewidth=1.4,
+                        linestyle="none", label=lab)
+                if len(v) > 1:
+                    ax.vlines(x, min(v), max(v), color=ocolour, lw=2, alpha=0.4, zorder=2)
+                lab = None
+        style_panel(ax, ylab)
+    # 12.5k dropped from the ticks only (its point is still plotted) -- it collides with 8k on a
+    # log axis at this width.
+    axes[-1].set_xticks([2000, 8000, 25000, 50000, 100000, 200000])
+    axes[-1].set_xticklabels(["2k", "8k", "25k", "50k", "100k", "200k"], fontsize=7.5)
+    axes[-1].set_xlabel("training-pool size (queries available; 500 updates throughout)", fontsize=9)
+    axes[0].legend(fontsize=7, frameon=False, loc="lower left")
     for ext in (".pdf", ".png"):
         fig.savefig(args.out + ext, bbox_inches="tight")
-    print("wrote", args.out + ".pdf/.png")
+    print("wrote", args.out + ".pdf/.png  (2 panels)")
+
     print("\n--- consumption axis (examples drawn = 4 x steps) ---")
     draw_consumption(D, args.consumption_out)
 

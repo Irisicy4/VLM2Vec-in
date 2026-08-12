@@ -84,6 +84,11 @@ def main():
                     help="plgrpo: SAMPLE lists at this temperature while scoring log-probs at "
                          "--temperature; old_logps become the behavior log-probs, so the PPO "
                          "ratio is the true importance weight (off-policy clipped PG)")
+    ap.add_argument("--lr_schedule", choices=["constant", "cosine"], default="constant",
+                    help="cosine: linear warmup then cosine decay to 10% of peak over max_steps. "
+                         "Every recorded run used constant LR; the rise-then-decay consumption "
+                         "shape is the classic constant-LR overtraining signature.")
+    ap.add_argument("--warmup_steps", type=int, default=20)
     ap.add_argument("--inner_epochs", type=int, default=1,
                     help=">1 re-runs the grad forward + optimizer step on the SAME rollout, making "
                          "the PPO ratio/clip meaningful (with 1 epoch ratio==1 identically and the "
@@ -198,6 +203,16 @@ def main():
     opt = torch.optim.AdamW(
         [{"params": params, "lr": args.learning_rate},
          {"params": value_head.parameters(), "lr": args.value_head_lr, "weight_decay": 0.0}])
+    sched = None
+    if args.lr_schedule == "cosine":
+        import math
+
+        def _lr_lambda(step):
+            if step < args.warmup_steps:
+                return (step + 1) / max(args.warmup_steps, 1)
+            t = (step - args.warmup_steps) / max(args.max_steps - args.warmup_steps, 1)
+            return 0.1 + 0.9 * 0.5 * (1 + math.cos(math.pi * min(t, 1.0)))
+        sched = torch.optim.lr_scheduler.LambdaLR(opt, _lr_lambda)
 
     if args.reward in ("goldrel", "ansmatch"):
         reader = None  # gold-derived benchmark rewards need no reader
@@ -482,6 +497,9 @@ def main():
             torch.nn.utils.clip_grad_norm_(params, 1.0)
             opt.step()
             opt.zero_grad()
+        if sched is not None:
+            sched.step()
+            m["lr"] = sched.get_last_lr()[0]
         if skip_step:
             continue
 

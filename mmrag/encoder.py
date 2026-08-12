@@ -46,6 +46,9 @@ ENCODER_PROFILES = {
     "qwen7b": {"model": "Qwen/Qwen2-VL-7B-Instruct", "checkpoint": None, "style": "vlm2vec"},
     # capacity-ladder weak rungs: dual-tower encoders (mmrag/clip_encoder.py)
     "clip": {"model": "openai/clip-vit-large-patch14-336", "checkpoint": None, "style": "clip"},
+    # adequacy-floor rungs: where does even the L1 bootstrap die?
+    "clipb32": {"model": "openai/clip-vit-base-patch32", "checkpoint": None, "style": "clip"},
+    "clipb16": {"model": "openai/clip-vit-base-patch16", "checkpoint": None, "style": "clip"},
     "siglip2": {"model": "google/siglip2-so400m-patch16-384", "checkpoint": None, "style": "clip"},
 }
 

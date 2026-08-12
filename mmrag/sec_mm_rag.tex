@@ -56,7 +56,9 @@
 \label{sec:mm_rag}
 
 We port the indirect-feedback recipe to knowledge-VQA. The retriever is
-\textsc{GME-Qwen2-VL-2B} with LoRA adapters ($r{=}32$, $\alpha{=}64$) on a frozen backbone;
+\textsc{GME-Qwen2-VL-2B} with LoRA adapters ($r{=}32$, $\alpha{=}64$; $36.9$M trainable
+parameters) on a frozen backbone --- every trained arm in this section, RL or SFT, uses that
+identical adapter budget;
 queries are image--question pairs from InfoSeek; the corpus is a $422{,}378$-passage Wikipedia
 KB; and the reward is a frozen \textsc{Qwen2.5-VL-3B} reader's sampled answer accuracy on a
 retrieved passage. Evaluation is two-level: L1 retrieval recall over the full corpus
@@ -328,6 +330,15 @@ the three answer metrics, v2 on the three retrieval metrics.}
 %   policy's own top-1, label-free -- ALL 39 of our anchored runs; anchor(ext) = external gold
 %   positive; anchor(stoch) = resampled positive. "Anchored" is NOT the same column across the
 %   two projects; every joint cell must carry its tag.
+%   CONFOUND (why the stronger claim is unavailable): positive TYPE and reward REGIME are not
+%   separable in the only ext-removal cell. External positives require gold labels; gold seeding
+%   keeps pools reward-dense; dense reward is the regime that needs no rescue. So mus_gold cc0
+%   never faced collapse risk, and its survival cannot show that anchor(ext) LACKS the
+%   collapse-prevention job. Claim only what anchor(self) demonstrates. Do not write "the jobs
+%   separate by positive type" or "collapse prevention belongs to the label-free anchor".
+%   TAGS IN PROSE: deliberately NOT surfaced -- every anchored run here is anchor(self), so
+%   per-mention tagging would be noise; the definition paragraph carries it. TRIGGER to change
+%   this: the first ext- or stoch-positive anchor run on our side.
 %   CORRECTION APPLIED HERE: the collapse-prevention job is demonstrated with anchor(SELF) on
 %   BOTH sides -- ours (clip/siglip2 rungs) and their trivia_ng 43.1 vs base 58.1 (partial) and
 %   wq_ng 6.3 vs base 55.5 (total), whose twins Table 8f lists as anchor(self). Their ONLY
@@ -437,11 +448,13 @@ label-free}, so collapse prevention is bought with no supervision whatsoever ---
 contrastive geometry of pushing a query away from other queries' passages. That is now shown
 independently on both modalities with the \emph{same} positive type: removing a self-argmax
 anchor collapses two of our weak rungs and, on text, both of the reward-sparse cells
-(partial on TriviaQA, total on WebQuestions, R@5 $6.3$ against a base of $55.5$). Removing an
-\emph{external}-positive anchor does something else entirely --- the gold advantage disappears
-(HotpotQA cover-EM $-8.8$) without a retrieval collapse --- so the anchor's two jobs separate not
-only by reward regime but by which positive type exercises them. Collapse prevention belongs to
-the label-free one.
+(partial on TriviaQA, total on WebQuestions, R@5 $6.3$ against a base of $55.5$). Collapse prevention is therefore demonstrated
+\emph{only} for the label-free self-argmax term, independently on two modalities. Whether
+external-positive anchors share the job is untested, and structurally awkward to test: external
+positives exist only where gold labels do, gold seeding keeps pools reward-dense, and dense
+reward is precisely the regime in which no rescue is needed. The one external-positive removal
+cell available (HotpotQA cover-EM $-8.8$, no retrieval collapse) therefore confounds positive
+type with reward regime and cannot settle it.
 \textsc{SigLIP2} then replicated it
 independently --- $8.23 \to 0.40$, a $20.6\times$ fall --- so at both measured weak rungs pure RL
 does not merely fail to learn: it destroys the retrieval ability the encoder started with. The
@@ -643,7 +656,10 @@ most of the bootstrap along with it.
 %   NB the runner fixed a stale hardcoded sys.path that crashed every new-profile eval
 %     (commits 8c3be9c / b2c0010); qwen2b/qwen7b/clipb32 zero-shots relaunched after it.
 \paragraph{Model analysis: what size works, and is retrieval pretraining required?} Table~\ref{tab:mm_ladder}
-crosses backbone capacity with pretraining regime. The three $2$B rows
+crosses backbone capacity with pretraining regime. ``Capacity'' here means the size of the
+\emph{frozen} backbone, not the trainable-parameter count: every cell in the table, at every
+rung, trains the same $36.9$M LoRA adapter ($r{=}32$, $\alpha{=}64$) and updates nothing else,
+so moving down a row changes what the adapter is attached to and not how much is being learned. The three $2$B rows
 (\textsc{Qwen2-VL-2B} raw, \textsc{VLM2Vec-2B}, \textsc{GME-2B}) and the three $7$B rows hold the
 backbone fixed and vary only how much retrieval pretraining the encoder has had --- none,
 MMEB-style contrastive, or GME --- which separates ``the recipe needs a big model'' from ``the
@@ -669,7 +685,7 @@ initialised retrieval geometry. \textsc{VLM2Vec-2B} (zero-shot R@5 $15.67$) is t
 between the two regimes. At $7$B we currently have only the v1 recorded
 wave --- zero-shot $30.6$, SFT $32.6$, annotation-free RL $35.1$/$35.3$/$35.3$ across three
 seeds, gold-seeded RL $35.9$ --- measured before the cluster move and therefore not directly
-comparable to the fresh $2$B numbers above; the v3-pure $7$B cell is in flight. We defer the
+comparable to the fresh $2$B numbers above, though the adapter budget is identical across both; the v3-pure $7$B cell is in flight. We defer the
 capacity claim until that table is complete rather than extrapolating it from v1.
 
 \begin{table}[t]

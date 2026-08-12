@@ -143,3 +143,32 @@ R@5 0.291). Logged here before the cell reports.
 Consequence for the paper: the v3 no-anchor claim carries a scope sentence — demonstrated in
 a reward-dense regime; the text twin collapses in reward-sparse ones; the anchor's
 collapse-prevention role is real and regime-dependent.
+
+## Discriminator verdict (2026-08-12, hours after pre-registration): DENSITY BRANCH CONFIRMED
+
+clip-v3pure landed: entity R@5 = 0.0043 — total retrieval collapse, 12x BELOW its own
+zero-shot base (0.054), let alone its anchored twin (clip-nogold-base, 0.291). Accuracy 0.190
+= the reader answering from the image alone. This is the text side's WQ collapse (6.3 vs base
+55.5) reproduced within our modality, under the identical sampled-list PL estimator (their
+plgcc0 confirmed G=8 k=5 Gumbel-top-k exact-factorized — the estimator x anchor confound is
+closed on both sides).
+
+Both pre-registrations fired the same way (ours: density branch; theirs: collapse expected).
+The joint rule, now measured on a 2x2 across modalities:
+
+                      reward-dense pools        reward-sparse pools
+  anchor removed      HELPS (+0.9 ID, +3.3 OOD  COLLAPSES (MM clip: R@5 0.004;
+                      — mm v3-pure; both MM      text WQ: 6.3; text Trivia: partial)
+                      estimators survive)
+  anchor kept         costs accuracy for recall  prevents collapse (its load-bearing job)
+
+The InfoNCE anchor's two jobs are now separable and regime-tagged: ranking pressure (inert or
+harmful depending on margins — the margin-at-temperature rule) and collapse prevention
+(irrelevant when reward is dense, essential when sparse). "Drop the anchor" is a
+reward-density-conditional recommendation, on both modalities, full stop.
+
+Corollary for the ladder: qwen2b-zeroshot R@5 = 0.0003 (raw VLM embeddings = random retrieval).
+By the density rule, qwen2b-v3pure should also collapse and qwen2b-nogold (anchored) is the
+interesting cell — can the anchor keep a from-scratch policy alive long enough for the reward
+to shape it? Registered expectation: anchored survives, unanchored collapses, locating the
+boot-strap floor between clipb32 and gme2b.

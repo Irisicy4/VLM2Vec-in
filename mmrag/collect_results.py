@@ -209,3 +209,12 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+def distinct_top5(retrieval_json_path):
+    """Degeneracy check (writer-suggested, 2026-08-12): R@k is blind to a retriever that
+    returns one fixed set to every query. Count distinct top-5 sets; ~n_queries = varied,
+    small = degenerate/collapsed. qwen2b-v3pure: 67 distinct over 3000 (one set for 45%)."""
+    import json as _j
+    r = _j.load(open(retrieval_json_path))
+    return len({tuple(v["topk"][:5]) for v in r.values()}), len(r)

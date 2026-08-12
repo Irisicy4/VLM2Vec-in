@@ -367,6 +367,16 @@ the three answer metrics, v2 on the three retrieval metrics.}
 %   20.6x; clip 0.1900 collapsed vs 0.1727 anchored. Both collapsed cells sit in the 0.16-0.20
 %   band of the random-retrieval rungs (qwen2b 0.1993, qwen7b 0.1620) -- i.e. the reader's
 %   image-alone floor. NEVER report these rungs on accuracy alone.
+%   PENDING, CONDITIONAL CROSS-SIDE ITEM (do not write until BOTH numbers exist): whether
+%   anchor(self) prevents DRIFT as well as contraction. Needs (i) our vlm2vec2b-nogold -- for a
+%   drift-phenotype cell RECALL is the diagnostic, diversity is uninformative-by-saturation since
+%   it is already 3000/3000; and (ii) the text side's anchored twins' IN-DOMAIN R@5 (plg_trivia_ng,
+%   plg_wq_ng), which is NOT in their PAPER_TABLES -- 8f's "anchored twin" column is NQ-transfer
+%   cEM, and the 58.1/55.5 figures in that table are the BASE model's, not the twins'. A tension
+%   ("anchor holds drift on text but not on MM") exists ONLY if their twins' R@5 is near base AND
+%   our cell fails to rescue. Indirect evidence meanwhile: their trivia anchored twin holds
+%   in-domain cEM 68.4 vs base 69.8 while cc0 drops to 59.6, which implies non-collapse at lower
+%   strength than R@5 would. If their R@5 never materializes, that cEM phrasing is the record.
 %   PENDING: siglip2-nogold (anchored twin) -- tests whether the CLIP-L anchor rescue
 %   (0.054 -> 0.291) repeats on SigLIP2 and completes that row. Pre-agreed with the runner:
 %   if it repeats, "the anchor is what makes weak rungs learnable at all" gets its own sentence;

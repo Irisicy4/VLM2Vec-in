@@ -208,3 +208,20 @@ PRE-REGISTERED READINGS for the ladder cells in flight, per the restoring-force 
   * if it fails where CLIP-L (0.054) succeeded -> there is a liveness floor below which
     anchor(self) has nothing to restore to.
   Either outcome is one clean sentence; both are written here before the cells report.
+
+## Two collapse phenotypes (2026-08-12, joint w/ text side, their 8f @ 1bb562ef)
+
+The distinct-top-k metric run on text-side collapse cells fires the second live outcome:
+their TOTAL collapse (wq_ng cc0, R@5 6.3 vs base 55.5) is 242/276 distinct sets (top set
+2.2%) — varied-but-useless. Ours is 67-338/3000 with top sets up to 45% — contracted.
+
+  MM collapse   = DEGENERACY: the embedding contracts; policy maps most queries to a few
+                  fixed sets. Detectable statically (distinct-count), no labels needed.
+  text collapse = MISALIGNMENT DRIFT: query/doc geometry decouples while staying spread out.
+                  Invisible to the distinct-count (their anchored-vs-pure pairing: 276 vs 242,
+                  1.14x — nothing); visible only against ground truth (recall).
+
+Same anchor term, two restoring jobs by regime AND modality: against contraction here,
+against drift there. Joint-table rule: a signature column, never the bare word "collapse".
+Symmetric limitation now explicit: our static count would have missed their failure exactly
+as their static margin measurement missed ours.

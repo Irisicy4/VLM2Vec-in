@@ -511,7 +511,11 @@ anchor returns $2{,}810$ distinct top-$5$ sets across the $3{,}000$ evaluation q
 same encoder under the same reward on the same pools, differing \emph{only} by that term, returns
 $214$. A thirteenfold difference in retrieval diversity, from one loss term. Collapse prevention
 is therefore not an inference from downstream accuracy --- it is visible statically, in how many
-distinct things the policy is still able to retrieve. That is now shown
+distinct things the policy is still able to retrieve. The text side's equivalent pairing shows
+nothing on this metric ($276$ against $242$, a factor of $1.14$), which is consistent rather than
+contradictory: the same rescue term restores against \emph{contraction} here and against
+\emph{drift} there, so the anchor's second job is dependent on the failure phenotype as well as
+on the reward regime. That is now shown
 independently on both modalities with the \emph{same} positive type: removing a self-argmax
 anchor collapses two of our weak rungs and, on text, both of the reward-sparse cells
 (partial on TriviaQA, total on WebQuestions, R@5 $6.3$ against a base of $55.5$). Collapse prevention is therefore demonstrated
@@ -567,8 +571,14 @@ most $0.3\%$ of queries, and that includes the arms that retrieve \emph{terribly
 cells return $214$ (\textsc{CLIP-L}), $338$ (\textsc{SigLIP2}) and $67$, with modal sets covering
 $18.7\%$, $8.7\%$ and $45.0\%$. The separation is an order of magnitude with no overlap and it is
 orthogonal to recall --- \textsc{Qwen2-VL-2B} zero-shot and after v3-pure differ by $45\times$ in
-distinct count while differing by $0.03$ points in R@5. We therefore report collapse by this
-signature rather than by a recall threshold.
+distinct count while differing by $0.03$ points in R@5. We therefore report the collapse \emph{we} observe --- embedding
+degeneracy --- by this signature rather than by a recall threshold. The scope matters: the text
+side ran the same count on its own collapse cells and found the opposite phenotype. Their total
+collapse (R@5 $6.3$ against a base of $55.5$) returns $242$ distinct sets out of $276$ queries,
+with a modal share of $2.2\%$ --- varied but useless, not degenerate at all. Two different
+failures therefore wear the same name: on our side the embedding \emph{contracts}, on theirs the
+geometry \emph{drifts} out of alignment while staying spread. Only the first is visible to a
+distinct-count, and only the second requires ground truth to see.
 
 That same pair supplies the constant-versus-varied comparison directly, inside one rung: varied
 junk ($2{,}998$ distinct, R@5 $0.03$) scores $19.93$, exactly the floor, while near-constant junk
@@ -608,6 +618,31 @@ which is why it, and not the curve, is the demonstration.
 %   helpful = passage in ans_pids (answer-bearing); credible-wrong = in gold_pids but NOT
 %   answer-bearing (right entity, no answer); off-topic = neither.
 %
+% PARTIAL RESULTS (fresh, 1 seed): rank10 0.2213 (+2.86 vs floor), rank25 0.1947 (+0.20).
+%   NEITHER is below floor, so BOTH registrations below are already in trouble: the writer's
+%   net-mislead model put the deepest dip at rank10, and rank10 is the HIGHEST intermediate.
+%   DIAGNOSIS of that miss: CW-H treats a helpful and a credible-wrong passage as equal and
+%   opposite; they are not. The better statistic is the CONVERSION RATE -- accuracy lift per unit
+%   of any-answer-bearing presence -- which falls steeply with depth as CW:H rises:
+%     rank00 conv 0.257 (CW:H 1.23) | rank10 0.142 (2.23) | rank25 0.013 (2.29)
+%   Crude 3-point linear extrapolation: rank50 conv +0.049 -> acc ~0.198 (+0.6 vs floor);
+%     rank95 conv -0.014 -> acc ~0.192 (-0.1). i.e. NO band expected meaningfully below floor.
+% *** THE PRE-REGISTERED KILL CONDITION IS INVALID AS WRITTEN *** (writer session, measured
+%   before rank50/95 landed). It assumed the sweep covers the regime where the cross-encoder dip
+%   lives. It does not. Composition of the actual top-5 shown to the reader:
+%     band rank95   helpful 0.102  cw 0.281  CW:H 2.76  any-ans 0.076   <- deepest reachable band
+%     siglip2-zs    helpful 0.027  cw 0.086  CW:H 3.15  any-ans 0.024   <- the dip cell, BEYOND it
+%   topk is stored 100 deep, so rank95 is the floor of the design. A no-sub-floor sweep therefore
+%   does NOT show the cross-encoder dip is an encoder-identity artifact; it shows the sweep never
+%   entered the regime. Do not report the kill as fired on that basis.
+% *** AND the credible-wrong mechanism cannot explain the dip cell itself ***: siglip2-zs shows
+%   the reader only 0.086 gold-entity-non-answer passages per five (1.7% of context) yet sits
+%   6.13 below floor. Too little misleading material by this measure. Likely cause is a blind
+%   spot in the measure: "credible-wrong" counts only GOLD-ENTITY passages, so a passage about a
+%   DIFFERENT but visually confusable entity scores as off-topic while being maximally
+%   misleading. Weak dual-tower encoders retrieve exactly those. The measure therefore
+%   undercounts misleading content for weak encoders, and deep ranks of a strong encoder are a
+%   different KIND of wrong from the top ranks of a weak one.
 % TWO PRE-REGISTRATIONS, both before any band reported, both to be scored explicitly:
 %   (runner) rank00 ~ 0.3080; random ~ the 0.1927 floor; some intermediate band below floor,
 %     guessed at rank25-rank50; monotone fall from rank00 into the dip.
@@ -649,8 +684,8 @@ bound rather than a new measurement.}
 band & helpful & credible-wrong & off-topic & net mislead & VQA acc \\
 \midrule
 \texttt{rank00} ($0$--$5$)    & 0.74 & 0.91 & 3.34 & $+0.17$ & $30.80$ (bound) \\
-\texttt{rank10} ($10$--$15$)  & 0.34 & 0.77 & 3.89 & $\mathbf{+0.42}$ & \emph{pending} \\
-\texttt{rank25} ($25$--$30$)  & 0.24 & 0.56 & 4.20 & $+0.32$ & \emph{pending} \\
+\texttt{rank10} ($10$--$15$)  & 0.34 & 0.77 & 3.89 & $\mathbf{+0.42}$ & $22.13$ \\
+\texttt{rank25} ($25$--$30$)  & 0.24 & 0.56 & 4.20 & $+0.32$ & $19.47$ \\
 \texttt{rank50} ($50$--$55$)  & 0.17 & 0.42 & 4.41 & $+0.24$ & \emph{pending} \\
 \texttt{rank95} ($95$--$100$) & 0.10 & 0.28 & 4.62 & $+0.18$ & \emph{pending} \\
 \texttt{random} (off-ranking) & ${\approx}0$ & ${\approx}0$ & $5.00$ & ${\approx}0$ & \emph{pending} \\
@@ -662,6 +697,12 @@ band & helpful & credible-wrong & off-topic & net mislead & VQA acc \\
 
 The reporting rule does not depend on the mechanism, and it is firm: on weak rungs, quote
 retrieval. An accuracy-only table would have recorded both of these collapses as improvements.
+The diagnostics are symmetrically limited, which is the transferable lesson: degeneracy is
+detectable statically and without labels, drift only against ground truth. The text side's static
+margin measurement could not have seen our failure mode, and our static distinct-count would not
+have seen theirs --- their collapsed cell sits at $242/276$ and would never have announced itself.
+Neither diagnostic is sufficient alone, and we recommend the pair: distinct-count for contraction,
+recall-against-base for drift.
 
 \begin{table}[t]
 \centering\small

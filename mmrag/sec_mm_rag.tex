@@ -295,6 +295,11 @@ v3-pure          & \multicolumn{6}{c}{\emph{pending --- results land from the ru
 
 % REPRO(scaling): runs scale-rows{12k,25k,25k-s1,25k-s2,50k,100k,200k,200k-s1500,
 %   200k-s1500-s1,200k-s3000}; mlx_entry_scale.sh @ 2f6aaba (configs in mmrag/mlx_configs/).
+%   SCOPE: every scale-rows* cell is the V1 RECIPE (verified in args.json:
+%     algo=grpo, contrastive_coef=0.3) -- they predate v3. The v3 scaling cells are
+%     v3-rows25k (job 6c9cb56d), v3-rows200k (26aba17f), v3-rows200k-s1500 (749f47f6),
+%     all plgrpo cc0 seed 0 on pool_train_big, fresh wave, IN FLIGHT.
+%     The v3-pure 3-seed cell doubles as the 45,248-query point (all of pool_train).
 %   25k per-seed cells (mean 34.62 +/- 0.19): scale-rows25k 34.87 / -s1 34.60 / -s2 34.40.
 %   WAVE LABELS -- keep these distinct in the prose:
 %     v1 RECORDED wave (results_summary.json @ 8be8e67), the compute axis at 41K/8K -- pairs
@@ -311,15 +316,26 @@ v3-pure          & \multicolumn{6}{c}{\emph{pending --- results land from the ru
 %   Then one 1-GPU job per cell (all cells in parallel):
 %   bash mmrag/mlx_submit_scale.sh                     # or a single cell locally:
 %   SCALE_CELL=scale-rows25k:25000:500:0 bash mmrag/mlx_entry_scale.sh
-\paragraph{Neither more data nor more compute helps.} Holding the step budget fixed at $500$
-steps and varying only the size of the training pool from $12.5$K to $200$K queries leaves
-accuracy flat: $34.33$, $34.62 \pm 0.19$ (the $25$K cell, replicated over three seeds), $34.67$,
-$32.87$, $34.80$. A $16\times$ increase in available training data buys nothing; the whole ladder
-spans $2.0$ points while the RL-to-SFT gap is $3.7$, and the replicated cell sits level with the
-headline configuration rather than below it, indicating a shallow interior optimum rather than a
-plateau. The mechanism is a sampling ceiling: at $500$ steps $\times$ batch $4$ the run visits
-only ${\sim}2{,}000$ queries regardless of pool size, so rows beyond ${\sim}10$K are never
-sampled.
+\paragraph{Neither more data nor more compute helps.} One scope condition governs this whole
+paragraph and Figure~\ref{fig:mm_scaling}: \emph{every} scaling cell we have was run with the
+\textbf{v1} listwise recipe, not with v3-pure. The \texttt{scale-rows*} runs predate the
+corrected policy gradient, and their \texttt{args.json} records
+\texttt{algo=grpo, contrastive\_coef=0.3}. What follows is therefore a statement about the v1
+recipe's ceiling; whether that ceiling survives under the corrected policy gradient is being
+measured by the v3 scaling cells now in flight (Table~\ref{tab:mm_scaling}), and until they land
+the data-scaling behaviour of the headline recipe is \emph{unmeasured}. We flag this rather than
+let the reader carry the v1 curve over, because the two recipes differ in exactly the component
+--- the anchor --- that the ablation above shows is doing real work.
+
+For v1, then: holding the step budget fixed at $500$ steps and varying only the size of the
+training pool from $12.5$K to $200$K queries leaves accuracy flat: $34.33$,
+$34.62 \pm 0.19$ (the $25$K cell, replicated over three seeds), $34.67$, $32.87$, $34.80$.
+A $16\times$ increase in available training data buys nothing; the whole ladder spans $2.0$
+points while the RL-to-SFT gap is $3.7$. The mechanism is a sampling ceiling: at $500$ steps
+$\times$ batch $4$ the run visits only ${\sim}2{,}000$ queries regardless of pool size, so rows
+beyond ${\sim}10$K are never sampled --- a mechanism that depends on the step budget and the
+batch size, both of which v3-pure shares, which is why we expect but have not shown that the
+ceiling transfers.
 
 Crucially this is \emph{not} a truncated compute curve. Tripling the budget at fixed pool makes
 the model \emph{worse}: $34.13 \to 31.93$ ($-2.20$) at $41$K and $34.07 \to 32.20$ ($-1.87$) at
@@ -327,11 +343,41 @@ $8$K. Those four cells are the v1 recipe from the recorded wave, so the comparis
 and the deltas are valid even though their absolute level is not comparable to the fresh numbers
 elsewhere in this section. The fresh wave agrees at the other end of the data axis, where data
 cannot be the binding constraint: at $200$K, $1{,}500$ steps gives $34.57$ (two seeds, $35.07$ and
-$34.07$) and $3{,}000$ steps falls to $33.07$. The ceiling is ${\approx}34.5$--$35.0$ at 2B and does not move with
-data, compute, estimator, or anchor. The text side's independent step sweep peaks at
-${\sim}6.4$K visited queries and then decays in the same shape, so the joint conclusion is that
-these recipes are a cheap few-thousand-example correction --- hours on one GPU --- rather than a
-scalable training paradigm. Capacity is the only lever that has moved either ceiling.
+$34.07$) and $3{,}000$ steps falls to $33.07$. The v1 ceiling is thus ${\approx}34.5$--$35.0$ at
+2B and does not move with data or compute; across this section it has also not moved with the
+estimator (v3-pure $34.71$) or the anchor (v2 $33.82$), which is weak evidence that it is a
+property of the setting rather than of any one recipe. The text side's independent step sweep
+peaks at ${\sim}6.4$K visited queries and then decays in the same shape, so the joint conclusion
+is that these recipes are a cheap few-thousand-example correction --- hours on one GPU --- rather
+than a scalable training paradigm. Capacity is the only lever that has moved either ceiling.
+
+\begin{table}[t]
+\centering\small
+\caption{Data and compute scaling, VQA top-$5$ accuracy. \textbf{The measured ladder is the v1
+listwise recipe throughout} --- the \texttt{scale-rows*} runs predate v3 --- so the v3 column is
+what tests whether the ceiling is a property of the recipe or of the setting. Fresh wave unless
+marked. Pending cells land from the runner session.}
+\label{tab:mm_scaling}
+\begin{tabular}{lcc}
+\toprule
+setting & v1 listwise $+$ anchor & v3-pure \\
+\midrule
+\multicolumn{3}{l}{\emph{data axis} (pool size, $500$ steps throughout)} \\
+\quad $12.5$K                              & 34.33 & \emph{pending} \\
+\quad $25$K                                & $34.62 \pm 0.19$ (3 seeds) & \emph{pending} (\texttt{v3-rows25k}) \\
+\quad $45$K (all of \texttt{pool\_train})  & --- & $\mathbf{34.71 \pm 0.19}$ (3 seeds) \\
+\quad $50$K                                & 34.67 & --- \\
+\quad $100$K                               & 32.87 & --- \\
+\quad $200$K                               & 34.80 & \emph{pending} (\texttt{v3-rows200k}) \\
+\midrule
+\multicolumn{3}{l}{\emph{compute axis} (step budget at fixed pool)} \\
+\quad $41$K, $500 \to 1{,}500$ (recorded)  & $34.13 \to 31.93$ & --- \\
+\quad $8$K, $500 \to 1{,}500$ (recorded)   & $34.07 \to 32.20$ & --- \\
+\quad $200$K $\times$ $1{,}500$            & 34.57 (2 seeds) & \emph{pending} (\texttt{v3-rows200k-s1500}) \\
+\quad $200$K $\times$ $3{,}000$            & 33.07 & --- \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 % REPRO(sft-audit): analysis-only, no rerun. Group every gme2b SFT run in
 %   mmrag/results_summary.json @ 8be8e67 by (lr, max_steps, max_train_rows), excluding names
@@ -407,7 +453,12 @@ most of the bootstrap along with it.
 %     -- REPRO(train) with --profile <rung>
 %   clipb16: the profile exists (978adfd) but NO cell is planned -- B/32 covers the floor
 %     question. Do not add a clipb16 row to the table.
-%   Eval per REPRO(eval-any-checkpoint) with --profile <rung>.   ALL CELLS IN FLIGHT.
+%   Eval per REPRO(eval-any-checkpoint) with --profile <rung>.
+%   LANDED: vlm2vec2b-zs-fresh (acc .1760 / entR@5 .1567), siglip2-zs-fresh (.1313 / .0823)
+%     -- these are the aligned FRESH 3000q rows; recorded-wave zs for these rungs used
+%     5000q and must NOT be mixed in. All other cells still in flight.
+%   NB the runner fixed a stale hardcoded sys.path that crashed every new-profile eval
+%     (commits 8c3be9c / b2c0010); qwen2b/qwen7b/clipb32 zero-shots relaunched after it.
 \paragraph{What size works, and is retrieval pretraining required?} Table~\ref{tab:mm_ladder}
 crosses backbone capacity with pretraining regime. The three $2$B rows
 (\textsc{Qwen2-VL-2B} raw, \textsc{VLM2Vec-2B}, \textsc{GME-2B}) and the three $7$B rows hold the
@@ -426,7 +477,9 @@ capacity claim until that table is complete rather than extrapolating it from v1
 \centering\small
 \caption{Base-model ladder: capacity $\times$ retrieval pretraining. VQA top-$5$ accuracy and
 entity R@5, protocol as in Table~\ref{tab:mm_main}. The \textsc{GME-2B} rung is the headline
-configuration. \textbf{All cells pending --- results land from the runner session.}}
+configuration. Zero-shot cells are fresh $3{,}000$-query evaluations, not the recorded
+$5{,}000$-query ones. \textbf{Cells marked pending land from the runner session; nothing here is
+inferred from a neighbouring rung.}}
 \label{tab:mm_ladder}
 \begin{tabular}{llcccccc}
 \toprule
@@ -436,10 +489,10 @@ encoder & retrieval pretraining & acc & R@5 & acc & R@5 & acc & R@5 \\
 \midrule
 CLIP-B/32 ($\sim$150M) & CLIP   & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} \\
 CLIP-L ($\sim$430M)    & CLIP   & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} \\
-SigLIP2-so400m         & SigLIP & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} \\
+SigLIP2-so400m         & SigLIP & 13.13 & 8.23 & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} \\
 \midrule
 Qwen2-VL-2B (raw)      & none             & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} \\
-VLM2Vec-2B             & MMEB contrastive & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} \\
+VLM2Vec-2B             & MMEB contrastive & 17.60 & 15.67 & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} \\
 GME-2B \emph{(headline)} & GME            & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} \\
 \midrule
 Qwen2-VL-7B (raw)      & none             & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} \\
@@ -495,13 +548,16 @@ v3-pure             & \emph{pending} & \emph{pending} & \emph{pending} \\
 %   +rloo     --baseline rloo
 %   +kl       --kl_beta 0.05
 %   +all      --kl_beta 0.05 --entropy_coef 0.01 --baseline rloo --pl_behavior_temperature 0.05
-%   Seed counts as marked in the table; v3-ent-s1 and v3-rloo IN FLIGHT.
+%   Seed counts as marked in the table; all four addition cells have now landed.
 \paragraph{Nothing added to v3 helps.} The redesign proposed four RL-native replacements for the
 anchor: a KL trust region to the initial policy, a first-position entropy bonus, an RLOO
 baseline, and a decoupled behaviour temperature with a clipped importance ratio.
-Table~\ref{tab:mm_v3add} measures them, one seed each. Entropy is neutral seed-for-seed
-($34.40$ against v3-pure's $34.47$ at seed $0$); KL costs $1.78$ points and the full combination
-$3.31$, both against the three-seed pure mean of $34.71$. The simplest estimator is the best one.
+Table~\ref{tab:mm_v3add} measures all four, and all four are now measured rather than argued.
+Entropy looked neutral at one seed ($34.40$ against v3-pure's $34.47$ at seed $0$) but its second
+seed came in at $33.73$, so its two-seed mean of $34.07$ reads neutral-to-slightly-negative
+against the pure mean; RLOO costs $0.98$ points, KL $1.78$, and the full combination $3.31$, all
+against the three-seed pure mean of $34.71$. Nothing added to v3-pure has ever helped, and the
+one addition that looked harmless stopped looking harmless as soon as it was replicated.
 The KL result is consistent with
 the text side's, where activating KL on an enumerated-pool run changed the outcome by exactly
 zero: in a \emph{pool-restricted} Plackett--Luce setup the support restriction already supplies
@@ -514,18 +570,17 @@ to become necessary again.
 \begin{table}[t]
 \centering\small
 \caption{Additions to v3-pure, one flag group at a time. VQA top-$5$ accuracy, protocol as in
-Table~\ref{tab:mm_main}. Single seed unless noted; the second entropy seed and the RLOO cell are
-\emph{pending} from the runner session.}
+Table~\ref{tab:mm_main}. Single seed unless noted. No addition improves on the pure recipe.}
 \label{tab:mm_v3add}
-\begin{tabular}{llc}
+\begin{tabular}{llcc}
 \toprule
-variant & flags & VQA acc \\
+variant & flags & VQA acc & $\Delta$ \\
 \midrule
-\textbf{v3-pure} & ---                                      & $\mathbf{34.71 \pm 0.19}$ (3 seeds) \\
-$+$ entropy      & \texttt{--entropy\_coef 0.01}            & $34.40$ (1 seed); seed 1 \emph{pending} \\
-$+$ RLOO         & \texttt{--baseline rloo}                 & \emph{pending} \\
-$+$ KL           & \texttt{--kl\_beta 0.05}                 & $32.93$ (1 seed) \\
-$+$ all          & KL $+$ entropy $+$ RLOO $+$ $T_b{=}0.05$ & $31.40$ (1 seed) \\
+\textbf{v3-pure} & ---                                      & $\mathbf{34.71 \pm 0.19}$ (3 seeds) & --- \\
+$+$ entropy      & \texttt{--entropy\_coef 0.01}            & $34.07$ (2 seeds: $34.40 / 33.73$) & $-0.64$ \\
+$+$ RLOO         & \texttt{--baseline rloo}                 & $33.73$ & $-0.98$ \\
+$+$ KL           & \texttt{--kl\_beta 0.05}                 & $32.93$ & $-1.78$ \\
+$+$ all          & KL $+$ entropy $+$ RLOO $+$ $T_b{=}0.05$ & $31.40$ & $-3.31$ \\
 \bottomrule
 \end{tabular}
 \end{table}

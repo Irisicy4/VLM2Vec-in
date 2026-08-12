@@ -241,3 +241,18 @@ MMEB-contrastive-trained with strong uniformity, resisting contraction but free 
 CLIP/SigLIP dual towers and raw VLMs contract). One-seed evidence, hypothesis only.
 Consequence: the diagnostic-PAIR recommendation (distinct-count + recall-vs-base) upgrades
 from "covers both modalities" to "required within a single modality."
+
+## Checklist-caught ledger gaps (2026-08-12 late — items sent in messages but never written here)
+
+- HEADLINE, final: v3-pure [InfoSeek acc, top-5, n=1500] = 0.3471 ± 0.0019 (3 seeds:
+  0.3447/0.3473/0.3493), SIG vs SFT 0.3100 and base 0.3080 per seed (McNemar p <= 4.8e-05).
+  ck250 lower on all seeds (0.3373 mean) -> endpoint is the checkpoint max; headline unrevised.
+- PHENOTYPE HYPOTHESIS, corrected name: **domain-uniformity** (not "contrastive-pretrained" —
+  CLIP/SigLIP are contrastive yet contract). Bases whose pretraining spread the retrieval-domain
+  (passage-side) embedding space fail by drift (VLM2Vec, Qwen3-Emb); bases without passage-side
+  uniformity contract (CLIP/SigLIP cross-modal alignment, raw VLMs). 1 seed per cell.
+- CAPACITY, corrected: the recorded "gap grows with capacity" was a baseline-pairing artifact
+  (gold-RL vs mid-rung SFT). Like-for-like: 2B +2.08 / 7B +2.17 — FLAT. See main-repo LEDGER
+  erratum. Fresh v3-7B: 0.3460 (1 seed) — no accuracy gain over 2B, +4.9 entR@5 only.
+- v3 boundary bracket: pure RL fails at zs entR@5 0.157 (vlm2vec2b, by DRIFT) and works at
+  0.685 (gme2b); working range (0.157, 0.685] pending finer rungs.

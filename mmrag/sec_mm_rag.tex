@@ -199,6 +199,11 @@ definition. Pure RL reallocates those queries' gradient from ``keep the top-$1$ 
 ``rank what the reader can answer from,'' hence recall down and accuracy up. Two practical
 consequences follow, and they are the transferable part: check the anchor's loss curve before
 concluding anything about anchors, and choose v2 or v3 by which metric you are shipping.
+The in-domain trade understates the effect, however. Out of domain
+(Table~\ref{tab:mm_evqa}) the same two arms tie on entity recall while v3 leads
+\emph{answer}-level R@5 by $6.49$ points and accuracy by $3.27$ --- so what the anchor buys is
+specifically entity recall that stops carrying answers once the domain changes. The
+proxy/objective trade is the whole story, and it is sharper off-domain than on.
 
 \begin{table}[t]
 \centering\small
@@ -566,42 +571,87 @@ setting & v1 listwise $+$ anchor \\
 \end{table}
 
 
-% REPRO(tab:mm_evqa): E-VQA OOD transfer -- train on InfoSeek only, evaluate on the E-VQA test
-%   set (4,744 rows) over the 382K-passage E-VQA corpus:
-%   python3 mmrag/build_evqa_data.py --data_dir $MMRAG_DATA --distractor_articles 25000
-%   then REPRO(eval-any-checkpoint) with --dataset evqa.   IN FLIGHT (corpus building).
+% REPRO(tab:mm_evqa): E-VQA OOD transfer -- train on InfoSeek ONLY, evaluate on E-VQA with no
+%   further training. Corpus: python3 mmrag/build_evqa_data.py --data_dir $MMRAG_DATA \
+%       --distractor_articles 25000     -> corpus_evqa, 382,544 passages
+%   Then REPRO(eval-any-checkpoint) with --dataset evqa; L1 n=3000 (answer-level n=2696),
+%   L2 top-5 n=1500, same 7B reader + v2 token-boundary metric. Fresh wave, 1 seed (eval seed 0).
+%   runs evqa-{zs,sft,v1,v2,v3pure}; checkpoints __profile__ / the Icey444 sft snapshot /
+%   nogate-gme2b-nogold (v1) / plgrpo-gme2b-nogold (v2) / v3-pure (v3).
+%
 %   PRE-REGISTERED 2026-08-13 by the runner session, BEFORE any E-VQA cell landed: v2 leads
 %   entity R@5 (high confidence); OOD VQA accuracy genuinely uncertain, slight lean v2 >= v3.
-%   Do not soften or retro-fit this paragraph once the numbers arrive -- if the prediction misses,
-%   say so and keep the original wording.
-\paragraph{Out-of-domain transfer.} Table~\ref{tab:mm_evqa} takes every InfoSeek-trained arm to
-Encyclopedic-VQA without further training. This is where the v1 wave was weakest --- a
-single-corpus annotation-free adapter transferred below its own zero-shot base --- so it is the
-sharpest test of whether removing the anchor helps or hurts off-domain, and specifically whether
-the tail recall the anchor buys is what transfer needs. We registered a prediction before these
-numbers landed: the anchored v2 should lead entity R@5 with high confidence, while on OOD VQA
-accuracy we were genuinely uncertain, leaning slightly toward v2 $\geq$ v3. The reasoning is that
-the two possible sources of v3's in-domain accuracy advantage make opposite predictions --- if it
-comes from InfoSeek-specific answerability ranking it should not survive the domain shift, and if
-it comes from generic answer-oriented ranking it should hold. Either outcome identifies which one
-it is.
+%   SETTLED 2026-08-13, both halves printed in the prose:
+%     entity R@5 -> PUSH. v2 81.53 vs v3 81.34 = +0.19 at one seed; directionally as predicted,
+%       far too small to count as a confirmation. Scored as a tie, not a hit.
+%     OOD accuracy -> MISS, decisively. v3 45.87 vs v2 42.60 = +3.27, against +0.89 in domain.
+%   Do NOT retro-fit: the paragraph must keep saying the lean was wrong.
+%   WAVE CAUTION: the historic transfer numbers (single-set no-gold 39.7, recorded zs 42.6,
+%   data-mix rescue 46.3-47.3) are RECORDED wave. Compare v3 only against the FRESH zs 42.07.
+\paragraph{Out-of-domain transfer, and a prediction we got wrong.} Table~\ref{tab:mm_evqa} takes
+every InfoSeek-trained arm to Encyclopedic-VQA with no further training. This is where the v1 wave
+was weakest --- a single-corpus annotation-free adapter transferred \emph{below} its own zero-shot
+base, and only mixing E-VQA data into training rescued it --- so it is the sharpest test of
+whether removing the anchor helps or hurts off-domain. We registered a prediction beforehand: v2
+should lead entity R@5 with high confidence, while on OOD accuracy we were uncertain and leaned
+slightly toward v2 $\geq$ v3, reasoning that the two possible sources of v3's in-domain advantage
+make opposite predictions --- InfoSeek-specific answerability ranking should not survive a domain
+shift, generic answer-oriented ranking should.
+
+Both halves settled, and we report them as they fell. On entity R@5 the prediction is a
+\emph{push}: v2 leads by $0.19$ points at one seed ($81.53$ vs.\ $81.34$), which is the predicted
+direction at a magnitude far too small to count as a confirmation. On accuracy the lean was
+\emph{wrong, and not marginally}: v3-pure leads v2 by $3.27$ points out of domain
+($45.87$ vs.\ $42.60$), against $0.89$ in domain. The advantage did not merely survive the domain
+shift, it grew by roughly a factor of three, so the branch that fired is generic answer-oriented
+ranking.
+
+Three things follow. First, \textbf{v3-pure repairs the transfer failure without mixed training
+data}. Trained on InfoSeek alone it reaches $45.87$ against a fresh zero-shot base of $42.07$
+($+3.80$), whereas fresh v1 sits at $41.60$ --- indistinguishable from not fine-tuning at all, and
+a faithful replication of the old behaviour. The recorded wave had needed an InfoSeek$+$E-VQA data
+mix to reach comparable transfer; v3 gets there having never seen an E-VQA example. The transfer
+failure was therefore an artefact of the v1 estimator and its anchor, not a consequence of
+single-dataset training. (Those historic numbers are recorded-wave and are quoted here only for
+the qualitative story; every comparison we draw is against the fresh $42.07$.) It is also not a
+pool artefact: the v3 checkpoint that wins here is the $45$K-pool headline cell.
+
+Second, \textbf{relevance-SFT transfers negatively}: $39.33$ against the zero-shot $42.07$, so
+fine-tuning on InfoSeek relevance labels makes E-VQA answering \emph{worse} than leaving the
+encoder alone. Its retriever degrades too (entity R@5 $71.05$ vs.\ $76.31$). This is the MMEB
+finding --- SFT trading VQA-shaped embedding away for classification --- reproduced on a full
+out-of-domain benchmark rather than a task subset. The one place SFT improves on the base is
+entity R@1 ($53.17$ vs.\ $49.91$) while losing R@5 and R@10, which is the signature of a
+contrastive objective sharpening its top-$1$ margin at the expense of the tail.
+
+Third, the \textbf{mechanism is legible in the recall split}, and it is the anchor story again at
+larger magnitude. Entity-level R@5 is a tie between v2 and v3, but \emph{answer}-level R@5 is not:
+$72.18$ for v3 against $65.69$ for v2, a $6.49$-point gap. v2's anchor buys entity recall that
+does not carry answers once the domain changes, while v3 ranks by what the reader can actually
+answer from. In domain that trade cost v3 four points of tail recall for one point of accuracy
+(Section above); out of domain the same trade returns three points of accuracy and costs nothing
+measurable in entity recall. If a single sentence has to carry the anchor result, it is this one:
+the proxy the anchor optimises is the part that fails to transfer.
 
 \begin{table}[t]
 \centering\small
-\caption{OOD transfer to Encyclopedic-VQA after InfoSeek-only training. E-VQA test
-($4{,}744$ rows) over the $382$K-passage E-VQA corpus; VQA accuracy is top-$5$ with the frozen
-\textsc{Qwen2.5-VL-7B} reader. \textbf{All cells pending --- results land from the runner
-session.}}
+\caption{OOD transfer to Encyclopedic-VQA after \emph{InfoSeek-only} training, no E-VQA data at
+any point. L1 over the $382{,}544$-passage E-VQA corpus ($n{=}3{,}000$; answer-level $n{=}2{,}696$),
+L2 top-$5$ with the frozen \textsc{Qwen2.5-VL-7B} reader ($n{=}1{,}500$). Fresh wave, one seed per
+arm. Best per column in bold; $\Delta$ is versus the zero-shot base.}
 \label{tab:mm_evqa}
-\begin{tabular}{lccc}
+\begin{tabular}{lcccccc}
 \toprule
-arm (trained on InfoSeek) & entity R@5 & answer R@5 & VQA acc \\
+arm (trained on InfoSeek) & VQA acc & strict-EM & ent.\ R@1 & ent.\ R@5 & ent.\ R@10 & ans.\ R@5 \\
 \midrule
-zero-shot base      & \emph{pending} & \emph{pending} & \emph{pending} \\
-relevance-SFT       & \emph{pending} & \emph{pending} & \emph{pending} \\
-v1 listwise         & \emph{pending} & \emph{pending} & \emph{pending} \\
-v2 PL-PG $+$ anchor & \emph{pending} & \emph{pending} & \emph{pending} \\
-v3-pure             & \emph{pending} & \emph{pending} & \emph{pending} \\
+zero-shot base      & 42.07 & 24.00 & 49.91 & 76.31 & 83.89 & 64.84 \\
+relevance-SFT       & 39.33 & 21.67 & 53.17 & 71.05 & 76.97 & 55.71 \\
+v1 listwise $+$ anchor & 41.60 & 22.40 & 58.24 & 80.38 & 86.04 & 62.09 \\
+v2 PL-PG $+$ anchor & 42.60 & 23.80 & 58.20 & \textbf{81.53} & 86.97 & 65.69 \\
+\textbf{v3-pure}    & \textbf{45.87} & \textbf{24.87} & \textbf{60.57} & 81.34 & \textbf{87.52} & \textbf{72.18} \\
+\midrule
+$\Delta$ v3 $-$ base & $+3.80$ & $+0.87$ & $+10.66$ & $+5.03$ & $+3.63$ & $+7.34$ \\
+$\Delta$ SFT $-$ base & $-2.74$ & $-2.33$ & $+3.26$ & $-5.26$ & $-6.92$ & $-9.13$ \\
 \bottomrule
 \end{tabular}
 \end{table}

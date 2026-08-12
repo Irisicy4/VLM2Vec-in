@@ -37,6 +37,9 @@
 %   python3 mmrag/train_sft.py --profile gme2b --pool built/pool_train.jsonl \
 %       --learning_rate 1e-4 --num_hard_negs 0 --batch_size 24 --max_steps 600 \
 %       --output_dir $MMRAG_DATA/runs/$NAME                                      # SFT baseline
+%   Training-time RL corpus (train_rl.build_rl_corpus): gold-entity articles of the training
+%   queries + --n_distractor_articles 3000 sampled with args.seed, so its size is seed-dependent:
+%   173,755 (s0) / 174,471 (s1) / 173,726 (s2). Evaluation NEVER uses it -- see REPRO(eval-*).
 %
 % REPRO(eval-any-checkpoint): the protocol behind every InfoSeek number in this section
 %   CK=<adapter dir | HF id | __profile__ for zero-shot>;  N=<run name>
@@ -91,8 +94,9 @@ we do not claim otherwise. Three further uses of the annotation are worth statin
 because they are easy to overlook. (i) The training queries are those InfoSeek rows for which an
 evidence passage exists, so the annotation selects \emph{which} queries are trained on, though
 never what to rank. (ii) The retrieval support seen during training is drawn from an RL corpus of
-$173{,}755$ passages --- all passages of the training queries' gold-entity articles plus $3{,}000$
-random distractor articles --- so the annotation shapes the training corpus. (iii) Evaluation
+${\sim}174$K passages --- all passages of the training queries' gold-entity articles plus $3{,}000$
+random distractor articles, drawn per seed, giving $173{,}726$--$174{,}471$ across our three seeds
+($173{,}755$ at seed $0$) --- so the annotation shapes the training corpus. (iii) Evaluation
 never uses either: every reported retrieval number searches the full $422{,}378$-passage corpus.
 That train/eval corpus asymmetry makes training cheaper and evaluation strictly harder, and it is
 identical across all arms including SFT.
@@ -291,8 +295,13 @@ v3-pure          & \multicolumn{6}{c}{\emph{pending --- results land from the ru
 
 % REPRO(scaling): runs scale-rows{12k,25k,25k-s1,25k-s2,50k,100k,200k,200k-s1500,
 %   200k-s1500-s1,200k-s3000}; mlx_entry_scale.sh @ 2f6aaba (configs in mmrag/mlx_configs/).
-%   The 1500-step small-pool points are RECORDED runs rl-j2e5-nogold-det-1500 and
-%   rl-j2e5-nogold-rows8k-1500 in results_summary.json @ 8be8e67.
+%   25k per-seed cells (mean 34.62 +/- 0.19): scale-rows25k 34.87 / -s1 34.60 / -s2 34.40.
+%   WAVE LABELS -- keep these distinct in the prose:
+%     v1 RECORDED wave (results_summary.json @ 8be8e67), the compute axis at 41K/8K -- pairs
+%       rl-j2e5-nogold-det 34.13 -> rl-j2e5-nogold-det-1500 31.93   (-2.20)
+%       rl-j2e5-nogold-rows8k 34.07 -> rl-j2e5-nogold-rows8k-1500 32.20  (-1.87)
+%       within-wave pairing, so the deltas are valid; absolute levels are NOT comparable to fresh
+%     FRESH wave: scale-rows200k-s1500 35.07 / -s1500-s1 34.07 (mean 34.57), -s3000 33.07
 %   Needs the enlarged pool (250k rows; build in a SEPARATE data dir, then copy in -- the build
 %   verifies corpus_small is byte-identical so pids stay compatible):
 %   python3 mmrag/build_infoseek_data.py --data_dir $MMRAG_BIG \
@@ -304,16 +313,21 @@ v3-pure          & \multicolumn{6}{c}{\emph{pending --- results land from the ru
 %   SCALE_CELL=scale-rows25k:25000:500:0 bash mmrag/mlx_entry_scale.sh
 \paragraph{Neither more data nor more compute helps.} Holding the step budget fixed at $500$
 steps and varying only the size of the training pool from $12.5$K to $200$K queries leaves
-accuracy flat: $34.33$, $34.87$, $34.67$, $32.87$, $34.80$. A $16\times$ increase in available
-training data buys nothing, and the whole ladder spans $2.0$ points while the RL-to-SFT gap is
-$3.7$. The mechanism is a sampling ceiling: at $500$ steps $\times$ batch $4$ the run visits only
-${\sim}2{,}000$ queries regardless of pool size, so rows beyond ${\sim}10$K are never sampled.
+accuracy flat: $34.33$, $34.62 \pm 0.19$ (the $25$K cell, replicated over three seeds), $34.67$,
+$32.87$, $34.80$. A $16\times$ increase in available training data buys nothing; the whole ladder
+spans $2.0$ points while the RL-to-SFT gap is $3.7$, and the replicated cell sits level with the
+headline configuration rather than below it, indicating a shallow interior optimum rather than a
+plateau. The mechanism is a sampling ceiling: at $500$ steps $\times$ batch $4$ the run visits
+only ${\sim}2{,}000$ queries regardless of pool size, so rows beyond ${\sim}10$K are never
+sampled.
+
 Crucially this is \emph{not} a truncated compute curve. Tripling the budget at fixed pool makes
-the model \emph{worse} ($-2.2$ points at $41$K, $-1.9$ at $8$K), and even at the largest pool,
-where data cannot be the binding constraint, $1{,}500$ steps gives $35.07$ and $34.07$ over two
-seeds while $3{,}000$ steps falls to $33.07$. The replicated three-seed cell at $25$K
-($34.62 \pm 0.19$) sits level with the headline configuration, indicating a shallow interior
-optimum rather than a plateau. The ceiling is ${\approx}34.5$--$35.0$ at 2B and does not move with
+the model \emph{worse}: $34.13 \to 31.93$ ($-2.20$) at $41$K and $34.07 \to 32.20$ ($-1.87$) at
+$8$K. Those four cells are the v1 recipe from the recorded wave, so the comparison is within-wave
+and the deltas are valid even though their absolute level is not comparable to the fresh numbers
+elsewhere in this section. The fresh wave agrees at the other end of the data axis, where data
+cannot be the binding constraint: at $200$K, $1{,}500$ steps gives $34.57$ (two seeds, $35.07$ and
+$34.07$) and $3{,}000$ steps falls to $33.07$. The ceiling is ${\approx}34.5$--$35.0$ at 2B and does not move with
 data, compute, estimator, or anchor. The text side's independent step sweep peaks at
 ${\sim}6.4$K visited queries and then decays in the same shape, so the joint conclusion is that
 these recipes are a cheap few-thousand-example correction --- hours on one GPU --- rather than a
@@ -389,7 +403,10 @@ most of the bootstrap along with it.
 %   v1 cells:  {qwen2b,vlm2vec2b,siglip2,qwen7b,vlm2vec7b}-nogold -- the tag v1-listwise-top8
 %     recipe: --algo grpo --num_candidates 8 --contrastive_coef 0.3 --no_force_gold
 %   v3 cells:  {clip,qwen2b,vlm2vec2b,qwen7b}-v3pure, clipb32-v3pure, gme7b-v3pure
-%     (gme7b-v3pure = job a2cbeb8aca03de14) -- REPRO(train) with --profile <rung>
+%     (gme7b-v3pure = job a2cbeb8aca03de14), siglip2-v3pure (job 2f60bb0e)
+%     -- REPRO(train) with --profile <rung>
+%   clipb16: the profile exists (978adfd) but NO cell is planned -- B/32 covers the floor
+%     question. Do not add a clipb16 row to the table.
 %   Eval per REPRO(eval-any-checkpoint) with --profile <rung>.   ALL CELLS IN FLIGHT.
 \paragraph{What size works, and is retrieval pretraining required?} Table~\ref{tab:mm_ladder}
 crosses backbone capacity with pretraining regime. The three $2$B rows
@@ -436,13 +453,21 @@ GME-7B                 & GME              & \multicolumn{2}{c}{\emph{pending}} &
 %   set (4,744 rows) over the 382K-passage E-VQA corpus:
 %   python3 mmrag/build_evqa_data.py --data_dir $MMRAG_DATA --distractor_articles 25000
 %   then REPRO(eval-any-checkpoint) with --dataset evqa.   IN FLIGHT (corpus building).
+%   PRE-REGISTERED 2026-08-13 by the runner session, BEFORE any E-VQA cell landed: v2 leads
+%   entity R@5 (high confidence); OOD VQA accuracy genuinely uncertain, slight lean v2 >= v3.
+%   Do not soften or retro-fit this paragraph once the numbers arrive -- if the prediction misses,
+%   say so and keep the original wording.
 \paragraph{Out-of-domain transfer.} Table~\ref{tab:mm_evqa} takes every InfoSeek-trained arm to
 Encyclopedic-VQA without further training. This is where the v1 wave was weakest --- a
 single-corpus annotation-free adapter transferred below its own zero-shot base --- so it is the
 sharpest test of whether removing the anchor helps or hurts off-domain, and specifically whether
-the tail recall the anchor buys is what transfer needs. The anchor mechanism above makes a
-falsifiable prediction here: if transfer is recall-limited, v2 should lead this table even though
-v3 leads in-domain.
+the tail recall the anchor buys is what transfer needs. We registered a prediction before these
+numbers landed: the anchored v2 should lead entity R@5 with high confidence, while on OOD VQA
+accuracy we were genuinely uncertain, leaning slightly toward v2 $\geq$ v3. The reasoning is that
+the two possible sources of v3's in-domain accuracy advantage make opposite predictions --- if it
+comes from InfoSeek-specific answerability ranking it should not survive the domain shift, and if
+it comes from generic answer-oriented ranking it should hold. Either outcome identifies which one
+it is.
 
 \begin{table}[t]
 \centering\small
@@ -474,8 +499,10 @@ v3-pure             & \emph{pending} & \emph{pending} & \emph{pending} \\
 \paragraph{Nothing added to v3 helps.} The redesign proposed four RL-native replacements for the
 anchor: a KL trust region to the initial policy, a first-position entropy bonus, an RLOO
 baseline, and a decoupled behaviour temperature with a clipped importance ratio.
-Table~\ref{tab:mm_v3add} measures them. Entropy is neutral, KL costs $1.8$ points, and the full
-combination costs $3.3$; the simplest estimator is the best one. The KL result is consistent with
+Table~\ref{tab:mm_v3add} measures them, one seed each. Entropy is neutral seed-for-seed
+($34.40$ against v3-pure's $34.47$ at seed $0$); KL costs $1.78$ points and the full combination
+$3.31$, both against the three-seed pure mean of $34.71$. The simplest estimator is the best one.
+The KL result is consistent with
 the text side's, where activating KL on an enumerated-pool run changed the outcome by exactly
 zero: in a \emph{pool-restricted} Plackett--Luce setup the support restriction already supplies
 the trust region, so an explicit one is somewhere between free and harmful. The scope of that

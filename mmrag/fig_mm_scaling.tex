@@ -14,7 +14,10 @@
 %   v1 RECORDED wave 2k 0.3333 / 8k 0.3407 / 41k 0.3415 (4 seed replicates)
 %   v1 FRESH wave    12.5k 0.3433 / 25k 0.3462 (3 seeds) / 50k 0.3467 / 100k 0.3287 / 200k 0.3480
 %   v3 FRESH wave    45,248 (all of pool_train) 0.3471 (3 seeds)
-% CAPTION HISTORY: the previous caption ("Multimodal indirect feedback SCALES; direct
+% CAPTION HISTORY (2): retitled again once the scaling analysis moved to a CONSUMPTION
+% axis (tab:mm_consumption) -- this pool-size figure is now the CONTROL, and a caption
+% about 'the ceiling' would overclaim what a fixed-compute sweep can show.
+% CAPTION HISTORY (1): the previous caption ("Multimodal indirect feedback SCALES; direct
 % supervision does not", pushed at e5c3acc, recorded-wave era) predated the fresh ladder and
 % was contradicted by the very cells this figure now shows. Do not restore it.
 % CAUTION for whoever edits the script: on the recorded wave, axes-equivalence alone also admits
@@ -24,18 +27,18 @@
 \begin{figure}[t]
 \centering
 \includegraphics[width=0.72\textwidth]{fig_mm_scaling.pdf}
-\caption{\textbf{The ceiling is a property of the recipe, not of the data budget.} Downstream
-VQA accuracy of the frozen \textsc{Qwen2.5-VL-7B} reader (top-$5$) for \textsc{GME-Qwen2-VL-2B}
-retrievers trained on nested InfoSeek query subsets at fixed compute ($500$ updates throughout).
-Across a $16\times$ range of available training data the curve is flat to within $2$ points and
-never approaches a data-limited regime, because at $500$ steps $\times$ batch $4$ only
-${\sim}2{,}000$ queries are ever visited. \emph{Both ladder series are the v1 listwise recipe}
-(anchored, deterministic top-$8$): filled circles are fresh same-cluster retrains, open squares
-the pre-cluster-move recorded wave, shown separately because absolute levels are not comparable
-across waves. The single \textsc{v3-pure} point is the headline three-seed cell at $45{,}248$
-queries (all of \texttt{pool\_train}, a different and smaller pool file than the ladder's); the
-matching v3 scaling cells are in flight, so \textbf{the data-scaling behaviour of the corrected
-policy gradient is not yet measured} and no v3 curve should be read into this figure. Dashed
-lines are the fresh zero-shot and relevance-SFT reproductions. Whiskers: seed min--max.}
+\caption{\textbf{Control: at fixed compute, pool size is irrelevant beyond the visited count.}
+Downstream VQA accuracy of the frozen \textsc{Qwen2.5-VL-7B} reader (top-$5$) for
+\textsc{GME-Qwen2-VL-2B} retrievers trained on nested InfoSeek query subsets at fixed compute
+($500$ updates throughout). Across a $16\times$ range of \emph{available} training data the curve
+is flat to within $2$ points, because at $500$ steps $\times$ batch $4$ only ${\sim}2{,}000$
+queries are ever \emph{consumed} --- which is why the data-scaling result is
+Table~\ref{tab:mm_consumption}, on a consumption axis, and this figure is only its control.
+\emph{Both ladder series are the v1 listwise recipe} (anchored, deterministic top-$8$): filled
+circles are fresh same-cluster retrains, open squares the pre-cluster-move recorded wave, shown
+separately because absolute levels are not comparable across waves. The single \textsc{v3-pure}
+point is the headline three-seed cell at $45{,}248$ available queries (all of
+\texttt{pool\_train}, a different and smaller pool file than the ladder's). Dashed lines are the
+fresh zero-shot and relevance-SFT reproductions. Whiskers: seed min--max.}
 \label{fig:mm_scaling}
 \end{figure}

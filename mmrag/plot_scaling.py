@@ -64,6 +64,12 @@ SERIES = [
      {"built/pool_train.jsonl", "built/pool_train_big.jsonl"}),
 ]
 
+# Consumption axis: which AVAILABLE pool sizes each series may draw its points from. The 200k
+# pool is the no-reuse guarantee. v3 additionally admits 45,248 because the headline 3-seed cell
+# (500 steps on all of pool_train) is a legitimate 2k-consumed point -- but it is a DIFFERENT
+# query distribution from its own 6k/12k continuations, which the prose flags as provisional.
+CONSUMPTION_AVAIL = {"v1": {200000}, "v3": {200000, 45248}}
+
 # Recorded-wave points come from results_summary.json; same config-equivalence idea, but the
 # axes dict is all we have. Reference = the recorded full-pool no-gold cell.
 #
@@ -92,6 +98,21 @@ REFERENCE_ARMS = [
     ("gme2b-zeroshot-3k-repro", "zero-shot base", "#888888", (0, (4, 3))),
     ("sft-lr1e4-h0-repro", "relevance-SFT", "#D55E00", (0, (1, 2))),
 ]
+
+# Flags added to train_rl.py's argparser AFTER some runs were launched, with their defaults.
+# An older run's args.json simply lacks these keys; a newer run carries them at their default.
+# Without this map, config equivalence treats "key absent" and "key present at default" as a
+# real difference and silently drops the newer runs -- it did exactly that to
+# scale-rows200k-s1500-s1 and scale-rows200k-s3000 (the 6k second seed and the whole 12k point)
+# before this was caught. Absence matches presence IFF the present value is the default here;
+# a non-default value for a flag the old code lacked is still a genuine difference.
+LATER_FLAG_DEFAULTS = {
+    "pl_k": 4, "pl_group": 4, "pl_support": 24, "inner_epochs": 1,
+    "reward_gate_noctx": False, "reward_gate_std": 0.0,
+    "kl_beta": 0.0, "entropy_coef": 0.0, "baseline": "group_z",
+    "pl_behavior_temperature": None, "pool_sample_temperature": None,
+}
+_MISSING = object()
 
 # Rows in the pool files, used when max_train_rows == 0 ("use everything").
 POOL_ROWS_CACHE = {}
@@ -140,10 +161,22 @@ def recipe_of(a):
     return None
 
 
-def same_config(a, ref):
-    """True iff a differs from ref only in FREE_KEYS."""
-    keys = (set(a) | set(ref)) - FREE_KEYS
-    return all(a.get(k) == ref.get(k) for k in keys)
+def _agree(a, ref, k):
+    """Compare one key, tolerating flags that postdate one of the two runs (see
+    LATER_FLAG_DEFAULTS). Absent on one side matches the default on the other."""
+    va, vr = a.get(k, _MISSING), ref.get(k, _MISSING)
+    if va is _MISSING or vr is _MISSING:
+        if k not in LATER_FLAG_DEFAULTS:
+            return False
+        present = vr if va is _MISSING else va
+        return present == LATER_FLAG_DEFAULTS[k]
+    return va == vr
+
+
+def same_config(a, ref, free=None):
+    """True iff a differs from ref only in `free` (default FREE_KEYS)."""
+    free = FREE_KEYS if free is None else free
+    return all(_agree(a, ref, k) for k in (set(a) | set(ref)) - free)
 
 
 def collect_fresh(D, ref_run, recipe, pools):
@@ -211,9 +244,122 @@ def draw(ax, points, colour, marker, label, filled=True, lw=2.0):
     return len(xs)
 
 
+def consumed_of(D, run, a):
+    """Unique examples consumed = batch_size x steps.
+
+    A checkpoint eval is named "<parent>-ck<STEP>"; it inherits the parent's config and its
+    step count is the checkpoint's, not the parent's final budget. Everything else consumed
+    batch_size x max_steps. Returns (consumed, args) or (None, None).
+    """
+    m = re.match(r"^(?P<parent>.+)-ck(?P<step>\d+)$", run)
+    if m:
+        pa = args_of(D, m.group("parent"))
+        if pa is None:
+            return None, None
+        return int(m.group("step")) * pa["batch_size"], pa
+    if a is None:
+        return None, None
+    return a["max_steps"] * a["batch_size"], a
+
+
+def collect_consumption(D, ref_run, recipe, avail_rows):
+    """-> {consumed: [(run, acc), ...]} for the consumption axis.
+
+    Two axis-specific rules, both deliberate:
+      * `max_steps` is FREE here -- it IS the axis. (On the pool-size axis it is fixed at 500
+        and must stay pinned, which is why the two collectors do not share a free-key set.)
+      * the series is pinned to specific AVAILABLE pool sizes via `avail_rows`, so that every
+        point is guaranteed no-reuse (consumed << available) and comes from one query
+        distribution. Without this every 500-step cell in the pool-size ladder piles onto the
+        2k point, averaging nine differently-pooled runs into one meaningless marker.
+    """
+    ref = args_of(D, ref_run)
+    if ref is None:
+        return {}
+    free = FREE_KEYS | {"max_steps"}
+    out = {}
+    for p in sorted(glob.glob(os.path.join(D, "results", "*.vqa_top5.json"))):
+        run = os.path.basename(p)[: -len(".vqa_top5.json")]
+        a0 = args_of(D, run)
+        n, a = consumed_of(D, run, a0)
+        if a is None or n is None or recipe_of(a) != recipe:
+            continue
+        if not same_config(a, ref, free):
+            continue
+        if n_queries(D, a) not in avail_rows:
+            continue
+        acc = acc_of(D, run)
+        if acc is not None:
+            out.setdefault(n, []).append((run, acc))
+    return out
+
+
+def draw_consumption(D, out_path, min_points=3):
+    """Second figure: accuracy vs unique examples consumed, with a best-so-far envelope.
+
+    Emits nothing until at least one series has `min_points` points -- a two-point "curve"
+    would invite reading a trend that is not measured yet.
+    """
+    series = []
+    for recipe, ref_run, label, colour, marker, _pools in SERIES:
+        pts = collect_consumption(D, ref_run, recipe, CONSUMPTION_AVAIL[recipe])
+        series.append((recipe, label, colour, marker, pts))
+        print(f"  consumption {recipe}: " + (", ".join(
+            f"{x}:{[r for r, _ in pts[x]]}" for x in sorted(pts)) or "no points yet"))
+    if not any(len(pts) >= min_points for *_, pts in series):
+        print(f"  consumption figure NOT written — no series has {min_points}+ points yet "
+              f"(checkpoint evals in flight). Re-run when they land.")
+        return False
+
+    fig, ax = plt.subplots(figsize=(5.2, 3.3), dpi=200)
+    for run, label, colour, dash in REFERENCE_ARMS:
+        acc = acc_of(D, run)
+        if acc is not None:
+            ax.axhline(acc, color=colour, lw=1.2, ls=dash, zorder=1)
+            ax.annotate(f"{label} ({acc:.3f})", xy=(1.02, acc), xycoords=("axes fraction", "data"),
+                        fontsize=7, color=colour, va="center")
+    for _recipe, label, colour, marker, pts in series:
+        if not pts:
+            continue
+        xs = sorted(pts)
+        ys = [statistics.mean(a for _, a in pts[x]) for x in xs]
+        ax.plot(xs, ys, color=colour, lw=1.6, marker=marker, ms=6, zorder=3, label=label,
+                markerfacecolor=colour, markeredgecolor=colour)
+        # best-so-far envelope: a run past its peak must not read as data-limited
+        env, best = [], float("-inf")
+        for y in ys:
+            best = max(best, y)
+            env.append(best)
+        if env != ys:
+            ax.plot(xs, env, color=colour, lw=1.0, ls=(0, (2, 2)), alpha=0.8, zorder=2)
+        for x in xs:
+            accs = [a for _, a in pts[x]]
+            if len(accs) > 1:
+                ax.vlines(x, min(accs), max(accs), color=colour, lw=2, alpha=0.55, zorder=2)
+    ax.set_xscale("log")
+    seen = sorted({x for *_, pts in series for x in pts})
+    ax.set_xticks(seen)
+    ax.set_xticklabels([f"{x//1000}k" if x >= 1000 else str(x) for x in seen], fontsize=7.5)
+    ax.set_xlabel("unique VQA examples consumed (batch $\\times$ steps; no reuse)", fontsize=9)
+    ax.set_ylabel("VQA accuracy (7B reader, top-5)", fontsize=9)
+    ax.tick_params(labelsize=8)
+    ax.minorticks_off()
+    for s in ("top", "right"):
+        ax.spines[s].set_visible(False)
+    ax.grid(axis="y", color="#dddddd", lw=0.6, zorder=0)
+    ax.legend(fontsize=7, frameon=False, loc="lower left")
+    fig.tight_layout()
+    for ext in (".pdf", ".png"):
+        fig.savefig(out_path + ext, bbox_inches="tight")
+    print("wrote", out_path + ".pdf/.png  (dashed = best-so-far envelope)")
+    return True
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default="mmrag/fig_mm_scaling")
+    ap.add_argument("--consumption-out", default="mmrag/fig_mm_consumption",
+                    help="second figure: accuracy vs unique examples consumed")
     ap.add_argument("--repo", default=os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     args = ap.parse_args()
     D = data_dir()
@@ -276,6 +422,9 @@ def main():
     for ext in (".pdf", ".png"):
         fig.savefig(args.out + ext, bbox_inches="tight")
     print("wrote", args.out + ".pdf/.png")
+    print("\n--- consumption axis (unique examples consumed) ---")
+    draw_consumption(D, args.consumption_out)
+
     print("\nPROVENANCE (paste into the figure's REPRO comment):")
     for line in provenance:
         print("  " + line)

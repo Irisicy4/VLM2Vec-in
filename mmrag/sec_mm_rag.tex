@@ -293,92 +293,6 @@ v3-pure          & \multicolumn{6}{c}{\emph{pending --- results land from the ru
 \end{tabular}
 \end{table}
 
-% REPRO(scaling): runs scale-rows{12k,25k,25k-s1,25k-s2,50k,100k,200k,200k-s1500,
-%   200k-s1500-s1,200k-s3000}; mlx_entry_scale.sh @ 2f6aaba (configs in mmrag/mlx_configs/).
-%   SCOPE: every scale-rows* cell is the V1 RECIPE (verified in args.json:
-%     algo=grpo, contrastive_coef=0.3) -- they predate v3. The v3 scaling cells are
-%     v3-rows25k (job 6c9cb56d), v3-rows200k (26aba17f), v3-rows200k-s1500 (749f47f6),
-%     all plgrpo cc0 seed 0 on pool_train_big, fresh wave, IN FLIGHT.
-%     The v3-pure 3-seed cell doubles as the 45,248-query point (all of pool_train).
-%   25k per-seed cells (mean 34.62 +/- 0.19): scale-rows25k 34.87 / -s1 34.60 / -s2 34.40.
-%   WAVE LABELS -- keep these distinct in the prose:
-%     v1 RECORDED wave (results_summary.json @ 8be8e67), the compute axis at 41K/8K -- pairs
-%       rl-j2e5-nogold-det 34.13 -> rl-j2e5-nogold-det-1500 31.93   (-2.20)
-%       rl-j2e5-nogold-rows8k 34.07 -> rl-j2e5-nogold-rows8k-1500 32.20  (-1.87)
-%       within-wave pairing, so the deltas are valid; absolute levels are NOT comparable to fresh
-%     FRESH wave: scale-rows200k-s1500 35.07 / -s1500-s1 34.07 (mean 34.57), -s3000 33.07
-%   Needs the enlarged pool (250k rows; build in a SEPARATE data dir, then copy in -- the build
-%   verifies corpus_small is byte-identical so pids stay compatible):
-%   python3 mmrag/build_infoseek_data.py --data_dir $MMRAG_BIG \
-%       --train_per_entity 200 --max_train 250000 --distractor_articles 20000
-%   cmp $MMRAG_BIG/built/corpus_small.jsonl $MMRAG_DATA/built/corpus_small.jsonl   # must match
-%   cp  $MMRAG_BIG/built/pool_train.jsonl   $MMRAG_DATA/built/pool_train_big.jsonl
-%   Then one 1-GPU job per cell (all cells in parallel):
-%   bash mmrag/mlx_submit_scale.sh                     # or a single cell locally:
-%   SCALE_CELL=scale-rows25k:25000:500:0 bash mmrag/mlx_entry_scale.sh
-\paragraph{Neither more data nor more compute helps.} One scope condition governs this whole
-paragraph and Figure~\ref{fig:mm_scaling}: \emph{every} scaling cell we have was run with the
-\textbf{v1} listwise recipe, not with v3-pure. The \texttt{scale-rows*} runs predate the
-corrected policy gradient, and their \texttt{args.json} records
-\texttt{algo=grpo, contrastive\_coef=0.3}. What follows is therefore a statement about the v1
-recipe's ceiling; whether that ceiling survives under the corrected policy gradient is being
-measured by the v3 scaling cells now in flight (Table~\ref{tab:mm_scaling}), and until they land
-the data-scaling behaviour of the headline recipe is \emph{unmeasured}. We flag this rather than
-let the reader carry the v1 curve over, because the two recipes differ in exactly the component
---- the anchor --- that the ablation above shows is doing real work.
-
-For v1, then: holding the step budget fixed at $500$ steps and varying only the size of the
-training pool from $12.5$K to $200$K queries leaves accuracy flat: $34.33$,
-$34.62 \pm 0.19$ (the $25$K cell, replicated over three seeds), $34.67$, $32.87$, $34.80$.
-A $16\times$ increase in available training data buys nothing; the whole ladder spans $2.0$
-points while the RL-to-SFT gap is $3.7$. The mechanism is a sampling ceiling: at $500$ steps
-$\times$ batch $4$ the run visits only ${\sim}2{,}000$ queries regardless of pool size, so rows
-beyond ${\sim}10$K are never sampled --- a mechanism that depends on the step budget and the
-batch size, both of which v3-pure shares, which is why we expect but have not shown that the
-ceiling transfers.
-
-Crucially this is \emph{not} a truncated compute curve. Tripling the budget at fixed pool makes
-the model \emph{worse}: $34.13 \to 31.93$ ($-2.20$) at $41$K and $34.07 \to 32.20$ ($-1.87$) at
-$8$K. Those four cells are the v1 recipe from the recorded wave, so the comparison is within-wave
-and the deltas are valid even though their absolute level is not comparable to the fresh numbers
-elsewhere in this section. The fresh wave agrees at the other end of the data axis, where data
-cannot be the binding constraint: at $200$K, $1{,}500$ steps gives $34.57$ (two seeds, $35.07$ and
-$34.07$) and $3{,}000$ steps falls to $33.07$. The v1 ceiling is thus ${\approx}34.5$--$35.0$ at
-2B and does not move with data or compute; across this section it has also not moved with the
-estimator (v3-pure $34.71$) or the anchor (v2 $33.82$), which is weak evidence that it is a
-property of the setting rather than of any one recipe. The text side's independent step sweep
-peaks at ${\sim}6.4$K visited queries and then decays in the same shape, so the joint conclusion
-is that these recipes are a cheap few-thousand-example correction --- hours on one GPU --- rather
-than a scalable training paradigm. Capacity is the only lever that has moved either ceiling.
-
-\begin{table}[t]
-\centering\small
-\caption{Data and compute scaling, VQA top-$5$ accuracy. \textbf{The measured ladder is the v1
-listwise recipe throughout} --- the \texttt{scale-rows*} runs predate v3 --- so the v3 column is
-what tests whether the ceiling is a property of the recipe or of the setting. Fresh wave unless
-marked. Pending cells land from the runner session.}
-\label{tab:mm_scaling}
-\begin{tabular}{lcc}
-\toprule
-setting & v1 listwise $+$ anchor & v3-pure \\
-\midrule
-\multicolumn{3}{l}{\emph{data axis} (pool size, $500$ steps throughout)} \\
-\quad $12.5$K                              & 34.33 & \emph{pending} \\
-\quad $25$K                                & $34.62 \pm 0.19$ (3 seeds) & \emph{pending} (\texttt{v3-rows25k}) \\
-\quad $45$K (all of \texttt{pool\_train})  & --- & $\mathbf{34.71 \pm 0.19}$ (3 seeds) \\
-\quad $50$K                                & 34.67 & --- \\
-\quad $100$K                               & 32.87 & --- \\
-\quad $200$K                               & 34.80 & \emph{pending} (\texttt{v3-rows200k}) \\
-\midrule
-\multicolumn{3}{l}{\emph{compute axis} (step budget at fixed pool)} \\
-\quad $41$K, $500 \to 1{,}500$ (recorded)  & $34.13 \to 31.93$ & --- \\
-\quad $8$K, $500 \to 1{,}500$ (recorded)   & $34.07 \to 32.20$ & --- \\
-\quad $200$K $\times$ $1{,}500$            & 34.57 (2 seeds) & \emph{pending} (\texttt{v3-rows200k-s1500}) \\
-\quad $200$K $\times$ $3{,}000$            & 33.07 & --- \\
-\bottomrule
-\end{tabular}
-\end{table}
-
 % REPRO(sft-audit): analysis-only, no rerun. Group every gme2b SFT run in
 %   mmrag/results_summary.json @ 8be8e67 by (lr, max_steps, max_train_rows), excluding names
 %   containing 'mix' (different train data) or 'full' (different corpus), and take the
@@ -459,7 +373,7 @@ most of the bootstrap along with it.
 %     5000q and must NOT be mixed in. All other cells still in flight.
 %   NB the runner fixed a stale hardcoded sys.path that crashed every new-profile eval
 %     (commits 8c3be9c / b2c0010); qwen2b/qwen7b/clipb32 zero-shots relaunched after it.
-\paragraph{What size works, and is retrieval pretraining required?} Table~\ref{tab:mm_ladder}
+\paragraph{Model analysis: what size works, and is retrieval pretraining required?} Table~\ref{tab:mm_ladder}
 crosses backbone capacity with pretraining regime. The three $2$B rows
 (\textsc{Qwen2-VL-2B} raw, \textsc{VLM2Vec-2B}, \textsc{GME-2B}) and the three $7$B rows hold the
 backbone fixed and vary only how much retrieval pretraining the encoder has had --- none,
@@ -501,6 +415,144 @@ GME-7B                 & GME              & \multicolumn{2}{c}{\emph{pending}} &
 \bottomrule
 \end{tabular}
 \end{table}
+
+% =========================================================================================
+% DATA-SCALING ANALYSIS. Deliberately SEPARATE from the model analysis above: that one varies
+% the encoder, this one holds the encoder and the recipe fixed and varies how many cheap
+% (image, question, answer) triples the run actually consumes.
+%
+% WHY THE AXIS CHANGED (user directive, 2026-08-13). The earlier ladder varied POOL SIZE at a
+% fixed 500 steps. At batch 4 that consumes ~2,000 examples no matter how big the pool is, so
+% the flat curve measured diversity-at-fixed-compute, NOT data scaling. It is demoted to a
+% control below. The scaling question is: same model, more cheap VQA data, is there growth
+% potential? -> x-axis = UNIQUE EXAMPLES CONSUMED (= batch_size x steps; compute follows data;
+% the 200k pool guarantees no example is reused), y = accuracy, best-over-checkpoints so late
+% points are not misread past their peak.
+%
+% REPRO(tab:mm_consumption): consumed = batch_size (4) x steps.
+%   v1 dense curve = intermediate checkpoints of scale-rows200k-s3000, evaluated as
+%     scale200k-ck{250,500,1000,1500,2000,2500} -> 1k/2k/4k/6k/8k/10k consumed. IN FLIGHT.
+%     Finals on the same pool: scale-rows200k-s1500 (+ -s1) = 6k (2 seeds), -s3000 = 12k.
+%   v3 curve = v3-pure x3 seeds at 2k (500 steps; NB pool_train, see the caveat in the prose),
+%     v3-rows200k-s1500 (job 749f47f6) = 6k, v3-rows200k-s3000 (job e89a2ad8) = 12k. IN FLIGHT.
+%   Eval each checkpoint with REPRO(eval-any-checkpoint), CK=$MMRAG_DATA/runs/<run>/checkpoint-<N>.
+%   Figure: mmrag/plot_scaling.py --consumption-out mmrag/fig_mm_consumption
+%     (x = 4 x checkpoint step, log; one line per recipe; best-so-far envelope overlaid).
+%     The figure is NOT emitted until a series has >=3 points -- see the script's threshold.
+\paragraph{Data-scaling analysis: does more cheap VQA data buy more accuracy?} The supervision
+this method consumes is cheap (image, question, answer) triples --- no passage-level relevance
+judgements at all --- so the scaling question that matters practically is whether collecting more
+of them buys accuracy. That question is about examples \emph{consumed}, not about examples
+\emph{available}, and the two come apart here: at batch $4$ a $500$-step run touches
+${\sim}2{,}000$ queries whether the pool holds $12$K or $200$K. Table~\ref{tab:mm_consumption}
+therefore holds the model (\textsc{GME-2B}) and the recipe fixed, draws from the $200$K pool so
+that no example is ever reused, and lets compute follow data: the $x$-axis is unique examples
+consumed, read off intermediate checkpoints as well as final ones so that a run past its peak
+cannot masquerade as a data-limited one (Figure~\ref{fig:mm_consumption}). We report
+best-over-checkpoints for the same reason.
+
+\emph{Status: the dense curve is in flight and the conclusion is not yet fixed.} We state in
+advance how it will be read, so that neither outcome can be written up as the one we wanted.
+The three v1 endpoints already in hand fall monotonically --- $34.80$ at $2$K consumed, $34.57$
+at $6$K, $33.07$ at $12$K --- so on present evidence the curve peaks at or before the smallest
+budget we have measured. If the intermediate checkpoints confirm that shape, the honest claim is
+that \emph{the recipe extracts its gain from the first few thousand cheap examples, and growth
+potential beyond that is not demonstrated at 2B}. That is a statement about what we measured, not
+a proof that no such potential exists: three points spanning $2$K--$12$K cannot exclude a peak
+below $2$K, which is exactly what the ck250 and ck500 cells are for. If instead the best-so-far
+envelope rises across the range once the dense checkpoints land, the growth claim is supported
+and our earlier ``ceiling'' framing was an artefact of reading final-step numbers on over-trained
+runs --- in which case we will say so, and say which reading was wrong.
+
+One methodological caveat we cannot remove by choosing words carefully: the v3 point at $2$K
+consumed is the headline three-seed cell, which drew from \texttt{pool\_train}
+($\leq 10$ queries per entity), whereas its $6$K and $12$K continuations draw from
+\texttt{pool\_train\_big} ($200$ per entity). The v1 curve is internally consistent because every
+one of its points comes from the same $200$K pool; the v3 curve is not, and the composition
+controls we have disagree in sign at one seed each. The v3 curve's low end should therefore be
+treated as provisional until a $2$K big-pool v3 cell exists.
+
+\begin{table}[t]
+\centering\small
+\caption{Data-scaling by \emph{consumption}: same model (\textsc{GME-2B}), same evaluation, no
+example reused. Consumed $=$ batch size $4 \times$ steps. ``ck$N$'' rows are intermediate
+checkpoints of the $3{,}000$-step run, ``final'' rows are separate runs trained to that budget;
+both are reported because a checkpoint and a completed run at equal consumption are not
+guaranteed to agree. VQA top-$5$ accuracy, protocol as in Table~\ref{tab:mm_main}. Pending cells
+land from the runner session.}
+\label{tab:mm_consumption}
+\begin{tabular}{llcc}
+\toprule
+consumed & source & v1 listwise $+$ anchor & v3-pure \\
+\midrule
+$1$K  & ck250 of the $3$K-step run  & \emph{pending} & --- \\
+$2$K  & ck500 of the $3$K-step run  & \emph{pending} & --- \\
+$2$K  & final, $500$ steps          & 34.80 & $\mathbf{34.71 \pm 0.19}$ (3 seeds)$^{\dagger}$ \\
+$4$K  & ck1000                      & \emph{pending} & --- \\
+$6$K  & ck1500                      & \emph{pending} & --- \\
+$6$K  & final, $1{,}500$ steps      & 34.57 (2 seeds) & \emph{pending} \\
+$8$K  & ck2000                      & \emph{pending} & --- \\
+$10$K & ck2500                      & \emph{pending} & --- \\
+$12$K & final, $3{,}000$ steps      & 33.07 & \emph{pending} \\
+\bottomrule
+\end{tabular}
+
+\vspace{2pt}
+{\footnotesize $^{\dagger}$drawn from \texttt{pool\_train}, not the $200$K pool the other v3 rows
+use --- see the caveat in the text.}
+\end{table}
+
+\input{fig_mm_consumption}
+
+% REPRO(tab:mm_scaling): the fixed-compute CONTROL, demoted from its former role as the scaling
+%   result. runs scale-rows{12k,25k,25k-s1,25k-s2,50k,100k,200k}; mlx_entry_scale.sh @ 2f6aaba
+%   (configs in mmrag/mlx_configs/). Every cell is the V1 RECIPE -- verified in args.json:
+%   algo=grpo, contrastive_coef=0.3 -- so it predates v3 and says nothing about the headline arm.
+%   25k per-seed (mean 34.62 +/- 0.19): scale-rows25k 34.87 / -s1 34.60 / -s2 34.40.
+%   Compute-axis rows, v1 RECORDED wave (results_summary.json @ 8be8e67), within-wave pairs:
+%     rl-j2e5-nogold-det 34.13 -> -det-1500 31.93 (-2.20) at 41K
+%     rl-j2e5-nogold-rows8k 34.07 -> -rows8k-1500 32.20 (-1.87) at 8K
+%     absolute levels NOT comparable to fresh; the deltas are.
+%   Enlarged pool build (250k rows; SEPARATE data dir, then copy in -- the build verifies
+%   corpus_small is byte-identical so pids stay compatible):
+%   python3 mmrag/build_infoseek_data.py --data_dir $MMRAG_BIG \
+%       --train_per_entity 200 --max_train 250000 --distractor_articles 20000
+%   cmp $MMRAG_BIG/built/corpus_small.jsonl $MMRAG_DATA/built/corpus_small.jsonl   # must match
+%   cp  $MMRAG_BIG/built/pool_train.jsonl   $MMRAG_DATA/built/pool_train_big.jsonl
+%   bash mmrag/mlx_submit_scale.sh    # or: SCALE_CELL=scale-rows25k:25000:500:0 bash mmrag/mlx_entry_scale.sh
+\paragraph{Control: available data is not consumed data.} The complementary control confirms that
+the consumption axis is the right one. Holding the budget at $500$ steps and varying only the
+pool from $12.5$K to $200$K queries leaves accuracy flat --- $34.33$, $34.62 \pm 0.19$ (3 seeds),
+$34.67$, $32.87$, $34.80$, a $2.0$-point spread against a $3.7$-point RL-to-SFT gap
+(Table~\ref{tab:mm_scaling} and Figure~\ref{fig:mm_scaling}) --- because rows beyond the visited
+${\sim}2{,}000$ are never sampled. Pool size beyond the visited count is irrelevant: data only
+matters if it is consumed. Raising the budget at fixed pool likewise costs accuracy in every pair
+we have ($34.13 \to 31.93$ at $41$K and $34.07 \to 32.20$ at $8$K, both v1 recorded wave and
+therefore compared within-wave), which is the observation the consumption curve exists to
+resolve --- whether that is over-training or a genuine data ceiling cannot be told apart from
+final-step numbers alone. Like the ladder itself, all of these cells are the v1 recipe.
+
+\begin{table}[t]
+\centering\small
+\caption{\emph{Control, not the scaling result.} Pool size at fixed compute ($500$ steps), plus
+the fixed-pool budget pairs. Every cell is the v1 listwise recipe --- the \texttt{scale-rows*}
+runs predate v3. The flatness here is why Table~\ref{tab:mm_consumption} measures consumption
+instead.}
+\label{tab:mm_scaling}
+\begin{tabular}{lc}
+\toprule
+setting & v1 listwise $+$ anchor \\
+\midrule
+\multicolumn{2}{l}{\emph{pool size at $500$ steps} (${\sim}2{,}000$ consumed throughout)} \\
+\quad $12.5$K / $25$K / $50$K / $100$K / $200$K & 34.33 / $34.62 \pm 0.19$ / 34.67 / 32.87 / 34.80 \\
+\midrule
+\multicolumn{2}{l}{\emph{budget at fixed pool}} \\
+\quad $41$K, $500 \to 1{,}500$ steps (recorded) & $34.13 \to 31.93$ \\
+\quad $8$K, $500 \to 1{,}500$ steps (recorded)  & $34.07 \to 32.20$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
 
 % REPRO(tab:mm_evqa): E-VQA OOD transfer -- train on InfoSeek only, evaluate on the E-VQA test
 %   set (4,744 rows) over the 382K-passage E-VQA corpus:

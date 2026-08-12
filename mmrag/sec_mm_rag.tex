@@ -1,6 +1,6 @@
 % ===== Multimodal indirect-feedback RAG (Experiment: mm-RAG) =====
-% PROVISIONAL DRAFT — numbers under main-session review; do not merge into the main text
-% until the review passes.
+% PROVISIONAL DRAFT — numbers under runner-session review; do not merge into the main text
+% until the technical-accuracy pass passes.
 %
 % ---------------------------------------------------------------------------------------
 % REPRODUCTION. Every number below is regenerable; each result block carries a REPRO comment
@@ -8,10 +8,15 @@
 % live at $MMRAG_DATA/results/<run>.{retrieval.metrics,vqa_top5}.json; adapters at
 % https://huggingface.co/Icey444/mmrag-ckpts (one subfolder per run, folder name = spec).
 %
-%   repo    : github.com/Irisicy4/VLM2Vec-in  branch mmrag
-%   code    : 2f6aaba (eval + MMEB + scaling harness), 95c82b1 (no-context gate)
-%   prose   : eef46eb
-%   env     : export PYTHONPATH=<repo> MMRAG_DATA=<data> HF_HOME=<cache>
+%   repo(v1) : github.com/Irisicy4/VLM2Vec-in  branch mmrag
+%              2f6aaba (eval + MMEB + scaling harness), 785022b (v1 repro + significance.py),
+%              95c82b1 (no-context gate), 8be8e67 (recorded-wave results_summary.json);
+%              the v1 recipe is frozen at tag v1-listwise-top8
+%   repo(v2/v3) : sibling VLM2Vec-rl, branch v23-base (pinned tree 978adfd)
+%              a3b734e (plgrpo: Plackett--Luce policy gradient + the v3 knobs),
+%              29ff7b0 / 0fb9fdd / efc7dfb (entry + encoder-profile fixes);
+%              mmrag/README_V23.md holds the exact per-arm commands
+%   env      : export PYTHONPATH=<repo> MMRAG_DATA=<data> HF_HOME=<cache>
 %
 % REPRO(data): rebuild everything from public sources (~1h + downloads; see
 %   mmrag/REPRO_NEWCLUSTER.md sec.0 for the raw URLs)
@@ -20,84 +25,234 @@
 %   # expected: corpus_full 1,421,665 / corpus_small 422,378 over 26,454 articles,
 %   #           queries_train 45,248 / queries_test 71,335   <- must match exactly
 %
+% REPRO(train): the three arms (VLM2Vec-rl, branch v23-base; README_V23.md verbatim)
+%   B="--profile gme2b --pool built/pool_train.jsonl --corpus built/corpus_small.jsonl \
+%      --no_force_gold --reward judge --reader_model Qwen/Qwen2.5-VL-3B-Instruct \
+%      --reader_rollouts 4 --batch_size 4 --max_steps 500 --learning_rate 2e-5 \
+%      --n_distractor_articles 3000 --refresh_steps 100 --seed <S>"
+%   python3 mmrag/train_rl.py $B --algo plgrpo --pl_group 4 --pl_k 4 --pl_support 24 \
+%       --contrastive_coef 0   --vf_coef 0 --output_dir $MMRAG_DATA/runs/$NAME   # v3 pure
+%   python3 mmrag/train_rl.py $B --algo plgrpo --pl_group 4 --pl_k 4 --pl_support 24 \
+%       --contrastive_coef 0.3 --vf_coef 0 --output_dir $MMRAG_DATA/runs/$NAME   # v2 anchored
+%   python3 mmrag/train_sft.py --profile gme2b --pool built/pool_train.jsonl \
+%       --learning_rate 1e-4 --num_hard_negs 0 --batch_size 24 --max_steps 600 \
+%       --output_dir $MMRAG_DATA/runs/$NAME                                      # SFT baseline
+%
 % REPRO(eval-any-checkpoint): the protocol behind every InfoSeek number in this section
 %   CK=<adapter dir | HF id | __profile__ for zero-shot>;  N=<run name>
-%   python3 mmrag/encode_corpus.py --checkpoint $CK --cache $MMRAG_DATA/cache/$N.pt \
-%       --device cuda:0 --bs 192                                        # code 2f6aaba
+%   python3 mmrag/encode_corpus.py --profile gme2b --checkpoint $CK \
+%       --cache $MMRAG_DATA/cache/$N.pt --device cuda:0 --bs 192
 %   python3 mmrag/eval_retrieval.py --profile gme2b --checkpoint $CK --name $N \
 %       --max-q 3000 --device cuda:0 --corpus_bs 192 --cache_corpus $MMRAG_DATA/cache/$N.pt
 %   python3 mmrag/eval_vqa.py --retrieval $MMRAG_DATA/results/$N.retrieval.json \
 %       --reader Qwen/Qwen2.5-VL-7B-Instruct --k 5 --max-q 1500 --device cuda:0
+%   python3 mmrag/significance.py --results_dir $MMRAG_DATA/results \
+%       --pairs $N:sft-lr1e4-h0-repro                       # paired McNemar, aligned n=1500
 % ---------------------------------------------------------------------------------------
 \subsection{Multimodal: retriever RL from VLM answer success}
 \label{sec:mm_rag}
-We port the indirect-feedback recipe to knowledge-VQA: the retriever is
-\textsc{GME-Qwen2-VL-2B} (LoRA), queries are image--question pairs (InfoSeek), the corpus is a
-422K-passage Wikipedia KB, and the reward is a frozen \textsc{Qwen2.5-VL-3B} reader's sampled
-answer accuracy on the retrieved passage (cover-EM vs.\ official aliases, $4$ rollouts, per-pool
-z-scored), with an advantage-weighted listwise update over top-$N{=}8$ pools and an InfoNCE
-anchor. A note on terminology: our runs label this update ``GRPO''/``PPO'', but it is neither ---
-pools are the \emph{deterministic} top-$N$ (no sampling), every pool member enters the gradient
-with weight $1$ rather than $\pi(d)$, and with a single inner epoch the PPO ratio is identically
-$1$, so the clip never engages (logged clipfrac is $0.0$ in every run). The method is online
-learning from bandit feedback with a reward-weighted ranking loss --- reinforcement-style in its
-supervision (a reward from a frozen reader; no labels), supervised-style in its update. A
-correctly factorized Plackett--Luce policy gradient (sampled ordered lists, exact conditional
-log-probabilities, group = the sampled lists) is implemented as \texttt{--algo plgrpo} and
-evaluated as an ablation; the listwise update is kept as the tagged v1 baseline
-(\texttt{v1-listwise-top8}).
 
-\paragraph{Annotation-free RL works in multimodal.} Unlike the text setting, where [no-gold]
-training never exceeded its zero-shot base, the multimodal [no-gold] arm --- pools are purely the
-policy's own retrievals; the \emph{only} supervision is the gold answer inside the reward ---
-beats both zero-shot ($34.1$ vs.\ $30.3$ VQA accuracy) and the LR-tuned relevance-SFT baseline
-($32.1$; paired McNemar $p{=}0.024$, replicated across seeds), and is statistically
-indistinguishable from gold-seeded pools ($p{=}0.93$). Neither deterministic nor sampled
-[no-gold] pools collapse. At 7B the picture strengthens: zero-shot $30.6$ $\to$ SFT $32.6$
-$\to$ indirect RL $35.9$ ([no-gold]: $35.1$, $p{=}1.3\mathrm{e}{-7}$ vs.\ zero-shot), so the
-indirect-feedback advantage again grows with retriever capacity, while at the CLIP/SigLIP rungs
-SFT wins --- the same capacity dichotomy as in text.
+We port the indirect-feedback recipe to knowledge-VQA. The retriever is
+\textsc{GME-Qwen2-VL-2B} with LoRA adapters ($r{=}32$, $\alpha{=}64$) on a frozen backbone;
+queries are image--question pairs from InfoSeek; the corpus is a $422{,}378$-passage Wikipedia
+KB; and the reward is a frozen \textsc{Qwen2.5-VL-3B} reader's sampled answer accuracy on a
+retrieved passage. Evaluation is two-level: L1 retrieval recall over the full corpus
+($n{=}3{,}000$ test queries) and L2 downstream VQA accuracy of a frozen
+\textsc{Qwen2.5-VL-7B} reader over the top-$5$ passages ($n{=}1{,}500$), scored by
+token-boundary cover-EM against the official answer aliases.
 
-\paragraph{The reward source, benchmarked through one loop.} Swapping only the reward:
-relevance labels as reward (\emph{goldrel}) reach $31.7$ on [no-gold] pools --- \emph{below} the
-reader reward ($34.1$) --- because the oracle signal is sparse on policy pools; a lexical
-answer-match reward reaches $33.4$. The reader's dense-sampling accuracy is the best-shaped
-signal, and a 3B reward reader matches a served 7B one ($33.7$ vs.\ $34.1$). Binary answer
-accuracy is \emph{required} here: the dense log-likelihood reward fails on [no-gold] pools
-($31.5$), inverting the text-side preference. Slate-level rewards (accuracy over the joint
-top-$k$ context) destabilize training and transfer catastrophically.
+\paragraph{Method.} The retriever is a policy over passages,
+$\pi(d \mid q) = \mathrm{softmax}(\langle e(q), e(d)\rangle / \tau)$ with $\tau{=}0.02$,
+restricted to the support $\mathcal{M}_q$ of the $M{=}24$ passages the \emph{live} policy ranks
+highest (corpus embeddings are re-encoded with the current policy every $100$ steps). An action
+is an \emph{ordered list} of $k{=}4$ passages; we draw $G{=}4$ lists per query by Gumbel-top-$k$,
+which is exactly sequential softmax sampling without replacement, and score them with the exact
+Plackett--Luce conditional factorization
+\[
+\log \pi(d_1,\dots,d_k \mid q) \;=\; \sum_{i=1}^{k}\Big[ s_{d_i} - \log\!\!\sum_{d \in \mathcal{M}_q \setminus \{d_{<i}\}}\!\! e^{s_d} \Big],
+\qquad s_d = \langle e(q), e(d)\rangle/\tau ,
+\]
+whose denominator shrinks at each position --- the term a top-$N$ pool softmax lacks. The frozen
+reader scores each \emph{unique} sampled passage once ($4$ rollouts at temperature $0.7$,
+cover-EM against the official aliases); a list's reward is the mean over its $k$ positions, so
+credit is assigned per document rather than to a joint context. Advantages are $z$-scored across
+the $G$ lists of the same query. The surrogate is the usual clipped objective, but with a single
+inner epoch the importance ratio is identically $1$ at the point of differentiation, so the clip
+never engages and the update is exactly the group-baselined Plackett--Luce policy gradient; we
+report it as such rather than as PPO. There is no critic ($\lambda_{\mathrm{vf}}{=}0$).
+
+\paragraph{What supervision enters, precisely.} The headline recipe (\emph{v3-pure}) carries
+\emph{no} contrastive term ($\lambda_{\mathrm{InfoNCE}}{=}0$) and \emph{no} gold passage: pools
+are the policy's own retrievals, and the annotated evidence passage is never inserted --- if the
+policy retrieves it, it is scored by the reader like any other candidate and carries no label.
+The only supervision is the gold answer \emph{string}, and it enters only inside the reward.
+This is annotation-free with respect to \emph{retrieval} supervision; it is not unsupervised, and
+we do not claim otherwise. Three further uses of the annotation are worth stating exactly,
+because they are easy to overlook. (i) The training queries are those InfoSeek rows for which an
+evidence passage exists, so the annotation selects \emph{which} queries are trained on, though
+never what to rank. (ii) The retrieval support seen during training is drawn from an RL corpus of
+$173{,}755$ passages --- all passages of the training queries' gold-entity articles plus $3{,}000$
+random distractor articles --- so the annotation shapes the training corpus. (iii) Evaluation
+never uses either: every reported retrieval number searches the full $422{,}378$-passage corpus.
+That train/eval corpus asymmetry makes training cheaper and evaluation strictly harder, and it is
+identical across all arms including SFT.
+
+\paragraph{A note on v1, v2, v3.} Our earlier runs (\emph{v1}, frozen at tag
+\texttt{v1-listwise-top8}) label their update ``GRPO''/``PPO'', but it is neither: pools are the
+\emph{deterministic} top-$N{=}8$, every pool member enters the gradient with weight $1$ rather
+than $\pi(d)$, the single inner epoch makes the PPO ratio identically $1$ (logged clipfrac is
+$0.0$ in every run), and the \texttt{--beta} KL term was dead code --- \texttt{ref\_logps} was
+never computed --- so the InfoNCE anchor was the only anti-collapse device ever active. v1 is
+online learning from bandit feedback with a reward-weighted ranking loss: reinforcement-style in
+its supervision, supervised-style in its update. \emph{v2} replaces that update with the
+correctly factorized Plackett--Luce policy gradient described above while keeping the InfoNCE
+anchor; \emph{v3-pure} additionally removes the anchor. Only v2 and v3 are policy gradients, and
+only v3 is free of contrastive supervision.
+
+% REPRO(tab:mm_main): fresh same-cluster retrains. Training per REPRO(train) above, seeds 0/1/2
+%   (v3-pure, v3-pure-s1, v3-pure-s2) and 0/2/3 (plgrpo-gme2b-nogold, plgrpo-s2, plgrpo-s3);
+%   v1 = nogate-gme2b-nogold; SFT = sft-lr1e4-h0-repro; base = gme2b-zeroshot-3k-repro.
+%   Code: v2/v3 = VLM2Vec-rl @ a3b734e on branch v23-base, pinned tree 978adfd (entry/profile
+%   fixes 29ff7b0 / 0fb9fdd / efc7dfb included); eval harness = mmrag @ 2f6aaba.
+%   Eval per REPRO(eval-any-checkpoint). Significance @ mmrag 785022b:
+%   python3 mmrag/significance.py --results_dir $MMRAG_DATA/results \
+%       --pairs v3-pure:sft-lr1e4-h0-repro v3-pure:gme2b-zeroshot-3k-repro   # and -s1, -s2
+\paragraph{A pure policy gradient is the best arm.} Table~\ref{tab:mm_main} gives the headline.
+v3-pure reaches $34.71 \pm 0.19$ VQA accuracy over three seeds, against $31.00$ for the
+relevance-SFT baseline and $30.80$ for the zero-shot base --- $+3.71$ over SFT and $+3.91$ over
+the base, significant on \emph{every} seed by paired McNemar ($p \le 4.8\mathrm{e}{-}5$ vs.\ SFT,
+$p \le 4.2\mathrm{e}{-}6$ vs.\ base). The gain is not an accuracy artifact. v3-pure beats SFT on
+every retrieval column as well --- entity R@1 $59.42$ vs.\ $59.13$, R@5 $76.09$ vs.\ $73.63$,
+R@10 $82.23$ vs.\ $79.83$, answer R@5 $63.46$ vs.\ $59.67$ --- and beats the base by a wide
+margin on all of them, so the arm that answers better also retrieves better. The one place the
+three-way ordering is not strict is strict-EM, where SFT and the base are tied to within
+$0.06$ points ($23.87$ vs.\ $23.93$) while v3-pure is clearly above both at $25.93$; this is the
+same pattern the significance test reports, namely that relevance-SFT does not reliably separate
+from its own base while indirect RL does. That is the result the text side could not obtain:
+there, annotation-free training never beat a properly tuned, data-matched relevance-SFT on
+high-adequacy data.
+
+\begin{table}[t]
+\centering\small
+\caption{InfoSeek, main arms. L1 over the full $422{,}378$-passage corpus ($n{=}3{,}000$);
+L2 top-$5$ VQA with a frozen \textsc{Qwen2.5-VL-7B} reader ($n{=}1{,}500$), token-boundary
+cover-EM vs.\ official aliases. All rows are fresh same-cluster retrains on the rebuilt data.
+$\pm$ is the standard deviation over seeds; single-seed rows are marked.}
+\label{tab:mm_main}
+\begin{tabular}{lcccccc}
+\toprule
+arm & VQA acc & strict-EM & F1 & ent.\ R@1 & ent.\ R@5 & ans.\ R@5 \\
+\midrule
+zero-shot base            & 30.80 & 23.93 & 31.03 & 44.57 & 68.53 & 54.94 \\
+relevance-SFT             & 31.00 & 23.87 & 32.13 & 59.13 & 73.63 & 59.67 \\
+v1 listwise $+$ anchor (1 seed) & 33.33 & 24.87 & 33.61 & 58.70 & 79.40 & 63.96 \\
+v2 PL-PG $+$ anchor       & $33.82 \pm 0.60$ & 25.74 & 34.14 & \textbf{59.82} & \textbf{80.13} & \textbf{65.46} \\
+\textbf{v3-pure} (ours)   & $\mathbf{34.71 \pm 0.19}$ & \textbf{25.93} & \textbf{34.77} & 59.42 & 76.09 & 63.46 \\
+\bottomrule
+\end{tabular}
+
+\vspace{2pt}
+{\footnotesize v3-pure per seed ($0/1/2$): acc $34.47 / 34.73 / 34.93$; McNemar vs.\ SFT
+$p = 4.8\mathrm{e}{-}5 / 1.3\mathrm{e}{-}5 / 1.8\mathrm{e}{-}6$, vs.\ base
+$p = 4.2\mathrm{e}{-}6 / 3.2\mathrm{e}{-}7 / 5.3\mathrm{e}{-}7$ --- all significant.
+v2 per seed ($0/2/3$): $34.27 / 33.07 / 34.13$. Entity R@10: base $76.63$, SFT $79.83$,
+v1 $85.73$, v2 $85.73$, v3-pure $82.23$. Bold marks the best trained arm per column: v3-pure on
+the three answer metrics, v2 on the three retrieval metrics.}
+\end{table}
+
+% REPRO(anchor-margin): v2 vs v3 is the same command with --contrastive_coef 0.3 vs 0 (runs
+%   plgrpo-gme2b-nogold* vs v3-pure*). InfoNCE trajectories read from each run's metrics.jsonl
+%   (key loss/infonce), first vs last quarter of training.
+%   Margin measurement: script inline in VLM2Vec-rl mmrag/RL_REDESIGN.md @ 1f279fe. BASE policy,
+%   20k-passage sampled bank, B=4 batches x P=24 pools = 48 queries, contrastive temperature
+%   0.03; gap_i = (sim(q_i, own top-1) - max cross-query pool doc sim) / tau.
+%   Text-side row measured by the text session: trl-projects .../rag/PAPER_TABLES.md Table 8d.
+\paragraph{What the anchor buys, and what it costs.} v2 and v3 differ by one term, so the
+comparison isolates the InfoNCE anchor exactly. The anchor is worth about $+4$ points of tail
+recall (entity R@5 $80.13$ vs.\ $76.09$; R@10 $85.73$ vs.\ $82.23$) and costs about $0.9$ points
+of accuracy ($33.82$ vs.\ $34.71$). Both RL arms beat SFT on both metrics, so this is a choice
+between two good arms rather than a fix for a broken one: on recall the ordering is
+v2 $>$ v1 $>$ v3 $>$ SFT $>$ base, on accuracy it is v3 $>$ v2 $>$ v1 $>$ SFT $>$ base.
+
+The anchor is not a free regularizer being removed. In our runs it is \emph{binding}: its loss is
+still at $0.48$--$0.63$ in the final quarter of training (anchored plgrpo $1.02 \to 0.61$, seed 3
+$1.04 \to 0.63$, the v1-era control $0.80 \to 0.48$), whereas the text side's structurally
+identical anchor decays to $0.0000$ by step $240$. Two single-factor explanations for that
+difference died on each other's data: ``a self-argmax positive is inert by construction'' is
+falsified by our binding self-argmax runs, and ``inert iff the negatives lie inside the
+positive's comparison set'' is falsified by the text side's inert cell with cross-query
+negatives. The surviving rule --- first stated on the text side and adopted here --- is about
+margins at the contrastive temperature: \emph{an anchor is inert iff no in-scope negative sits
+within $O(\text{few}\cdot\tau)$ of the positive}. Positive type and negative scope matter only
+through the margins they induce. Direct measurement on both modalities
+(Table~\ref{tab:mm_margin}) shows exactly that signature: $17\%$ of our queries have a
+competitor within $3\tau$ against $2\%$ of theirs, and neither side has a single inverted margin,
+which is why a self-argmax positive can be binding but never destructive.
+
+Read under that rule, what removing the anchor deleted was hard-margin uniformity pressure on the
+${\sim}17\%$ of queries with a near-entity competitor --- pressure that is recall-shaped by
+definition. Pure RL reallocates those queries' gradient from ``keep the top-$1$ separated'' to
+``rank what the reader can answer from,'' hence recall down and accuracy up. Two practical
+consequences follow, and they are the transferable part: check the anchor's loss curve before
+concluding anything about anchors, and choose v2 or v3 by which metric you are shipping.
+
+\begin{table}[t]
+\centering\small
+\caption{Margin at the contrastive temperature, measured under the base policy. Gap between the
+query's own top-$1$ and the best cross-query document in the batch, in units of $\tau$;
+$48$ queries per side. ``Competitive'' counts gaps below $3\tau$. The text row was measured by
+the text-side session for this comparison (their Table 8d); the rule is a joint finding, first
+stated there.}
+\label{tab:mm_margin}
+\begin{tabular}{lccccccl}
+\toprule
+side & min & p10 & median & p90 & competitive & inverted & anchor behaviour \\
+\midrule
+multimodal (InfoSeek, $\tau{=}0.03$) & 0.00 & 2.21 & 6.38 & 9.07 & $17\%$ & $0\%$ & binding ($0.5$--$0.6$ for 500 steps) \\
+text (TriviaQA, $\tau{=}0.02$)       & 2.78 & 7.18 & 14.43 & 17.54 & $2\%$  & $0\%$ & inert (born at $0.44$) \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 % REPRO(repro-table): runs gme2b-zeroshot-3k-repro | sft-lr1e4-h0-repro |
-%   rl-j2e5-nogold-det-repro | rl-j2e5-nogold-det-s3-repro  -- code 2f6aaba
-%   apply REPRO(eval-any-checkpoint) with CK in:
+%   rl-j2e5-nogold-det-repro | rl-j2e5-nogold-det-s3-repro  -- code 2f6aaba (v1 recipe,
+%   tag v1-listwise-top8). Apply REPRO(eval-any-checkpoint) with CK in:
 %     __profile__                                (zero-shot base)
 %     Icey444/mmrag-sft-lr1e4-h0                 (relevance-SFT)
-%     Icey444/mmrag-rl-nogold-judge-2b           (no-gold RL seed 0)
-%     Icey444/mmrag-rl-nogold-judge-2b-seed3     (no-gold RL seed 3)
-\paragraph{Reproduction on independent hardware.} The full pipeline was rebuilt from public
-sources on a different cluster and re-run end to end. The rebuild recovers the corpus and query
-counts exactly ($1{,}421{,}665$ / $422{,}378$ passages, $26{,}454$ articles, $45{,}248$ train /
-$71{,}335$ test queries), so the comparison is like-for-like. Every arm reproduces within
-$0.002$ absolute: zero-shot $30.80$ (recorded $31.00$), relevance-SFT $31.00$ (recorded $31.00$;
-bit-identical on accuracy, strict-EM and F1), [no-gold] RL $33.93$ and $34.33$ for two seeds
-(recorded $34.13$, $34.27$). The headline effect --- RL minus zero-shot --- reproduces exactly
-at $+3.13$ points.
+%     Icey444/mmrag-rl-nogold-judge-2b           (v1 no-gold RL seed 0)
+%     Icey444/mmrag-rl-nogold-judge-2b-seed3     (v1 no-gold RL seed 3)
+%   Build-count check: mmrag/REPRO_NEWCLUSTER.md sec.0 table.
+\paragraph{Reproduction on independent hardware.} The pipeline was rebuilt from public sources on
+a different cluster and re-run end to end. The rebuild recovers the corpus and query counts
+exactly ($1{,}421{,}665$ / $422{,}378$ passages, $26{,}454$ articles, $45{,}248$ train /
+$71{,}335$ test queries), so the comparison is like-for-like. Every released v1-era arm
+reproduces within $0.2$ points absolute: zero-shot $30.80$ (recorded $31.00$), relevance-SFT
+$31.00$ (recorded $31.00$; bit-identical on accuracy, strict-EM and F1), no-gold RL $33.93$ and
+$34.33$ for two seeds (recorded $34.13$, $34.27$). The headline v1 effect --- RL minus zero-shot
+--- reproduces exactly at $+3.13$ points. Residual deficits of $0.2$ points on two arms are fp16
+matmul and top-$k$ tie nondeterminism on a freshly built index, not a protocol difference; the
+SFT arm came out bit-exact on all three L2 metrics. All v2/v3 numbers in this section are fresh
+retrains on that same rebuilt cluster, so the anchor and estimator comparisons are internally
+hardware-consistent. Fresh-retrain seed spread is $0.2$--$0.6$ points and the cross-hardware term
+is ${\pm}0.5$; we judge every claim against fresh-retrain controls rather than recorded numbers.
 
-% REPRO(tab:mm_mmeb): MMEB subset -- code 2f6aaba, needs HF TIGER-Lab/MMEB-eval snapshot
-%   in $MMEB_DIR (images read in place from images.zip; do NOT extract -- 285K small files).
-%   Sample once, then score each arm against the identical subset:
+% REPRO(tab:mm_mmeb): MMEB subset -- mmrag/mmeb_subset.py @ 2f6aaba, needs the HF
+%   TIGER-Lab/MMEB-eval snapshot in $MMEB_DIR (images read in place from images.zip; do NOT
+%   extract -- 285K small files). Sample once, then score each arm against the identical subset:
 %   python3 mmrag/mmeb_subset.py sample --out $MMEB_DIR/subset_seed0 \
 %       --per_task 100 --max_pool 20000 --seed 0        # -> 3,700 queries over 37 tasks
-%   for CK/LABEL in __profile__/gme2b-zs, <sft ckpt>/sft-lr1e4-h0, <rl ckpt>/rl-nogold:
+%   for CK/LABEL in __profile__/gme2b-zs, <sft ckpt>/sft-lr1e4-h0, <v1 ckpt>/rl-nogold:
 %     python3 mmrag/mmeb_subset.py eval --subset $MMEB_DIR/subset_seed0 \
 %         --checkpoint $CK --name $LABEL --device cuda:0 --bs 24
-%   The sampled manifest + all three results.*.json are committed at
-%   mmrag/mmeb_subset_manifest/ so the exact query set is inspectable without rerunning.
+%   Results: $MMEB_DIR/subset_seed0/results.{gme2b-zs,sft-lr1e4-h0,rl-nogold}.json with
+%   breakdown_meta_task.json alongside. The sampled manifest + all three results.*.json are
+%   committed at mmrag/mmeb_subset_manifest/ so the exact query set is inspectable.
 %   OVEN contamination check (67/100 sampled OVEN images are in the InfoSeek store):
 %     compare basenames of OVEN.json query imgs against mmrag/image_store.open_stores(.,'infoseek')
+%   NOTE: the v3-pure row has NOT been run -- do not reuse the v1 number for it.
 \paragraph{Does the gain generalize, or is it InfoSeek overfitting?}
-Table~\ref{tab:mm_mmeb} evaluates all three arms on a fixed random subset of the MMEB image
-tasks ($100$ queries $\times$ $37$ tasks, seed $0$, each task's full candidate pool retained).
+Table~\ref{tab:mm_mmeb} evaluates the arms on a fixed random subset of the MMEB image tasks
+($100$ queries $\times$ $37$ tasks, seed $0$, each task's full candidate pool retained).
 One caveat determines how this must be read: MMEB's \textsc{OVEN} task draws its query images
 from the same source as InfoSeek ($67$ of $100$ sampled OVEN images are in the InfoSeek image
 store), so it is \emph{not} held out for our adapters; we therefore report the $36$-task macro
@@ -110,29 +265,36 @@ tasks and better on none) in exchange for classification ($+2.73$), whereas the 
 ($+1.80$, better on $8$ of $10$). Neither arm shows the catastrophic forgetting reported for
 in-domain contrastive fine-tuning of strong text embedders; we attribute this to the light
 LoRA touch ($r{=}32$ on a frozen backbone) rather than to anything specific to the objective.
+The measured arm here is v1-anchored. Whether v3-pure --- which trades recall for accuracy
+in-domain --- keeps this property is an open cell, not an inference, and we mark it as such.
 
 \begin{table}[t]
 \centering\small
 \caption{Generalization to MMEB image tasks after InfoSeek-only training. Macro Precision@1;
 ``excl.\ OVEN'' drops the one task whose images overlap InfoSeek. Meta-task deltas are versus the
-zero-shot base, with (tasks better / worse) in parentheses.}
+zero-shot base, in points, with (tasks better / worse) in parentheses. The v3-pure row is
+\emph{pending} --- it has not been run, and the v1 number must not be reused for it.}
 \label{tab:mm_mmeb}
-\begin{tabular}{lccccc}
+\begin{tabular}{lcccccc}
 \toprule
-& \multicolumn{2}{c}{macro P@1} & \multicolumn{3}{c}{$\Delta$ vs.\ base by meta-task} \\
-\cmidrule(lr){2-3}\cmidrule(lr){4-6}
-arm & all 37 & excl.\ OVEN & VQA & Classification & Retrieval \\
+& \multicolumn{2}{c}{macro P@1} & \multicolumn{4}{c}{$\Delta$ vs.\ base by meta-task} \\
+\cmidrule(lr){2-3}\cmidrule(lr){4-7}
+arm & all 37 & excl.\ OVEN & VQA & Classification & Retrieval & Grounding \\
 \midrule
-zero-shot base   & 43.81 & 43.31 & --- & --- & --- \\
-relevance-SFT    & 43.97 & 43.28 & $-2.10$ (0/7) & $+2.73$ (9/2) & $-0.75$ (4/6) \\
-{}[no-gold] RL & \textbf{44.68} & \textbf{44.14} & $\mathbf{+1.80}$ (8/1) & $+1.09$ (8/2) & $-0.17$ (6/5) \\
+zero-shot base   & 43.81 & 43.31 & --- & --- & --- & --- \\
+relevance-SFT    & 43.97 & 43.28 & $-2.10$ (0/7) & $+2.73$ (9/2) & $-0.75$ (4/6) & $+1.50$ (3/1) \\
+v1 listwise RL   & \textbf{44.68} & \textbf{44.14} & $\mathbf{+1.80}$ (8/1) & $+1.09$ (8/2) & $-0.17$ (6/5) & $+1.00$ (3/1) \\
+v3-pure          & \multicolumn{6}{c}{\emph{pending --- results land from the runner session}} \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-% REPRO(scaling): runs scale-rows{12k,25k,50k,100k,200k}[-s1,-s2] -- code 2f6aaba.
-%   Needs the enlarged pool (250k rows; build in a SEPARATE data dir, then copy in --
-%   the build verifies corpus_small is byte-identical so pids stay compatible):
+% REPRO(scaling): runs scale-rows{12k,25k,25k-s1,25k-s2,50k,100k,200k,200k-s1500,
+%   200k-s1500-s1,200k-s3000}; mlx_entry_scale.sh @ 2f6aaba (configs in mmrag/mlx_configs/).
+%   The 1500-step small-pool points are RECORDED runs rl-j2e5-nogold-det-1500 and
+%   rl-j2e5-nogold-rows8k-1500 in results_summary.json @ 8be8e67.
+%   Needs the enlarged pool (250k rows; build in a SEPARATE data dir, then copy in -- the build
+%   verifies corpus_small is byte-identical so pids stay compatible):
 %   python3 mmrag/build_infoseek_data.py --data_dir $MMRAG_BIG \
 %       --train_per_entity 200 --max_train 250000 --distractor_articles 20000
 %   cmp $MMRAG_BIG/built/corpus_small.jsonl $MMRAG_DATA/built/corpus_small.jsonl   # must match
@@ -140,55 +302,205 @@ relevance-SFT    & 43.97 & 43.28 & $-2.10$ (0/7) & $+2.73$ (9/2) & $-0.75$ (4/6)
 %   Then one 1-GPU job per cell (all cells in parallel):
 %   bash mmrag/mlx_submit_scale.sh                     # or a single cell locally:
 %   SCALE_CELL=scale-rows25k:25000:500:0 bash mmrag/mlx_entry_scale.sh
-%   Compute axis (the 1500-step numbers) is from the recorded wave, runs
-%   rl-j2e5-nogold-det-1500 and rl-j2e5-nogold-rows8k-1500 in results_summary.json.
 \paragraph{Neither more data nor more compute helps.} Holding the step budget fixed at $500$
 steps and varying only the size of the training pool from $12.5$K to $200$K queries leaves
-accuracy flat: $34.33$, $34.62{\pm}0.19$ (3 seeds), $34.67$, $32.87$, $34.80$. A $16\times$
-increase in available training data buys nothing, and the whole ladder spans $2.0$ points while
-the SFT-to-RL gap is $2.9$--$3.9$. The mechanism is a sampling ceiling: at $500$ steps
-$\times$ batch $4$ the run visits only ${\sim}2{,}000$ queries regardless of pool size, so rows
-beyond ${\sim}10$K are never sampled. Crucially this is \emph{not} a truncated compute curve ---
-tripling the budget at fixed pool makes the model \emph{worse} ($34.13 \to 31.93$ at $41$K,
-$34.07 \to 32.20$ at $8$K), so the recipe is already at or past its optimum. The replicated
-three-seed cell at $25$K ($34.62{\pm}0.19$) sits slightly \emph{above} the full-data headline
-configuration, indicating a shallow interior optimum rather than a plateau. Practically: this
-method is cheap by construction and cannot be scaled into a larger win by adding data.
+accuracy flat: $34.33$, $34.87$, $34.67$, $32.87$, $34.80$. A $16\times$ increase in available
+training data buys nothing, and the whole ladder spans $2.0$ points while the RL-to-SFT gap is
+$3.7$. The mechanism is a sampling ceiling: at $500$ steps $\times$ batch $4$ the run visits only
+${\sim}2{,}000$ queries regardless of pool size, so rows beyond ${\sim}10$K are never sampled.
+Crucially this is \emph{not} a truncated compute curve. Tripling the budget at fixed pool makes
+the model \emph{worse} ($-2.2$ points at $41$K, $-1.9$ at $8$K), and even at the largest pool,
+where data cannot be the binding constraint, $1{,}500$ steps gives $35.07$ and $34.07$ over two
+seeds while $3{,}000$ steps falls to $33.07$. The replicated three-seed cell at $25$K
+($34.62 \pm 0.19$) sits level with the headline configuration, indicating a shallow interior
+optimum rather than a plateau. The ceiling is ${\approx}34.5$--$35.0$ at 2B and does not move with
+data, compute, estimator, or anchor. The text side's independent step sweep peaks at
+${\sim}6.4$K visited queries and then decays in the same shape, so the joint conclusion is that
+these recipes are a cheap few-thousand-example correction --- hours on one GPU --- rather than a
+scalable training paradigm. Capacity is the only lever that has moved either ceiling.
 
-% REPRO(sft-audit): no rerun needed -- this is an analysis of the recorded sweep. Group every
-%   gme2b SFT run in mmrag/results_summary.json by (lr, max_steps, max_train_rows), excluding
-%   names containing 'mix' (different train data) or 'full' (different corpus), and take the
-%   per-config mean over seeds. Best config = lr1e-4 x 2,000 rows (0.3270, 2 seeds);
-%   reported baseline = lr2e-4 x all rows (0.3128, 4 seeds).
+% REPRO(sft-audit): analysis-only, no rerun. Group every gme2b SFT run in
+%   mmrag/results_summary.json @ 8be8e67 by (lr, max_steps, max_train_rows), excluding names
+%   containing 'mix' (different train data) or 'full' (different corpus), and take the
+%   per-config mean over seeds. Three distinct numbers, do NOT average them:
+%     0.3100  sft-lr1e4-h0-repro, released-checkpoint repro on this protocol, single ckpt,
+%             bit-exact on acc/EM/F1 -- this is the Table 1 row and the McNemar comparator
+%             (per-question predictions exist only for fresh runs)
+%     0.3128  recorded tuned baseline, 4-seed mean at lr2e-4 x all rows (LEDGER 0.313+/-0.005)
+%     0.3270  audit-fair exposure-matched best, lr1e-4 x 2,000 rows, 2 seeds (0.334 / 0.320)
 \paragraph{Is the SFT baseline fairly tuned?} We audited it, because the headline claim depends
-on it. The reported baseline is honestly computed --- a $4$-seed mean at the best all-data
-learning rate, not a best-run --- but the sweep has two gaps. The learning-rate grid
-$\{3\mathrm{e}{-}5, 5\mathrm{e}{-}5, 1\mathrm{e}{-}4, 2\mathrm{e}{-}4\}$ terminates at its own
+on it. Three numbers describe the baseline and they should not be blended. The Table~\ref{tab:mm_main}
+row, $31.00$, is the released-checkpoint reproduction on exactly this protocol; it is the
+comparator McNemar was computed against, because per-question predictions exist only for runs we
+re-executed. The recorded tuned baseline is $31.28$, a four-seed mean at the best all-data
+learning rate --- honestly computed, not a best-run. But the sweep has two gaps: the grid
+$\{3\mathrm{e}{-}5, 5\mathrm{e}{-}5, 1\mathrm{e}{-}4, 2\mathrm{e}{-}4\}$ terminates near its own
 argmax, and the training-budget axis was never crossed with the best rate. The strongest SFT
-configuration by multi-seed mean is in fact $1\mathrm{e}{-}4$ at $2{,}000$ rows ($32.70$, 2
-seeds), not the reported $31.28$ --- and $2{,}000$ rows is also the \emph{exposure-matched} cell,
-since RL visits ${\sim}2{,}000$ queries against SFT's ${\sim}19{,}200$. Against that comparator
-the advantage narrows from $+2.9$ to $+1.5$ points. We report the exposure-matched number as the
-honest one; the ordering is unchanged.
+configuration by multi-seed mean is in fact $1\mathrm{e}{-}4$ at $2{,}000$ rows
+($32.70$; two seeds, $33.40$ and $32.00$) --- and $2{,}000$ rows is also the
+\emph{exposure-matched} cell, since RL visits ${\sim}2{,}000$ queries against SFT's
+${\sim}19{,}200$. Against that comparator the advantage narrows from $+3.71$ to $+2.01$ points,
+which is still an order of magnitude larger than v3-pure's seed spread of $0.19$, though we
+cannot attach a McNemar $p$ to it because that cell is a recorded run without per-question
+predictions. We report the exposure-matched number as the honest one; the ordering is unchanged.
+This matters beyond bookkeeping. On the text side the same audit discipline killed several
+apparent annotation-free wins, and the surviving text result is that reward-based training pays
+exactly where the annotation is a weak proxy for what the reader needs. InfoSeek's entity-level
+evidence labels are such a proxy --- which is why SFT here barely separates from its own base.
 
-% REPRO(gate): run gate-gme2b-nogold -- code 95c82b1 (adds --reward_gate_noctx and the
-%   gate/keep_given_{gold,no_gold} instrumentation). Control = nogate-gme2b-nogold, identical
-%   minus the flag.
+% REPRO(gate): runs gate-gme2b-nogold, nogate-gme2b-nogold (identical minus the flag), and the
+%   weak rung clip-nogold-base / clip-nogold-gate -- code 95c82b1 (adds --reward_gate_noctx and
+%   the gate/keep_given_{gold,no_gold} instrumentation).
 %   bash mmrag/mlx_submit_cell.sh "gate-gme2b-nogold" gme2b \
 %     "--pool built/pool_train.jsonl --max_train_rows 0 --max_steps 500 --seed 0 \
 %      --no_force_gold --learning_rate 2e-5 --reward_gate_noctx"
 %   Keep-rates come from the run's own metrics.jsonl, weighted by the per-step counts:
 %     keep_given_gold    = sum(keep_given_gold * n_gold_in_pool)    / sum(n_gold_in_pool)
 %     keep_given_no_gold = sum(keep_given_no_gold * n_no_gold_in_pool) / sum(n_no_gold_in_pool)
-\paragraph{A no-context utility gate does not transfer.} The text side finds that filtering
-training examples by reader utility --- keep $q$ only if $\max_c \text{judge}(c) >
-\text{judge}(\varnothing)$ --- sharply separates correct from incorrect mined labels and rescues
-weak configurations. Ported here as a per-query data filter, the gate is a \emph{good detector}
-and still does not pay: it keeps pools containing gold at $62.7\%$ versus $23.3\%$ for gold-free
-pools (a $2.7\times$ separation, stronger than the text side's $1.3\times$), yet downstream
-accuracy does not improve. We attribute the difference to offline versus online filtering: on a
-fixed mined pool, dropping mislabeled examples is pure gain, whereas in an online loop the
-dropped queries are precisely those whose retrieval most needs to change, so filtering removes
-the learning signal for the failure mode being targeted.
+%   NOTE: the gme2b verdict is against the FRESH ungated control (0.3333), not the released
+%   repro -- the fresh control flips the sign of the delta versus the earlier draft.
+\paragraph{A no-context utility gate is a good detector and a bad filter.} The text side finds
+that filtering training examples by reader utility --- keep $q$ only if
+$\max_c \text{judge}(c) > \text{judge}(\varnothing)$ --- separates correct from incorrect mined
+labels and rescues weak configurations. Ported here as a per-query data filter, the gate detects
+well and does not pay. It is a genuine pool-quality detector: it keeps pools containing gold at
+$62.7\%$ against $23.3\%$ for gold-free pools, a $2.7\times$ separation and a stronger one than
+the text side's $1.3\times$, at an overall keep rate of $49.8\%$. Yet at the 2B rung the
+downstream effect is neutral --- $33.67$ gated against $33.33$ for the identical ungated control,
+inside seed noise. At the weak rung it is actively harmful: CLIP-L, whose annotation-free RL
+lifts entity R@5 from $5.4$ to $29.1$, collapses to $3.8$ under the gate, which keeps only
+$20.4\%$ of queries (keep-given-gold $0.800$, but on only $n{=}5$ gold-bearing pools --- the
+detector has almost nothing left to detect). We attribute the difference to offline versus online
+filtering: on a fixed mined pool, dropping mislabeled examples is pure gain, whereas in an online
+loop the dropped queries are precisely those whose retrieval most needs to change, so filtering
+removes the learning signal for the failure mode being targeted --- and at a weak rung it removes
+most of the bootstrap along with it.
+
+% =========================================================================================
+% BLANK TABLES — experiments in flight in the runner session. Every \emph{pending} cell is a
+% placeholder; do NOT fill any of them from RESULTS.md, from the v1 recorded wave, or by
+% inference. The runner pushes each number as its cell lands.
+% =========================================================================================
+
+% REPRO(tab:mm_ladder): base-model ladder -- profiles in encoder.py:ENCODER_PROFILES
+%   (clipb32/clipb16 added in VLM2Vec-rl 978adfd; profile fixes efc7dfb).
+%   zero-shot cells: CK=__profile__, runs {qwen2b,qwen7b,clipb32}-zeroshot and
+%     {vlm2vec2b,siglip2}-zs-fresh
+%   v1 cells:  {qwen2b,vlm2vec2b,siglip2,qwen7b,vlm2vec7b}-nogold -- the tag v1-listwise-top8
+%     recipe: --algo grpo --num_candidates 8 --contrastive_coef 0.3 --no_force_gold
+%   v3 cells:  {clip,qwen2b,vlm2vec2b,qwen7b}-v3pure, clipb32-v3pure, gme7b-v3pure
+%     (gme7b-v3pure = job a2cbeb8aca03de14) -- REPRO(train) with --profile <rung>
+%   Eval per REPRO(eval-any-checkpoint) with --profile <rung>.   ALL CELLS IN FLIGHT.
+\paragraph{What size works, and is retrieval pretraining required?} Table~\ref{tab:mm_ladder}
+crosses backbone capacity with pretraining regime. The three $2$B rows
+(\textsc{Qwen2-VL-2B} raw, \textsc{VLM2Vec-2B}, \textsc{GME-2B}) and the three $7$B rows hold the
+backbone fixed and vary only how much retrieval pretraining the encoder has had --- none,
+MMEB-style contrastive, or GME --- which separates ``the recipe needs a big model'' from ``the
+recipe needs a model that can already retrieve.'' The small CLIP and SigLIP rungs establish the
+floor at which the annotation-free loop can no longer bootstrap: the reward is informative only
+once the policy's own top-$M$ sometimes contains an answerable passage, which is the same
+condition the gate result above exposes at CLIP-L. At $7$B we currently have only the v1 recorded
+wave --- zero-shot $30.6$, SFT $32.6$, annotation-free RL $35.1$/$35.3$/$35.3$ across three
+seeds, gold-seeded RL $35.9$ --- measured before the cluster move and therefore not directly
+comparable to the fresh $2$B numbers above; the v3-pure $7$B cell is in flight. We defer the
+capacity claim until that table is complete rather than extrapolating it from v1.
+
+\begin{table}[t]
+\centering\small
+\caption{Base-model ladder: capacity $\times$ retrieval pretraining. VQA top-$5$ accuracy and
+entity R@5, protocol as in Table~\ref{tab:mm_main}. The \textsc{GME-2B} rung is the headline
+configuration. \textbf{All cells pending --- results land from the runner session.}}
+\label{tab:mm_ladder}
+\begin{tabular}{llcccccc}
+\toprule
+& & \multicolumn{2}{c}{zero-shot} & \multicolumn{2}{c}{v1 anchored (no-gold)} & \multicolumn{2}{c}{v3-pure} \\
+\cmidrule(lr){3-4}\cmidrule(lr){5-6}\cmidrule(lr){7-8}
+encoder & retrieval pretraining & acc & R@5 & acc & R@5 & acc & R@5 \\
+\midrule
+CLIP-B/32 ($\sim$150M) & CLIP   & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} \\
+CLIP-L ($\sim$430M)    & CLIP   & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} \\
+SigLIP2-so400m         & SigLIP & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} \\
+\midrule
+Qwen2-VL-2B (raw)      & none             & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} \\
+VLM2Vec-2B             & MMEB contrastive & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} \\
+GME-2B \emph{(headline)} & GME            & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} \\
+\midrule
+Qwen2-VL-7B (raw)      & none             & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} \\
+VLM2Vec-7B             & MMEB contrastive & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} \\
+GME-7B                 & GME              & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% REPRO(tab:mm_evqa): E-VQA OOD transfer -- train on InfoSeek only, evaluate on the E-VQA test
+%   set (4,744 rows) over the 382K-passage E-VQA corpus:
+%   python3 mmrag/build_evqa_data.py --data_dir $MMRAG_DATA --distractor_articles 25000
+%   then REPRO(eval-any-checkpoint) with --dataset evqa.   IN FLIGHT (corpus building).
+\paragraph{Out-of-domain transfer.} Table~\ref{tab:mm_evqa} takes every InfoSeek-trained arm to
+Encyclopedic-VQA without further training. This is where the v1 wave was weakest --- a
+single-corpus annotation-free adapter transferred below its own zero-shot base --- so it is the
+sharpest test of whether removing the anchor helps or hurts off-domain, and specifically whether
+the tail recall the anchor buys is what transfer needs. The anchor mechanism above makes a
+falsifiable prediction here: if transfer is recall-limited, v2 should lead this table even though
+v3 leads in-domain.
+
+\begin{table}[t]
+\centering\small
+\caption{OOD transfer to Encyclopedic-VQA after InfoSeek-only training. E-VQA test
+($4{,}744$ rows) over the $382$K-passage E-VQA corpus; VQA accuracy is top-$5$ with the frozen
+\textsc{Qwen2.5-VL-7B} reader. \textbf{All cells pending --- results land from the runner
+session.}}
+\label{tab:mm_evqa}
+\begin{tabular}{lccc}
+\toprule
+arm (trained on InfoSeek) & entity R@5 & answer R@5 & VQA acc \\
+\midrule
+zero-shot base      & \emph{pending} & \emph{pending} & \emph{pending} \\
+relevance-SFT       & \emph{pending} & \emph{pending} & \emph{pending} \\
+v1 listwise         & \emph{pending} & \emph{pending} & \emph{pending} \\
+v2 PL-PG $+$ anchor & \emph{pending} & \emph{pending} & \emph{pending} \\
+v3-pure             & \emph{pending} & \emph{pending} & \emph{pending} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% REPRO(tab:mm_v3add): runs v3-{pure,ent,kl,full,rloo} and v3-ent-s1; code VLM2Vec-rl
+%   a3b734e..efc7dfb on branch v23-base. Each row = REPRO(train) plus exactly one flag group:
+%   +entropy  --entropy_coef 0.01
+%   +rloo     --baseline rloo
+%   +kl       --kl_beta 0.05
+%   +all      --kl_beta 0.05 --entropy_coef 0.01 --baseline rloo --pl_behavior_temperature 0.05
+%   Seed counts as marked in the table; v3-ent-s1 and v3-rloo IN FLIGHT.
+\paragraph{Nothing added to v3 helps.} The redesign proposed four RL-native replacements for the
+anchor: a KL trust region to the initial policy, a first-position entropy bonus, an RLOO
+baseline, and a decoupled behaviour temperature with a clipped importance ratio.
+Table~\ref{tab:mm_v3add} measures them. Entropy is neutral, KL costs $1.8$ points, and the full
+combination costs $3.3$; the simplest estimator is the best one. The KL result is consistent with
+the text side's, where activating KL on an enumerated-pool run changed the outcome by exactly
+zero: in a \emph{pool-restricted} Plackett--Luce setup the support restriction already supplies
+the trust region, so an explicit one is somewhere between free and harmful. The scope of that
+claim matters, and it is the one place we would expect it to break --- the text side did collapse
+when the partition function was normalized over the full corpus, and needed a frozen-base trust
+region to recover. If this method is moved to corpus-wide normalization, expect KL-to-frozen-base
+to become necessary again.
+
+\begin{table}[t]
+\centering\small
+\caption{Additions to v3-pure, one flag group at a time. VQA top-$5$ accuracy, protocol as in
+Table~\ref{tab:mm_main}. Single seed unless noted; the second entropy seed and the RLOO cell are
+\emph{pending} from the runner session.}
+\label{tab:mm_v3add}
+\begin{tabular}{llc}
+\toprule
+variant & flags & VQA acc \\
+\midrule
+\textbf{v3-pure} & ---                                      & $\mathbf{34.71 \pm 0.19}$ (3 seeds) \\
+$+$ entropy      & \texttt{--entropy\_coef 0.01}            & $34.40$ (1 seed); seed 1 \emph{pending} \\
+$+$ RLOO         & \texttt{--baseline rloo}                 & \emph{pending} \\
+$+$ KL           & \texttt{--kl\_beta 0.05}                 & $32.93$ (1 seed) \\
+$+$ all          & KL $+$ entropy $+$ RLOO $+$ $T_b{=}0.05$ & $31.40$ (1 seed) \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 \input{fig_mm_scaling}

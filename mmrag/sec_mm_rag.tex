@@ -595,9 +595,11 @@ values, and one set of five passages is returned for $1{,}350$ of them.
 Counting distinct top-$5$ sets separates useless retrieval from collapsed retrieval, which recall
 cannot. Every healthy arm returns $2{,}800$--$3{,}000$ distinct sets with a modal set covering at
 most $0.3\%$ of queries, and that includes the arms that retrieve \emph{terribly}: raw
-\textsc{Qwen2-VL-2B} at R@5 $0.03$ still returns $2{,}998$ distinct sets. The three collapsed
+\textsc{Qwen2-VL-2B} at R@5 $0.03$ still returns $2{,}998$ distinct sets. The collapsed
 cells return $214$ (\textsc{CLIP-L}), $338$ (\textsc{SigLIP2}) and $67$, with modal sets covering
-$18.7\%$, $8.7\%$ and $45.0\%$. The separation is an order of magnitude with no overlap and it is
+$18.7\%$, $8.7\%$ and $45.0\%$. Raw \textsc{Qwen2-VL-7B} is the one cell that resists the
+dichotomy, at $1{,}342$ distinct sets --- neither contracted nor spread --- and we report it as
+a mixed signature rather than forcing it into either phenotype. The separation is an order of magnitude with no overlap and it is
 orthogonal to recall --- \textsc{Qwen2-VL-2B} zero-shot and after v3-pure differ by $45\times$ in
 distinct count while differing by $0.03$ points in R@5. We therefore report the collapse \emph{we} observe --- embedding
 degeneracy --- by this signature rather than by a recall threshold. The scope matters, and it is not the scope we
@@ -1046,7 +1048,20 @@ most of the bootstrap along with it.
 %   v1 cells:  {qwen2b,vlm2vec2b,siglip2,qwen7b,vlm2vec7b}-nogold -- the tag v1-listwise-top8
 %     recipe: --algo grpo --num_candidates 8 --contrastive_coef 0.3 --no_force_gold
 %   v3 cells:  {clip,qwen2b,vlm2vec2b,qwen7b}-v3pure, clipb32-v3pure, gme7b-v3pure
-%     (gme7b-v3pure = job a2cbeb8aca03de14), siglip2-v3pure (job 2f60bb0e)
+%     (gme7b-v3pure = job a2cbeb8aca03de14, LANDED acc 0.3460 entR@5 0.8097 distinct 2877),
+%     siglip2-v3pure (job 2f60bb0e)
+%   7B CAPACITY CAVEAT: the fresh v3 7B cell shows NO accuracy gain over 2B (0.3460 vs the 3-seed
+%     0.3471) while retrieval gains +4.88 entR@5. The recorded v1-wave 7B advantage therefore does
+%     NOT reproduce under the corrected estimator. Two live readings kept in the prose: (a)
+%     estimator x capacity interaction (recipe-specific gain) -- a real finding if it holds; (b)
+%     wave/seed noise. DISCRIMINATORS, neither queued as of writing: gme7b-v3 replicate seeds, and
+%     a FRESH gme7b-v1 twin. Do not resolve this in prose until one exists.
+%   qwen7b-v3pure LANDED acc 0.2060, entR@5 0.0000, distinct 1342 -- MIXED phenotype (neither the
+%     67-338 contracted band nor the ~3000 spread band). Reported as mixed, not forced.
+%   BOTTLENECK REMARK is cross-wave: 7B v3 retrieval/accuracy are fresh, the ~0.503 gold-context
+%     oracle is RECORDED wave and no fresh oracle cell exists. Labelled indicative in the prose;
+%     a fresh oracle would firm it up (synthesize a retrieval json with gold_pids as topk, then
+%     eval_vqa -- no training, one eval).
 %     -- REPRO(train) with --profile <rung>
 %   clipb16: the profile exists (978adfd) but NO cell is planned -- B/32 covers the floor
 %     question. Do not add a clipb16 row to the table.
@@ -1115,9 +1130,9 @@ Qwen2-VL-2B (raw)      & none             & 19.93 & 0.03 & \multicolumn{2}{c}{\e
 VLM2Vec-2B             & MMEB contrastive & 17.60 & 15.67 & \multicolumn{2}{c}{\emph{pending}} & 17.20 & 0.70 \\
 GME-2B \emph{(headline)} & GME            & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} \\
 \midrule
-Qwen2-VL-7B (raw)      & none             & 16.20 & 0.47 & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} \\
+Qwen2-VL-7B (raw)      & none             & 16.20 & 0.47 & \multicolumn{2}{c}{\emph{pending}} & 20.60 & 0.00 \\
 VLM2Vec-7B             & MMEB contrastive & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} \\
-GME-7B                 & GME              & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} \\
+GME-7B                 & GME              & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} & 34.60 & 80.97 \\
 \bottomrule
 \end{tabular}
 \end{table}

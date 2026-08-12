@@ -257,6 +257,15 @@ from its own base while indirect RL does. That is the result the text side could
 there, annotation-free training never beat a properly tuned, data-matched relevance-SFT on
 high-adequacy data.
 
+It is worth being concrete about what this retriever actually delivers, because the top-$5$
+context is not mostly evidence. Measured over the same $3{,}000$ rankings, the zero-shot arm's
+top-$5$ contains on average $0.74$ answer-bearing passages against $0.91$ that belong to the gold
+entity without containing the answer, and $3.34$ that are neither
+(Table~\ref{tab:mm_bands}). The working system therefore operates at a \emph{net} misleading
+load and still clears the image-alone floor by $11.5$ points. Training moves that mix rather than
+purifying it, which is the sense in which answer-success reward is a ranking signal rather than
+an evidence-selection one.
+
 \begin{table}[t]
 \centering\small
 \caption{InfoSeek, main arms. L1 over the full $422{,}378$-passage corpus ($n{=}3{,}000$);
@@ -376,6 +385,13 @@ the three answer metrics, v2 on the three retrieval metrics.}
 %   NOISE BAND: the four sub-0.5% R@5 rungs span +0.67 to -3.07 pts, and two cells at .0040 vs
 %   .0047 R@5 differ by 2.5 pts -- so only deviations >3 pts are interpretable. Do NOT lean on
 %   qwen7b's -3.07: it sits inside the band.
+%   BAND-EDGE OUTLIER: qwen2b-v3pure acc 0.2260 = +3.33 vs floor at entR@5 EXACTLY 0.0000.
+%   Wrong side for ignored-junk. Degeneracy MEASURED (writer session, from
+%   results/qwen2b-v3pure.retrieval.json): only 67 distinct top-5 sets over 3000 queries, the
+%   modal set returned for 1350 of them (45%). So the context is near-CONSTANT, not varied junk.
+%   Discriminator: the band sweep's `random` cell is varied junk with the same reader -- if it
+%   lands at floor while this sits at +3.3, the constant-vs-varied clause is earned; if it also
+%   lands high, the floor has wider error than the noctx run implies and the band widens to ~3.5.
 %   DIP-THEN-RECOVER, full fresh series sorted by entity R@5 (deltas vs the 0.1927 floor, pts):
 %     .0003 qwen2b-zs      +0.67
 %     .0040 siglip2-v3pure -0.60      <- collapsed cells, at floor
@@ -479,8 +495,10 @@ reward is precisely the regime in which no rescue is needed. The one external-po
 cell available (HotpotQA cover-EM $-8.8$, no retrieval collapse) therefore confounds positive
 type with reward regime and cannot settle it.
 \textsc{SigLIP2} then replicated it
-independently --- $8.23 \to 0.40$, a $20.6\times$ fall --- so at both measured weak rungs pure RL
-does not merely fail to learn: it destroys the retrieval ability the encoder started with. The
+independently --- $8.23 \to 0.40$, a $20.6\times$ fall --- and raw \textsc{Qwen2-VL-2B}, which
+starts at random ($0.03$), ends at entity R@5 of exactly $0.00$. At all three measured weak rungs
+pure RL fails, and at the two that had something to lose it does not merely fail to learn: it
+destroys the retrieval ability the encoder started with. The
 density branch fired, the structural explanation is dead, and the two-jobs account is now
 measured on a complete $2\times2$ across modalities: the identical estimator that gains on a
 reward-dense base collapses outright on a reward-sparse one.
@@ -508,7 +526,17 @@ sits at weak-but-credible relevance and reverses as genuinely useful retrievals 
 dominate, which is the shape the mechanism predicts: context must be relevant enough to be
 believed before it can mislead, and past some quality the help outweighs the misleads.
 
-Three qualifications. The minimum is \emph{bracketed} between R@5 $8.23$ and $15.67$, not
+One cell sits awkwardly and we flag it rather than drop it: collapsed raw
+\textsc{Qwen2-VL-2B} scores $22.60$, some $3.3$ points \emph{above} the floor on
+zero-relevance context, which is the wrong side for an ``ignored junk'' account. Its retrieval is
+not merely bad but \emph{degenerate}, and measurably so: across $3{,}000$ queries its top-$5$
+takes only $67$ distinct values, and a single set of five passages is returned for $1{,}350$ of
+them. Constant, blatantly irrelevant context is plausibly easier for a reader to discount than
+varied junk, but that step is about reader behaviour and we have not measured it; the band
+sweep's random cell (varied junk, same reader) is the direct comparison and will settle whether
+this needs an explanation or merely a wider band.
+
+Three further qualifications. The minimum is \emph{bracketed} between R@5 $8.23$ and $15.67$, not
 located. Deviations smaller than ${\sim}3$ points are not interpretable: among the four rungs
 below R@5 $0.5$ the scores span $+0.67$ to $-3.07$, and two cells with effectively identical
 retrieval ($0.40$ and $0.47$) differ by $2.5$ points. Most importantly, this curve is drawn
@@ -822,7 +850,7 @@ CLIP-B/32 ($\sim$150M) & CLIP   & 15.13 & 2.60 & \multicolumn{2}{c}{\emph{pendin
 CLIP-L ($\sim$430M)    & CLIP   & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} \\
 SigLIP2-so400m         & SigLIP & 13.13 & 8.23 & \multicolumn{2}{c}{\emph{pending}} & 18.67 & 0.40 \\
 \midrule
-Qwen2-VL-2B (raw)      & none             & 19.93 & 0.03 & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} \\
+Qwen2-VL-2B (raw)      & none             & 19.93 & 0.03 & \multicolumn{2}{c}{\emph{pending}} & 22.60 & 0.00 \\
 VLM2Vec-2B             & MMEB contrastive & 17.60 & 15.67 & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} \\
 GME-2B \emph{(headline)} & GME            & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} \\
 \midrule

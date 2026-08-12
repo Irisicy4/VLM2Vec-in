@@ -514,7 +514,25 @@ cross-modal replication: the matching multimodal cell cannot be run, because the
 asserts annotation-free pools by construction, so the convergence itself is text-measured and
 only its anchored endpoint is confirmed here.
 
-\emph{A scope condition, from a counter-example on the other modality.} Everything above holds in
+\begin{table}[t]
+\centering\small
+\caption{Margin at the contrastive temperature, measured under the base policy. Gap between the
+query's own top-$1$ and the best cross-query document in the batch, in units of $\tau$;
+$48$ queries per side. ``Competitive'' counts gaps below $3\tau$. The text row was measured by
+the text-side session for this comparison (their Table 8d); the rule is a joint finding, first
+stated there.}
+\label{tab:mm_margin}
+\begin{tabular}{lccccccl}
+\toprule
+side & min & p10 & median & p90 & competitive & inverted & anchor behaviour \\
+\midrule
+multimodal (InfoSeek, $\tau{=}0.03$) & 0.00 & 2.21 & 6.38 & 9.07 & $17\%$ & $0\%$ & binding ($0.5$--$0.6$ for 500 steps) \\
+text (TriviaQA, $\tau{=}0.02$)       & 2.78 & 7.18 & 14.43 & 17.54 & $2\%$  & $0\%$ & inert (born at $0.44$) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{When the anchor is not optional.} Everything above holds in
 a reward-dense regime: our mean per-passage reward is ${\approx}0.26$, so most pools carry signal.
 The text side ran the exact anchor-removal twin of v3 and its arms \emph{collapsed} --- TriviaQA
 R@5 $43.1$ against a base of $58.1$, WebQuestions R@5 $6.3$ against $55.5$ --- the opposite of
@@ -564,30 +582,7 @@ density branch fired, the structural explanation is dead, and the two-jobs accou
 measured on a complete $2\times2$ across modalities: the identical estimator that gains on a
 reward-dense base collapses outright on a reward-sparse one.
 
-One measurement warning follows, and it is not a technicality: on these rungs VQA accuracy is
-\emph{anti}-diagnostic. \textsc{SigLIP2} supplies the cleanest demonstration, because it is a
-within-rung comparison --- one encoder, two retrievers, nothing else varied. Zero-shot it
-retrieves weakly relevant but wrong passages (entity R@5 $8.23$) and scores $13.13$; after the
-collapse it retrieves essentially noise (R@5 $0.40$) and scores $18.67$. The \emph{worse}
-retriever is worth $5.5$ points \emph{more} accuracy. \textsc{CLIP-L} shows the same sign more
-weakly ($19.00$ collapsed against $17.27$ for its anchored twin).
-
-The reading this supports is that noise and plausible error are not equivalent for the reader:
-noise is ignored and it falls back on the image, whereas relevant-looking but wrong context
-misleads it. We measured the fallback level directly rather than inferring it, running the reader
-with \emph{no} retrieved context on the same $1{,}500$-query sample: the image-alone floor is
-$19.27$. The collapsed cells sit on it --- \textsc{SigLIP2} $-0.60$, \textsc{CLIP-L} $-0.27$ ---
-so ``noise is ignored'' is a measurement, not an analogy.
-
-Across all eight fresh cells the deficit against that floor is \emph{not} monotone in retrieval
-quality: it dips and then recovers. Ordered by entity R@5, the deviations are
-$+0.67$ at $0.03$, then $-0.27$ to $-3.07$ across the cluster at $0.40$--$0.47$, $-4.13$ at
-$2.60$, a minimum of $-6.13$ at $8.23$, $-1.67$ at $15.67$, and $+11.53$ at $68.53$. Maximum harm
-sits at weak-but-credible relevance and reverses as genuinely useful retrievals start to
-dominate, which is the shape the mechanism predicts: context must be relevant enough to be
-believed before it can mislead, and past some quality the help outweighs the misleads.
-
-One cell sits awkwardly, and chasing it produced a
+\paragraph{Two ways a retriever fails.} One cell sits awkwardly, and chasing it produced a
 better description of collapse than recall gives. Collapsed raw \textsc{Qwen2-VL-2B} scores
 $22.60$, some $3.3$ points \emph{above} the floor on zero-relevance context --- the wrong side
 for an ``ignored junk'' account. Its retrieval turns out to be not merely bad but
@@ -627,6 +622,28 @@ evidence non-discriminating. One seed and one rung here: a conjecture, not a res
 than the explanation: \emph{no single static diagnostic is sufficient, even within one
 modality}. A distinct-count sees contraction and is blind to drift; a recall-against-base
 comparison sees drift and needs ground truth. We recommend reporting the pair.
+
+\paragraph{What bad context does to a reader.} On these rungs VQA accuracy is \emph{anti}-diagnostic. \textsc{SigLIP2} supplies the cleanest demonstration, because it is a
+within-rung comparison --- one encoder, two retrievers, nothing else varied. Zero-shot it
+retrieves weakly relevant but wrong passages (entity R@5 $8.23$) and scores $13.13$; after the
+collapse it retrieves essentially noise (R@5 $0.40$) and scores $18.67$. The \emph{worse}
+retriever is worth $5.5$ points \emph{more} accuracy. \textsc{CLIP-L} shows the same sign more
+weakly ($19.00$ collapsed against $17.27$ for its anchored twin).
+
+The reading this supports is that noise and plausible error are not equivalent for the reader:
+noise is ignored and it falls back on the image, whereas relevant-looking but wrong context
+misleads it. We measured the fallback level directly rather than inferring it, running the reader
+with \emph{no} retrieved context on the same $1{,}500$-query sample: the image-alone floor is
+$19.27$. The collapsed cells sit on it --- \textsc{SigLIP2} $-0.60$, \textsc{CLIP-L} $-0.27$ ---
+so ``noise is ignored'' is a measurement, not an analogy.
+
+Across all eight fresh cells the deficit against that floor is \emph{not} monotone in retrieval
+quality: it dips and then recovers. Ordered by entity R@5, the deviations are
+$+0.67$ at $0.03$, then $-0.27$ to $-3.07$ across the cluster at $0.40$--$0.47$, $-4.13$ at
+$2.60$, a minimum of $-6.13$ at $8.23$, $-1.67$ at $15.67$, and $+11.53$ at $68.53$. Maximum harm
+sits at weak-but-credible relevance and reverses as genuinely useful retrievals start to
+dominate, which is the shape the mechanism predicts: context must be relevant enough to be
+believed before it can mislead, and past some quality the help outweighs the misleads.
 
 The four failed v3-pure cells then supply a sharper version of the same comparison, because they
 hold utility fixed at zero and vary only how repetitive the junk is. Ordered by diversity, their
@@ -793,6 +810,7 @@ which is why it, and not the curve, is the demonstration.
 %   FALSIFIER for both: if NO intermediate band falls below the floor, the cross-encoder dip was
 %     an encoder-identity artifact, the confound paragraph becomes the finding rather than the
 %     caveat, and both registrations above are reported as missed.
+
 \paragraph{Pinning the dip within one encoder.} The eight-cell curve cannot separate retrieval
 quality from encoder identity, so we run the controlled version: one encoder
 (\textsc{GME-2B} zero-shot), and the reader's context taken from rank band $B$ of \emph{its own}
@@ -868,23 +886,6 @@ The diagnostics are symmetrically limited: degeneracy is detectable statically a
 labels, drift only against ground truth. Their collapsed cell at $242/276$ --- and ours at
 $3{,}000/3{,}000$ --- would never have announced itself to a distinct-count.
 
-\begin{table}[t]
-\centering\small
-\caption{Margin at the contrastive temperature, measured under the base policy. Gap between the
-query's own top-$1$ and the best cross-query document in the batch, in units of $\tau$;
-$48$ queries per side. ``Competitive'' counts gaps below $3\tau$. The text row was measured by
-the text-side session for this comparison (their Table 8d); the rule is a joint finding, first
-stated there.}
-\label{tab:mm_margin}
-\begin{tabular}{lccccccl}
-\toprule
-side & min & p10 & median & p90 & competitive & inverted & anchor behaviour \\
-\midrule
-multimodal (InfoSeek, $\tau{=}0.03$) & 0.00 & 2.21 & 6.38 & 9.07 & $17\%$ & $0\%$ & binding ($0.5$--$0.6$ for 500 steps) \\
-text (TriviaQA, $\tau{=}0.02$)       & 2.78 & 7.18 & 14.43 & 17.54 & $2\%$  & $0\%$ & inert (born at $0.44$) \\
-\bottomrule
-\end{tabular}
-\end{table}
 
 % REPRO(repro-table): runs gme2b-zeroshot-3k-repro | sft-lr1e4-h0-repro |
 %   rl-j2e5-nogold-det-repro | rl-j2e5-nogold-det-s3-repro  -- code 2f6aaba (v1 recipe,

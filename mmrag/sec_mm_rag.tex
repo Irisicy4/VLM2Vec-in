@@ -588,11 +588,15 @@ utility. Both phenotypes therefore occur \emph{within} our modality.
 
 Two failures wear one name: the embedding either \emph{contracts}, mapping most queries to a
 handful of fixed sets, or it \emph{drifts} out of alignment while staying fully spread. Which one
-appears tracks the base's pretraining rather than the modality --- the dual-tower and raw-VLM
-rungs contract, and the one contrastively pretrained rung drifts. A natural hypothesis is that
-MMEB-style contrastive pretraining leaves a uniformity-regularized geometry that resists
-contraction, so its failure mode is forced to be misalignment instead; that is one seed and one
-rung, and we flag it as a conjecture rather than a result. The consequence for practice is firmer
+appears tracks the base's pretraining rather than the modality. The distinction is not simply
+contrastive pretraining --- CLIP and SigLIP are contrastively trained too, and they contract ---
+but whether pretraining ever spread the \emph{retrieval domain}: \textsc{VLM2Vec} is trained
+contrastively over text targets and drifts, whereas CLIP and SigLIP align images to captions
+without ever spreading a passage corpus, and the raw VLMs have no retrieval pretraining at all.
+The conjecture is therefore that domain-uniformity in pretraining leaves a geometry that resists
+contraction, forcing the failure into misalignment instead. It is consistent with the text side,
+whose runs are all on such bases and which sees only drift --- though that also makes their
+evidence non-discriminating. One seed and one rung here: a conjecture, not a result. The consequence for practice is firmer
 than the explanation: \emph{no single static diagnostic is sufficient, even within one
 modality}. A distinct-count sees contraction and is blind to drift; a recall-against-base
 comparison sees drift and needs ground truth. We recommend reporting the pair.

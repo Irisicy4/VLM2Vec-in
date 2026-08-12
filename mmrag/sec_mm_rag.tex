@@ -385,6 +385,27 @@ the three answer metrics, v2 on the three retrieval metrics.}
 %   NOISE BAND: the four sub-0.5% R@5 rungs span +0.67 to -3.07 pts, and two cells at .0040 vs
 %   .0047 R@5 differ by 2.5 pts -- so only deviations >3 pts are interpretable. Do NOT lean on
 %   qwen7b's -3.07: it sits inside the band.
+% REPRO(distinct-top5): collapse signature, 3 lines over any retrieval json, no GPU --
+%     d=json.load(open(f)); Counter(tuple(v['topk'][:5]) for v in d.values())
+%   report len(counter) and the modal share. Helper now shipped as collect_results.distinct_top5
+%   (VLM2Vec-rl @ 0f77365). Measured over the 3000-query eval:
+%     HEALTHY (any recall level)          distinct  modal%   entR@5
+%       qwen2b-zeroshot                     2998     0.1     0.0003   <- useless but VARIED
+%       siglip2-zs-fresh                    2974     0.1     0.0823
+%       clipb32-zeroshot                    2971     0.1     0.0260
+%       vlm2vec2b-zs-fresh                  2955     0.1     0.1567
+%       sft-lr1e4-h0-repro                  2933     0.1     0.7363
+%       qwen7b-zeroshot                     2931     0.1     0.0047
+%       gme2b-zeroshot-3k-repro             2904     0.2     0.6853
+%       v3-pure                             2899     0.2     0.7527
+%       plgrpo-gme2b-nogold                 2856     0.2     0.8003
+%       clip-nogold-base                    2810     3.6     0.2913
+%     PARTIAL: clip-nogold-gate             1824     1.4     0.0380
+%     COLLAPSED                              214    18.7     0.0043   clip-v3pure
+%                                            338     8.7     0.0040   siglip2-v3pure
+%                                             67    45.0     0.0000   qwen2b-v3pure
+%   Order-of-magnitude separation, no overlap, ORTHOGONAL to recall (qwen2b zs vs v3pure: 45x in
+%   distinct count, 0.0003 in R@5). Use this, not an R@5 threshold, to call collapse.
 %   BAND-EDGE OUTLIER: qwen2b-v3pure acc 0.2260 = +3.33 vs floor at entR@5 EXACTLY 0.0000.
 %   Wrong side for ignored-junk. Degeneracy MEASURED (writer session, from
 %   results/qwen2b-v3pure.retrieval.json): only 67 distinct top-5 sets over 3000 queries, the
@@ -484,7 +505,13 @@ variable, versus merely underperforming its anchored twin if the split is struct
 and $12.6\times$ below its own zero-shot retrieval. Note what that rescue implies under the
 definition above: the term that makes a weak rung learnable at all is \emph{self-referential and
 label-free}, so collapse prevention is bought with no supervision whatsoever --- purely by the
-contrastive geometry of pushing a query away from other queries' passages. That is now shown
+contrastive geometry of pushing a query away from other queries' passages. That geometry leaves a
+direct footprint, and it is the cleanest pairing in this story: \textsc{CLIP-L} trained with the
+anchor returns $2{,}810$ distinct top-$5$ sets across the $3{,}000$ evaluation queries, while the
+same encoder under the same reward on the same pools, differing \emph{only} by that term, returns
+$214$. A thirteenfold difference in retrieval diversity, from one loss term. Collapse prevention
+is therefore not an inference from downstream accuracy --- it is visible statically, in how many
+distinct things the policy is still able to retrieve. That is now shown
 independently on both modalities with the \emph{same} positive type: removing a self-argmax
 anchor collapses two of our weak rungs and, on text, both of the reward-sparse cells
 (partial on TriviaQA, total on WebQuestions, R@5 $6.3$ against a base of $55.5$). Collapse prevention is therefore demonstrated
@@ -526,15 +553,29 @@ sits at weak-but-credible relevance and reverses as genuinely useful retrievals 
 dominate, which is the shape the mechanism predicts: context must be relevant enough to be
 believed before it can mislead, and past some quality the help outweighs the misleads.
 
-One cell sits awkwardly and we flag it rather than drop it: collapsed raw
-\textsc{Qwen2-VL-2B} scores $22.60$, some $3.3$ points \emph{above} the floor on
-zero-relevance context, which is the wrong side for an ``ignored junk'' account. Its retrieval is
-not merely bad but \emph{degenerate}, and measurably so: across $3{,}000$ queries its top-$5$
-takes only $67$ distinct values, and a single set of five passages is returned for $1{,}350$ of
-them. Constant, blatantly irrelevant context is plausibly easier for a reader to discount than
-varied junk, but that step is about reader behaviour and we have not measured it; the band
-sweep's random cell (varied junk, same reader) is the direct comparison and will settle whether
-this needs an explanation or merely a wider band.
+One cell sits awkwardly, and chasing it produced a
+better description of collapse than recall gives. Collapsed raw \textsc{Qwen2-VL-2B} scores
+$22.60$, some $3.3$ points \emph{above} the floor on zero-relevance context --- the wrong side
+for an ``ignored junk'' account. Its retrieval turns out to be not merely bad but
+\emph{degenerate}: across the $3{,}000$ evaluation queries its top-$5$ takes only $67$ distinct
+values, and one set of five passages is returned for $1{,}350$ of them.
+
+Counting distinct top-$5$ sets separates useless retrieval from collapsed retrieval, which recall
+cannot. Every healthy arm returns $2{,}800$--$3{,}000$ distinct sets with a modal set covering at
+most $0.3\%$ of queries, and that includes the arms that retrieve \emph{terribly}: raw
+\textsc{Qwen2-VL-2B} at R@5 $0.03$ still returns $2{,}998$ distinct sets. The three collapsed
+cells return $214$ (\textsc{CLIP-L}), $338$ (\textsc{SigLIP2}) and $67$, with modal sets covering
+$18.7\%$, $8.7\%$ and $45.0\%$. The separation is an order of magnitude with no overlap and it is
+orthogonal to recall --- \textsc{Qwen2-VL-2B} zero-shot and after v3-pure differ by $45\times$ in
+distinct count while differing by $0.03$ points in R@5. We therefore report collapse by this
+signature rather than by a recall threshold.
+
+That same pair supplies the constant-versus-varied comparison directly, inside one rung: varied
+junk ($2{,}998$ distinct, R@5 $0.03$) scores $19.93$, exactly the floor, while near-constant junk
+($67$ distinct, R@5 $0.00$) scores $22.60$, above it. The reader does not merely ignore degenerate
+context, it does marginally \emph{better} with it than with no context at all --- though one of
+the two arms is trained and the other is not, so the band sweep's random cell, which holds the
+encoder fixed and untrained, remains the clean test.
 
 Three further qualifications. The minimum is \emph{bracketed} between R@5 $8.23$ and $15.67$, not
 located. Deviations smaller than ${\sim}3$ points are not interpretable: among the four rungs
@@ -765,7 +806,8 @@ the text side's $1.3\times$, at an overall keep rate of $49.8\%$. Yet at the 2B 
 downstream effect is neutral --- $33.67$ gated against $33.33$ for the identical ungated control,
 inside seed noise. At the weak rung it is actively harmful: CLIP-L, whose annotation-free RL
 lifts entity R@5 from $5.4$ to $29.1$, collapses to $3.8$ under the gate, which keeps only
-$20.4\%$ of queries (keep-given-gold $0.800$, but on only $n{=}5$ gold-bearing pools --- the
+$20.4\%$ of queries and partially degenerates the retriever with it ($1{,}824$ distinct top-$5$
+sets against $2{,}810$ for its ungated twin) (keep-given-gold $0.800$, but on only $n{=}5$ gold-bearing pools --- the
 detector has almost nothing left to detect). We attribute the difference to offline versus online
 filtering: on a fixed mined pool, dropping mislabeled examples is pure gain, whereas in an online
 loop the dropped queries are precisely those whose retrieval most needs to change, so filtering

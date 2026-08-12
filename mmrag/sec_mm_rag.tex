@@ -364,15 +364,31 @@ the three answer metrics, v2 on the three retrieval metrics.}
 %   if it does not, the CLIP-L rescue was rung-specific and the sentence stays out.
 %   MEASURED: no-context floor = 0.1927 (strictEM 0.0860, F1 0.1623), eval_vqa --no-context,
 %   n=1500 seed-0, fresh wave, results/gme2b-zeroshot-3k-repro.vqa_noctx.json. The filename
-%   carries the retrieval json it piggybacks on, but the number is RETRIEVAL-INDEPENDENT and
-%   applies to every rung. Recorded-wave reference was 0.1867.
+%   carries the retrieval json it piggybacks on, but ONE floor is valid for every rung:
+%   retrieval-independent by construction -- the context is empty, images are loaded from the
+%   shared store by image_id and preprocessed with the READER's own processor (not the encoder's),
+%   and the query sample is profile-independent (eval_retrieval filters on image availability
+%   against the same store and draws the same seed-0 3000; eval_vqa draws the same seed-0 1500).
+%   Recorded-wave reference was 0.1867.
 %   Deltas vs floor (all fresh): qwen2b-zs +0.0067 (R@5 .0003) | clip-v3pure -0.0027 (.0043) |
 %     siglip2-v3pure -0.0060 (.0040) | qwen7b-zs -0.0307 (.0047) | clipb32-zs -0.0413 (.0260) |
 %     siglip2-zs -0.0613 (.0823).
 %   NOISE BAND: the four sub-0.5% R@5 rungs span +0.67 to -3.07 pts, and two cells at .0040 vs
-%   .0047 R@5 differ by 2.5 pts -- so only deviations >3 pts are interpretable. siglip2-zs
-%   (-6.13) is the only cell clearly outside it; clipb32-zs (-4.13) is the second. Do NOT lean
-%   on qwen7b's -3.07: it sits inside the band.
+%   .0047 R@5 differ by 2.5 pts -- so only deviations >3 pts are interpretable. Do NOT lean on
+%   qwen7b's -3.07: it sits inside the band.
+%   DIP-THEN-RECOVER, full fresh series sorted by entity R@5 (deltas vs the 0.1927 floor, pts):
+%     .0003 qwen2b-zs      +0.67
+%     .0040 siglip2-v3pure -0.60      <- collapsed cells, at floor
+%     .0043 clip-v3pure    -0.27
+%     .0047 qwen7b-zs      -3.07
+%     .0260 clipb32-zs     -4.13
+%     .0823 siglip2-zs     -6.13      <- MINIMUM (maximum harm)
+%     .1567 vlm2vec2b-zs   -1.67      <- recovering
+%     .6853 gme2b-zs      +11.53
+%   The minimum is BRACKETED by .0823/.1567, not located. CONFOUND: the curve runs across
+%   DIFFERENT ENCODERS, so relevance is confounded with encoder identity -- it shows the shape,
+%   it does not isolate the cause. The within-rung siglip2 pair (zs vs v3pure, one encoder) is
+%   the only confound-free comparison and must stay the demonstration.
 %   WITHIN-RUNG evidence for the misleading-context reading, all fresh, all in tab:mm_ladder:
 %     siglip2 zs      R@5 0.0823 (weakly relevant, wrong) -> acc 0.1313
 %     siglip2 v3pure  R@5 0.0040 (noise)                  -> acc 0.1867   same encoder
@@ -477,25 +493,28 @@ collapse it retrieves essentially noise (R@5 $0.40$) and scores $18.67$. The \em
 retriever is worth $5.5$ points \emph{more} accuracy. \textsc{CLIP-L} shows the same sign more
 weakly ($19.00$ collapsed against $17.27$ for its anchored twin).
 
-The reading this supports is that the two failure modes are not equivalent for the reader:
-noise is ignored, and the reader falls back on the image; plausible-but-wrong context actively
-misleads it. We measured the fallback level directly rather than inferring it, by running the
-reader with \emph{no} retrieved context on the same $1{,}500$-query sample: the image-alone floor
-is $19.27$. The collapsed cells sit on it --- \textsc{SigLIP2} $18.67$ ($-0.60$) and
-\textsc{CLIP-L} $19.00$ ($-0.27$) --- so ``noise is ignored'' is now a measurement rather than an
-analogy.
+The reading this supports is that noise and plausible error are not equivalent for the reader:
+noise is ignored and it falls back on the image, whereas relevant-looking but wrong context
+misleads it. We measured the fallback level directly rather than inferring it, running the reader
+with \emph{no} retrieved context on the same $1{,}500$-query sample: the image-alone floor is
+$19.27$. The collapsed cells sit on it --- \textsc{SigLIP2} $-0.60$, \textsc{CLIP-L} $-0.27$ ---
+so ``noise is ignored'' is a measurement, not an analogy.
 
-Two cautions keep this from being read as more than it is. First, accuracy on junk context
-carries a $\pm 3$-point band: among the four rungs retrieving at R@5 below $0.5$, scores range
-from $+0.67$ above floor (raw \textsc{Qwen2-VL-2B}) to $-3.07$ below it (raw
-\textsc{Qwen2-VL-7B}), and two cells with effectively identical retrieval ($0.40$ and $0.47$)
-differ by $2.5$ points. Only deviations larger than that band carry any mechanistic weight, which
-is what makes \textsc{SigLIP2}'s zero-shot deficit the load-bearing observation: at R@5 $8.23$ it
-sits $6.13$ points below floor, twice the band. Second, the two cells that sit clearly below
-floor are also the two with the most weakly-relevant retrieval (\textsc{CLIP-B/32} $-4.13$ at R@5
-$2.60$; \textsc{SigLIP2} $-6.13$ at $8.23$), which is consistent with the deficit growing as
-retrieval becomes relevant enough to be believed --- but two points do not establish a trend, and
-we do not claim one.
+Across all eight fresh cells the deficit against that floor is \emph{not} monotone in retrieval
+quality: it dips and then recovers. Ordered by entity R@5, the deviations are
+$+0.67$ at $0.03$, then $-0.27$ to $-3.07$ across the cluster at $0.40$--$0.47$, $-4.13$ at
+$2.60$, a minimum of $-6.13$ at $8.23$, $-1.67$ at $15.67$, and $+11.53$ at $68.53$. Maximum harm
+sits at weak-but-credible relevance and reverses as genuinely useful retrievals start to
+dominate, which is the shape the mechanism predicts: context must be relevant enough to be
+believed before it can mislead, and past some quality the help outweighs the misleads.
+
+Three qualifications. The minimum is \emph{bracketed} between R@5 $8.23$ and $15.67$, not
+located. Deviations smaller than ${\sim}3$ points are not interpretable: among the four rungs
+below R@5 $0.5$ the scores span $+0.67$ to $-3.07$, and two cells with effectively identical
+retrieval ($0.40$ and $0.47$) differ by $2.5$ points. Most importantly, this curve is drawn
+\emph{across} encoders, so retrieval quality is confounded with encoder identity; it establishes
+the shape but cannot isolate the cause. Only the \textsc{SigLIP2} pair holds the encoder fixed,
+which is why it, and not the curve, is the demonstration.
 
 The reporting rule does not depend on the mechanism, and it is firm: on weak rungs, quote
 retrieval. An accuracy-only table would have recorded both of these collapses as improvements.

@@ -218,7 +218,19 @@ online learning from bandit feedback with a reward-weighted ranking loss: reinfo
 its supervision, supervised-style in its update. \emph{v2} replaces that update with the
 correctly factorized Plackett--Luce policy gradient described above while keeping the InfoNCE
 anchor; \emph{v3-pure} additionally removes the anchor. Only v2 and v3 are policy gradients, and
-only v3 is free of contrastive supervision.
+only v3 is free of any contrastive term.
+
+\emph{What ``anchored'' means here, since the word is load-bearing.} \textbf{Anchored} denotes
+the addition of an InfoNCE term whose positive is \emph{the policy's own top-$1$ retrieval} --- a
+self-supervised, label-free mechanism (v1 and v2). No anchored run in this paper uses a gold
+passage as the anchor positive. Every arm, anchored or pure, is trained on identical inputs:
+pure policy pools, no gold passage inserted anywhere, verified per run from the shipped
+configuration files. The anchored-versus-pure contrast therefore isolates a single
+\emph{mechanism} --- the presence of the contrastive term --- at \emph{fixed supervision}: both
+arms see exactly the same data and the same answer-only reward. This matters for reading the rest
+of the section: ``anchored'' is never a synonym for ``gold-supervised.'' Where gold-seeded runs
+from the recorded v1 wave are quoted they carry an explicit \textsc{[gold]} tag and are a
+different axis entirely.
 
 % REPRO(tab:mm_main): fresh same-cluster retrains. Training per REPRO(train) above, seeds 0/1/2
 %   (v3-pure, v3-pure-s1, v3-pure-s2) and 0/2/3 (plgrpo-gme2b-nogold, plgrpo-s2, plgrpo-s3);
@@ -271,6 +283,20 @@ v1 $85.73$, v2 $85.73$, v3-pure $82.23$. Bold marks the best trained arm per col
 the three answer metrics, v2 on the three retrieval metrics.}
 \end{table}
 
+% REPRO(anchored-definition): "anchored" == contrastive_coef > 0 with the InfoNCE positive being
+%   candidate 0 of the pool, which under --no_force_gold is the policy's OWN top-1
+%   (train_rl.py: cands = retrieved[:N]; rl_core.infonce_loss labels = arange(B)*P, i.e. slot 0).
+%   Audit that no anchored run smuggles in a gold positive -- 0 exceptions over every anchored
+%   run on disk (39 at time of writing, a superset of the 16 cited in this section):
+%     python3 - <<'EOF'
+%     import json, glob, os
+%     for d in sorted(glob.glob('runs/*/args.json')):
+%         a = json.load(open(d))
+%         if a.get('contrastive_coef', 0) and a.get('algo') in ('grpo', 'ppo', 'plgrpo'):
+%             assert a['no_force_gold'] is True and a['contrastive_coef'] == 0.3, d
+%     EOF
+%   Run from $MMRAG_DATA. Any AssertionError falsifies the fixed-supervision claim.
+%
 % REPRO(anchor-margin): v2 vs v3 is the same command with --contrastive_coef 0.3 vs 0 (runs
 %   plgrpo-gme2b-nogold* vs v3-pure*). InfoNCE trajectories read from each run's metrics.jsonl
 %   (key loss/infonce), first vs last quarter of training.
@@ -334,8 +360,8 @@ The anchor is not a free regularizer being removed. In our runs it is \emph{bind
 still at $0.48$--$0.63$ in the final quarter of training (anchored plgrpo $1.02 \to 0.61$, seed 3
 $1.04 \to 0.63$, the v1-era control $0.80 \to 0.48$), whereas the text side's structurally
 identical anchor decays to $0.0000$ by step $240$. Two single-factor explanations for that
-difference died on each other's data: ``a self-argmax positive is inert by construction'' is
-falsified by our binding self-argmax runs, and ``inert iff the negatives lie inside the
+difference died on each other's data: ``a self-argmax positive is inert by construction'' --- our
+anchors are self-argmax by definition, see above --- is falsified by our binding runs, and ``inert iff the negatives lie inside the
 positive's comparison set'' is falsified by the text side's inert cell with cross-query
 negatives. The surviving rule --- first stated on the text side and adopted here --- is about
 margins at the contrastive temperature: \emph{an anchor is inert iff no in-scope negative sits
@@ -362,10 +388,14 @@ The in-domain trade understates the effect, however. Out of domain
 \emph{answer}-level R@5 by $6.49$ points and accuracy by $3.27$ --- so what the anchor buys is
 specifically entity recall that stops carrying answers once the domain changes. The
 proxy/objective trade is the whole story, and it is sharper off-domain than on. A related
-observation from the text side sharpens what the anchor was carrying: with the anchor removed
-their multi-hop gold and no-gold arms \emph{converge} ($30.8$ vs.\ $31.2$ HotpotQA cover-EM,
-against $39.6$ for the anchored gold arm), so on text the advantage of gold supervision was
-flowing through the contrastive positive rather than through the pools. Our recorded gold-versus-
+observation from the text side sharpens what the anchor was carrying --- with one definitional
+caveat, since their anchor is not ours: on text the gold arm's anchor takes the \emph{annotated}
+passage as its positive, an external-positive anchor, whereas every anchored run here uses the
+policy's own top-$1$. With that anchor removed their multi-hop gold and no-gold arms
+\emph{converge} ($30.8$ vs.\ $31.2$ HotpotQA cover-EM, against $39.6$ with it), so on text the
+advantage of gold supervision was flowing through the contrastive positive rather than through
+the pools --- which is a statement about an external-positive anchor, and is precisely why it
+cannot be restated about ours. Our recorded gold-versus-
 no-gold tie ($34.3$ vs.\ $34.1$, McNemar $p{=}0.93$) is the mirror image with the anchor
 \emph{present}, where gold-in-pool adds nothing. We flag the asymmetry rather than claim a
 cross-modal replication: the matching multimodal cell cannot be run, because the pure estimator
@@ -390,7 +420,11 @@ whose pools are mostly signal-free, into the reward-sparse regime inside our own
 registered branches were collapse below its own zero-shot base if reward density is the deciding
 variable, versus merely underperforming its anchored twin if the split is structural. It
 \emph{collapsed}: entity R@5 $0.43$, against $29.13$ for the anchored twin trained identically,
-and $12.6\times$ below its own zero-shot retrieval. \textsc{SigLIP2} then replicated it
+and $12.6\times$ below its own zero-shot retrieval. Note what that rescue implies under the
+definition above: the term that makes a weak rung learnable at all is \emph{self-referential and
+label-free}, so collapse prevention is bought with no supervision whatsoever --- purely by the
+contrastive geometry of pushing a query away from other queries' passages.
+\textsc{SigLIP2} then replicated it
 independently --- $8.23 \to 0.40$, a $20.6\times$ fall --- so at both measured weak rungs pure RL
 does not merely fail to learn: it destroys the retrieval ability the encoder started with. The
 density branch fired, the structural explanation is dead, and the two-jobs account is now
@@ -624,13 +658,15 @@ capacity claim until that table is complete rather than extrapolating it from v1
 \centering\small
 \caption{Base-model ladder: capacity $\times$ retrieval pretraining. VQA top-$5$ accuracy and
 entity R@5, protocol as in Table~\ref{tab:mm_main}. The \textsc{GME-2B} rung is the headline
-configuration. Zero-shot cells are fresh $3{,}000$-query evaluations, not the recorded
+configuration. Both trained columns use identical, entirely annotation-free inputs and differ
+only in whether the self-supervised InfoNCE term is present; ``anchored'' is a mechanism, not a
+supervision level. Zero-shot cells are fresh $3{,}000$-query evaluations, not the recorded
 $5{,}000$-query ones. \textbf{Cells marked pending land from the runner session; nothing here is
 inferred from a neighbouring rung.}}
 \label{tab:mm_ladder}
 \begin{tabular}{llcccccc}
 \toprule
-& & \multicolumn{2}{c}{zero-shot} & \multicolumn{2}{c}{v1 anchored (no-gold)} & \multicolumn{2}{c}{v3-pure} \\
+& & \multicolumn{2}{c}{zero-shot} & \multicolumn{2}{c}{v1 anchored} & \multicolumn{2}{c}{v3-pure} \\
 \cmidrule(lr){3-4}\cmidrule(lr){5-6}\cmidrule(lr){7-8}
 encoder & retrieval pretraining & acc & R@5 & acc & R@5 & acc & R@5 \\
 \midrule

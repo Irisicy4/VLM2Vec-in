@@ -172,3 +172,27 @@ By the density rule, qwen2b-v3pure should also collapse and qwen2b-nogold (ancho
 interesting cell — can the anchor keep a from-scratch policy alive long enough for the reward
 to shape it? Registered expectation: anchored survives, unanchored collapses, locating the
 boot-strap floor between clipb32 and gme2b.
+
+## The anchor as a restoring force (text-side insight, 2026-08-12, PAPER_TABLES 8f @ 0cdc69c2)
+
+Resolution of why the margin-rule pre-registration missed on collapse: 8d margins are measured
+at the BASE model — a POINT statement. Their anchored-ng twins are anchor(self), inert at init
+by that measurement, yet removal still collapsed training. The anchor is a RESTORING FORCE:
+zero at equilibrium, re-engaging exactly as reward-driven drift shrinks the margins that made
+it inert. Static margins predict ranking pressure; they cannot price collapse prevention,
+because inertness is about a point and collapse is about a trajectory.
+
+Cross-project vocabulary (both papers): anchor(self) = positive is the policy's own top-1
+(all 39 of our anchored runs, audited); anchor(ext) = external/gold positive (their gold arms);
+anchor(stoch) = sampled positive (destructive, both sides' history). "Anchored" is NOT the
+same column across projects without these tags. The sparse-regime rescue is demonstrated by
+BOTH self and ext types -> collapse prevention needs contrastive geometry, not labels or a
+particular positive.
+
+PRE-REGISTERED READINGS for the ladder cells in flight, per the restoring-force account:
+- siglip2-nogold (anchor(self), zs R@5 0.082): rescue should repeat (CLIP-L pattern).
+- qwen2b-nogold (anchor(self), zs R@5 0.0003 — the top-1 positive is a RANDOM doc):
+  * if it still bootstraps -> the anchor needs only a FIXED POINT, not a meaningful one;
+  * if it fails where CLIP-L (0.054) succeeded -> there is a liveness floor below which
+    anchor(self) has nothing to restore to.
+  Either outcome is one clean sentence; both are written here before the cells report.

@@ -120,3 +120,26 @@ separated" to "rank what the reader can answer from," hence R@5 down, accuracy u
 Discriminating cell (pre-registered, in flight on the text side): plgcc0-ng removes their
 inert anchor -> margin rule predicts no-op; our withdrawn scope rule predicted small positive.
 plgcc0-gold removes a binding external anchor -> tests proxy-for-objective transfer.
+
+## Cross-modal split on anchor removal (2026-08-13) — scope condition for v3
+
+Text-side plgcc0 cells landed: their no-anchor no-gold arms COLLAPSE (Trivia R@5 43.1 vs base
+58.1; WQ R@5 6.3 vs base 55.5) while our v3-pure improved both in-domain (+0.9 over anchored)
+and OOD (+3.3). So "drop the anchor" is NOT modality-portable as stated. The margin rule
+correctly predicted the anchor's RANKING pressure was inert on text — what it missed is the
+anchor's second job: absolute cross-query collapse prevention, which becomes load-bearing when
+the reward is sparse (their live-pool rates 21-75% pre-fix; ours healthy at mean ~0.26).
+
+MM datapoints against a pure-density story: v1-cc0 (all-actions, no anchor) never collapsed
+either (recorded 0.3373), so on MM BOTH estimators survive anchor removal.
+
+PRE-REGISTERED DISCRIMINATOR (in flight, job a1eb5830): clip-v3pure = no anchor + weak
+retriever (CLIP-L, zs R@5 0.054) + mostly-junk pools = the text collapse regime reproduced on
+MM. If reward density/liveness is the deciding variable, clip-v3pure should collapse like
+their WQ cell; if the split is modality- or action-structure-driven (their pool construction
+vs our sampled lists), it should merely underperform its anchored twin (clip-nogold-base,
+R@5 0.291). Logged here before the cell reports.
+
+Consequence for the paper: the v3 no-anchor claim carries a scope sentence — demonstrated in
+a reward-dense regime; the text twin collapses in reward-sparse ones; the anchor's
+collapse-prevention role is real and regime-dependent.

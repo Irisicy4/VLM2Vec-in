@@ -281,10 +281,13 @@ different axis entirely.
 %       are stored for every eval). Projection if SFT max ~0.3227: gap +0.024 from +0.037,
 %       expected to stay significant on the discordant-pair arithmetic -- verify, do not assume.
 \paragraph{A pure policy gradient is the best arm.} Table~\ref{tab:mm_main} gives the headline.
-v3-pure reaches $34.71 \pm 0.19$ VQA accuracy over three seeds, against $31.00$ for the
-relevance-SFT baseline and $30.80$ for the zero-shot base --- $+3.71$ over SFT and $+3.91$ over
-the base, significant on \emph{every} seed by paired McNemar ($p \le 4.8\mathrm{e}{-}5$ vs.\ SFT,
-$p \le 4.2\mathrm{e}{-}6$ vs.\ base). The gain is not an accuracy artifact. v3-pure beats SFT on
+v3-pure reaches $34.71 \pm 0.19$ VQA accuracy over three seeds, against $30.80$ for the
+zero-shot base --- $+3.91$, significant on every seed ($p \le 4.2\mathrm{e}{-}6$). Against
+relevance-SFT the comparison depends on how SFT is read, and we give the strict version: at its
+best checkpoint SFT reaches $33.00$, so the margin is $+1.71$, significant in two of three seeds
+($p{=}0.084 / 0.042 / 0.02$). Against the released endpoint at $31.00$ it is $+3.71$ and
+significant on all three, but the best-checkpoint comparison is the fair one and is what we quote
+throughout. The gain is not an accuracy artifact. v3-pure beats SFT on
 every retrieval column as well --- entity R@1 $59.42$ vs.\ $59.13$, R@5 $76.09$ vs.\ $73.63$,
 R@10 $82.23$ vs.\ $79.83$, answer R@5 $63.46$ vs.\ $59.67$ --- and beats the base by a wide
 margin on all of them, so the arm that answers better also retrieves better. The one place the
@@ -318,7 +321,7 @@ $\pm$ is the standard deviation over seeds; single-seed rows are marked.}
 arm & endpoint & max over ckpt & strict-EM & F1 & ent.\ R@1 & ent.\ R@5 & ans.\ R@5 \\
 \midrule
 zero-shot base            & 30.80 & --- & 23.93 & 31.03 & 44.57 & 68.53 & 54.94 \\
-relevance-SFT             & 31.00 & \emph{pending} & 23.87 & 32.13 & 59.13 & 73.63 & 59.67 \\
+relevance-SFT             & 31.00 & 33.00 & 23.87 & 32.13 & 59.13 & 73.63 & 59.67 \\
 v1 listwise $+$ anchor (1 seed) & 33.33 & --- & 24.87 & 33.61 & 58.70 & 79.40 & 63.96 \\
 v2 PL-PG $+$ anchor       & $33.82 \pm 0.60$ & --- & 25.74 & 34.14 & \textbf{59.82} & \textbf{80.13} & \textbf{65.46} \\
 \textbf{v3-pure} (ours)   & $\mathbf{34.71 \pm 0.19}$ & $\mathbf{34.71 \pm 0.19}$ & \textbf{25.93} & \textbf{34.77} & 59.42 & 76.09 & 63.46 \\
@@ -1156,21 +1159,24 @@ evidence labels are such a proxy --- which is why SFT here barely separates from
 %     keep_given_no_gold = sum(keep_given_no_gold * n_no_gold_in_pool) / sum(n_no_gold_in_pool)
 %   NOTE: the gme2b verdict is against the FRESH ungated control (0.3333), not the released
 %   repro -- the fresh control flips the sign of the delta versus the earlier draft.
-\paragraph{The endpoint audit, in progress.} One asymmetry remains open at the time of writing
-and we report it mid-flight rather than waiting, because its direction is already known. Both
-arms are being re-read at their best checkpoint rather than their trained endpoint. For v3-pure
-that is settled and it confirmed the headline: every seed scores lower at half budget than at
-$500$ steps, so the endpoint is the maximum. For SFT it is still running, and the partial curve
-is already informative --- $29.53$ at $150$ steps, $32.07$ at $300$, $32.27$ at $450$, then
-$31.07$ at $600$, $33.00$ at $750$, then flat at $31.33$ for $900$ and $1{,}050$ --- past the released checkpoint's $31.00$ by step $300$,
-and \emph{not monotone}. That non-monotonicity is itself an argument for the audit: a curve that
-dips and recovers cannot be summarised by any single checkpoint, least of all the last one, which
-is what both arms were originally reported at. So the released SFT checkpoint
-was not that configuration's best either, and the audited gap will be smaller than the headline
-$+3.71$. We will not guess by how much: the remaining checkpoints and a recomputed McNemar on the
-max-over-checkpoint pair land before this section is final, and the number goes in then.
-% PLACEHOLDER: SFT max-over-checkpoint and the recomputed McNemar on (v3-pure max, SFT max).
-% Projection only, DO NOT PRINT: if SFT max ~0.3227 the gap is +0.024 from +0.037. Verify.
+\paragraph{The endpoint audit, and the number it costs us.} Reading an arm at its trained
+endpoint can understate it, so we re-read both arms at their best checkpoint rather than their
+last. The audit is now complete and it moves our headline down. For v3-pure the two readings
+coincide: every seed scores lower at half budget than at $500$ steps, so its endpoint \emph{is}
+its maximum and $34.71$ stands. For SFT they do not. Its curve over eight checkpoints runs
+$29.53$, $32.07$, $32.27$, $31.07$, $33.00$, $31.33$, $31.33$, $31.53$ --- non-monotone, peaking
+at step $750$ with $33.00$, and the released $600$-step checkpoint we had been comparing against
+sits past a local peak at $31.00$.
+
+Against SFT's best checkpoint the margin is therefore $+1.71$, not the $+3.71$ we reported
+against its endpoint. Per seed it is $+1.47$ ($p{=}0.084$, n.s.), $+1.73$ ($p{=}0.042$) and
+$+1.93$ ($p{=}0.02$): significant in two of three seeds. The honest headline is
+\emph{$+1.7$ on the seed mean, significant in two of three seeds against SFT's best checkpoint},
+and we use that everywhere; $+3.71$ survives only as the endpoint-to-endpoint comparison, labelled
+as such. One residual asymmetry remains and we disclose rather than resolve it: SFT's maximum
+comes from a single retrain evaluated at eight checkpoints, while the RL endpoints were verified
+against a half-budget checkpoint on all three seeds but not swept as finely. The out-of-domain
+and transfer results are untouched by this audit, and they remain the cleaner win.
 
 \paragraph{A no-context utility gate is a good detector and a bad filter.} The text side finds
 that filtering training examples by reader utility --- keep $q$ only if
@@ -1243,7 +1249,32 @@ most of the bootstrap along with it.
 %   7B SECOND SEED: gme7b-v3pure-s1 acc .3573 / entR@5 .8030 / distinct 2895. 2-seed mean .3517,
 %     spread .0113. McNemar vs gme7b-sft: s0 +.0140 p=.089 n.s.; s1 +.0253 p=.0014 SIG (87/49).
 %     vs 2B base: +.0493 p=5.9e-08. RL 2B->7B is +.0046, INSIDE the seed spread => inconclusive.
-%   LR DOSE-RESPONSE (fresh, 1 seed each; distinct-top5 / entR@5), contraction is GRADED:
+% AUDIT COMPLETE. SFT curve ck150..ck1200: .2953 .3207 .3227 .3107 .3300 .3133 .3133 .3153
+%   -> max ck750 = .3300 (released 600-step ckpt .3100 confirmed post-peak).
+%   AUDITED 2B HEADLINE: RL 3-seed .3471 vs SFT max .3300 = +.0171, McNemar per seed vs ck750:
+%     s0 +.0147 p=.084 n.s. | s1 +.0173 p=.042 SIG | s2 +.0193 p=.02 SIG  -> 2 of 3 significant.
+%   RETIRE +3.71 from headline use; it survives ONLY as the endpoint-to-endpoint comparison and
+%   must be labelled as such wherever it appears.
+%   RESIDUAL ASYMMETRY, disclosed in prose: SFT max is one retrain at 8 checkpoints; RL endpoints
+%   verified against ck250 on all 3 seeds but not finely swept. OOD/transfer untouched by this.
+% qwen25_3b-v3pure: entR@5 .0373 -> .0373 IDENTICAL to 4dp, distinct 2992, acc unchanged .1607.
+%   Runner's amended prediction (drift -> inert) scores a HIT. BRACKET HALVES AND PRINTS, per the
+%   print-once plan: at lr 1e-4 the inert/contraction boundary is (.0373, .0537), both endpoints
+%   FRESH. Must be stated LR-CONDITIONED -- at 1e-5 nothing contracts anywhere. clipb16-v3pure
+%   (zs .0310) now tests inert-region consistency rather than bisecting.
+% siglip2-v3pure-lr1e5: acc .1587 / entR@5 .0660 (zs .0823) / distinct 2917 -- third member of
+%   the rescued-but-doesn't-learn class. bgevl_l is still the only base that learns at 1e-5.
+%   WORDING: BGE-VL carries retrieval FINETUNING (MegaPairs composed-image-retrieval), not
+%   "retrieval pretraining" -- clip/siglip are image-text contrastive with no retrieval objective.
+%   A reviewer will catch the conflation.
+% CONSUMPTION 12k point: v3-rows200k-s3000 acc .3407 / R@5 .7640 / healthy.
+%   *** DRAW-COUNT CORRECTION: these cells were relayed to me as 4k / 12k / 24k. args.json says
+%   batch 4 x {500,1500,3000} = 2k / 6k / 12k -- a consistent factor-of-2 overstatement. The
+%   accuracies map correctly (.3400 3-seed / .3480 / .3407); only the x-labels were doubled.
+%   plot_scaling.py computes draws from args so the figure was never affected. Series is
+%   2k .3400 (3 seeds) / 6k .3480 (1) / 12k .3407 (1) -> PLATEAU ~.34-.35; do NOT draw a sag
+%   from single-seed points. ***
+% LR DOSE-RESPONSE (fresh, 1 seed each; distinct-top5 / entR@5), contraction is GRADED:
 %     clip-L    1e-5 2882/.0410 | 3e-5 1795/.0170 | 1e-4  214/.0043
 %     bgevl_l   1e-5 2966/.2123 | 3e-5 2364/.1477 | 1e-4  197/.0070
 %     bgevl_l LEARNS at 1e-5 (+5.50 over its zs .1573), is mildly damaged at 3e-5, contracts at
@@ -1378,9 +1409,14 @@ of $5.50$, with a healthy $2{,}966$ distinct sets. The contraction at $1\mathrm{
 optimisation artefact, and the registered prediction that it would persist across the ladder is a
 \emph{miss}. \textsc{CLIP-L} at the same $1\mathrm{e}{-}5$ separates the two ingredients cleanly:
 its phenotype is rescued --- $2{,}882$ distinct sets, no contraction --- but it does not learn,
-ending at entity R@5 $4.10$ against a fresh zero-shot of $5.37$. At matched learning rate, then,
-retrieval-pretrained CLIP architecture learns and raw CLIP architecture does not. Retrieval
-pretraining is an enabling ingredient, and overshooting the learning rate had been masking it.
+ending at entity R@5 $4.10$ against a fresh zero-shot of $5.37$. \textsc{SigLIP2} at $1\mathrm{e}{-}5$ behaves the same way --- no contraction ($2{,}917$
+distinct) and no learning, entity R@5 $8.23 \to 6.60$ --- making three bases that are rescued from
+contraction without being taught anything. At matched learning rate, then, the one base that
+learns is the one carrying \emph{retrieval finetuning}: \textsc{BGE-VL}'s MegaPairs training is
+composed-image-retrieval supervision, whereas CLIP and SigLIP2 are image--text contrastive models
+with no retrieval objective at all. That distinction is doing the work, and calling it
+``retrieval pretraining'' would blur it. Retrieval finetuning is an enabling ingredient, and
+overshooting the learning rate had been masking it.
 
 That result needs one clause kept firmly attached to it. \textsc{BGE-VL-large} at
 $1\mathrm{e}{-}5$ answers at $16.93$, still $2.33$ points \emph{below} the image-alone floor: its
@@ -1399,7 +1435,12 @@ established optimum and the $+5.50$ may understate what this base can do.
 
 The casualty of all this is worth stating plainly: phenotype is a function of starting signal
 \emph{and} learning rate, not of starting signal alone, so any boundary drawn on zero-shot
-competence has to be conditioned on the optimiser setting that produced it.
+competence has to be conditioned on the optimiser setting that produced it. Conditioned that way,
+we can state it. At $1\mathrm{e}{-}4$ the boundary between inertness and contraction lies between
+entity R@5 of $3.73$ and $5.37$: raw \textsc{Qwen2.5-VL-3B} starts at $3.73$ and is exactly inert
+--- its retrieval after training is $3.73$, unchanged to four decimals, with $2{,}992$ distinct
+sets --- while \textsc{CLIP-L} starts at $5.37$ and contracts. Both endpoints are fresh. At
+$1\mathrm{e}{-}5$ there is no boundary to draw, because nothing contracts anywhere.
 
 Two things are worth saying about those zero-shot numbers on their own. Both \textsc{BGE-VL} rungs
 answer \emph{below} the image-alone floor --- $15.93$ and $15.87$ against $19.27$ --- so their
@@ -1498,7 +1539,7 @@ Qwen2-VL-2B (raw)      & none             & 19.93 & 0.03 & \multicolumn{2}{c}{\e
 VLM2Vec-2B             & MMEB contrastive & 17.60 & 15.67 & \multicolumn{2}{c}{\emph{pending}} & 17.20 & 0.70 \\
 GME-2B \emph{(headline)} & GME            & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} \\
 \midrule
-Qwen2.5-VL-3B (raw)    & none             & 16.07 & 3.73 & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} \\
+Qwen2.5-VL-3B (raw)    & none             & 16.07 & 3.73 & \multicolumn{2}{c}{\emph{pending}} & 16.07 & 3.73 \\
 Qwen2-VL-7B (raw)      & none             & 16.20 & 0.47 & \multicolumn{2}{c}{\emph{pending}} & 20.60 & 0.00 \\
 VLM2Vec-7B             & MMEB contrastive & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} \\
 GME-7B                 & GME              & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} & 34.60 & 80.97 \\

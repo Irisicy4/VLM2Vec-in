@@ -535,3 +535,10 @@ exactly ONE member (clipb32, zs 0.026) — it is an edge case at near-zero signa
 band; the taxonomy's load-bearing split is contract-vs-drift-vs-learn, with inert as the
 degenerate corner. (3) stdprobe data now coherent: 29% live groups = gradient existed =
 contraction had fuel.
+
+### bgevl_l-v3pure-lr3e6 (11:52): flat — 1e-5 is an INTERIOR max of the tested window
+entR@5 0.1573 -> 0.1523 (~flat), distinct 2952 (healthy), acc 0.1640, lora_B 260 (1/3 of
+the 1e-5 run's 812) — undertrained at 500 steps. BGE-VL-L window over the full ladder:
+3e-6 flat | 1e-5 LEARNS +5.5 | 3e-5 damaged -1.0 | 1e-4 contracts. 1e-5 upgrades from
+boundary cell to interior maximum; the +5.5 rescue number is no longer an underestimate
+by construction (longer-run/finer-grid gains remain possible but unregistered).

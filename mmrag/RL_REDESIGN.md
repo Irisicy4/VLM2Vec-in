@@ -428,5 +428,17 @@ class as clip-L at 1e-5. At 1e-5 the only base that LEARNS remains bgevl_l. Word
 nuance for the discrimination claim: BGE-VL is retrieval-FINETUNED (MegaPairs CIR);
 clip/siglip are image-text contrastive — say "retrieval-finetuned", not "-pretrained".
 **v3-rows200k-s3000 = 0.3407** (R@5 .764, distinct 2885): big-pool consumption curve now
-4k:0.3400(3s) / 12k:0.3480(1s) / 24k:0.3407(1s) — plateau ~0.34-0.35, no clear rise
-beyond 12k; 1-seed points, do not claim a sag.
+2k:0.3400(3s) / 6k:0.3480(1s) / 12k:0.3407(1s) — plateau ~0.34-0.35, no clear rise
+beyond 6k; 1-seed points, do not claim a sag.
+ERRATUM (writer catch): I doubled these draw labels in the 05:59 entry and in messages
+(4k/12k/24k); batch is 4, so draws = 4 x steps = 2k/6k/12k. Accuracies were mapped
+correctly. The b16-s750 line above (16 x 750 = 12k) was already correct — note it now
+COINCIDES in draws with rows200k-s3000 (12k): 0.3487 (b16, 3k pool) vs 0.3407 (b4,
+200k pool) — a matched-consumption batch/pool comparison, confounded pairwise, listed
+as observation only.
+
+### Zero-gradient note (writer suggestion, adopted)
+qwen25_3b-v3pure's retrieval metrics unchanged to FOUR DECIMALS is evidence the policy
+gradient was exactly zero (uniform reward -> zero advantage -> no update), not merely
+small. Verifiable from train logs (loss/adv should be ~0 throughout); stronger inertness
+evidence than "flat metrics". Same check applies to clipb32 (near-flat, small nonzero).

@@ -282,9 +282,15 @@ If bgevl_l-v3pure still trains where clip collapsed -> objective/geometry mechan
 floor; pretraining-vs-architecture question stays OPEN (not refuted).
 
 ### LR-sensitivity control wave (2026-08-13, user-directed, registered pre-landing)
-All non-GME v3pure cells so far inherited lr=1e-4 (tuned on GME). Control cells submitted:
+CORRECTION (writer, from args.json): rates were NOT uniform and 1e-4 is NOT the GME rate.
+Actual rates: gme2b/qwen2b/vlm2vec2b 2e-5; clip/siglip2 (and wave-2 bgevl_*/qwen25_3b,
+which copied the clip config) 1e-4 (best-for-CLIP in the recorded weak-rung sweep);
+qwen7b/gme7b 1e-5. Each failure is a failure at that rung's own inherited rate, chosen on
+a different base. Control cells submitted:
 clip-v3pure-lr{1e5:MLX b530a228, 3e5:local}, bgevl_l-v3pure-lr{1e5:MLX b319c018, 3e5:local},
-siglip2-v3pure-lr1e5 (local), qwen25_3b-v3pure-lr3e5 (local).
+siglip2-v3pure-lr1e5 (local), qwen25_3b-v3pure-lr3e5 (local); coverage-gap cells added
+after writer's design note: qwen25_3b-v3pure-lr2e5 (its family's rate), qwen2b-v3pure-lr5e6
+and vlm2vec2b-v3pure-lr5e6 (low-end controls for the 2e-5 collapses, previously uncovered).
 PREDICTION: if the CLIP-class contraction phenotype is an LR overshoot artifact, lower LR
 rescues R@5 toward zs level and the boundary claim must be rewritten as "fails at
 GME-tuned lr" (per-family tuning required, boundary table gains an lr column). If

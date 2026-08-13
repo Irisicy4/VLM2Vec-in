@@ -1162,7 +1162,7 @@ arms are being re-read at their best checkpoint rather than their trained endpoi
 that is settled and it confirmed the headline: every seed scores lower at half budget than at
 $500$ steps, so the endpoint is the maximum. For SFT it is still running, and the partial curve
 is already informative --- $29.53$ at $150$ steps, $32.07$ at $300$, $32.27$ at $450$, then
-$31.07$ at $600$ and $33.00$ at $750$ --- past the released checkpoint's $31.00$ by step $300$,
+$31.07$ at $600$, $33.00$ at $750$ and $31.33$ at $900$ --- past the released checkpoint's $31.00$ by step $300$,
 and \emph{not monotone}. That non-monotonicity is itself an argument for the audit: a curve that
 dips and recovers cannot be summarised by any single checkpoint, least of all the last one, which
 is what both arms were originally reported at. So the released SFT checkpoint
@@ -1225,6 +1225,25 @@ most of the bootstrap along with it.
 %     Headroom arithmetic, all fresh: (0.3471-0.1927)/(0.5040-0.1927) = 0.4960 captured;
 %     residual to oracle 0.1569.
 %     -- REPRO(train) with --profile <rung>
+%   LR-CONTROL RESULTS [acc n=1500 / entR@5 n=3000 / distinct-top5, fresh, 1 seed]:
+%     bgevl_l-v3pure-lr1e5  .1693 / .2123 / 2966   <- TRAINS: R@5 .1573 -> .2123 = +5.50
+%     clip-v3pure-lr1e5     .1773 / .0410 / 2882   <- phenotype rescued, NO learning (fresh zs .0537)
+%     REGISTERED PREDICTION ("contraction persists across the ladder") SCORES AS A MISS.
+%     At matched lr 1e-5: retrieval-pretrained CLIP-arch LEARNS (+5.50), raw CLIP-arch does NOT
+%     (-1.27 vs its fresh zs). Retrieval pretraining is an ENABLING ingredient; lr overshoot at
+%     1e-4 was masking it.
+%     MANDATORY CLAUSE, keep adjacent: bgevl_l acc .1693 is still 2.33 BELOW the .1927 floor --
+%     retrieval improved, still net-harmful. "Trains" = the retrieval metric moved, NOT that the
+%     pipeline became useful. 1 seed, 500 steps, longer runs unregistered.
+%     CASUALTY: phenotype is a function of (zs signal, LEARNING RATE), not zs alone. The
+%     inert/contraction bracket must be lr-conditioned before promotion.
+%   FRESH clip-zeroshot LANDED: acc .1593 / entR@5 .0537 / distinct 2936 vs recorded .054 --
+%     decision tree's "near" branch fires: tight bracket promotes to fresh, clip numbers quoted
+%     fresh throughout, clipb16's v3 cell becomes interpretable.
+%   7B SECOND SEED: gme7b-v3pure-s1 acc .3573 / entR@5 .8030 / distinct 2895. 2-seed mean .3517,
+%     spread .0113. McNemar vs gme7b-sft: s0 +.0140 p=.089 n.s.; s1 +.0253 p=.0014 SIG (87/49).
+%     vs 2B base: +.0493 p=5.9e-08. RL 2B->7B is +.0046, INSIDE the seed spread => inconclusive.
+%   sft-curve ck900 = .3133 (R@5 .7313); max still ck750 .3300; ck1050/ck1200 pending.
 %   LEARNING-RATE CONTROLS (launched 2026-08-13; registered in RL_REDESIGN.md; jobs
 %     b530a228a3233a4c / b319c0184ad4d190 + 4 local cells): clip-v3pure at 1e-5 and 3e-5,
 %     bgevl_l-v3pure at 1e-5 and 3e-5, siglip2-v3pure at 1e-5, qwen25_3b-v3pure at 3e-5.

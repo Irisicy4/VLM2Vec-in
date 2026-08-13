@@ -488,6 +488,14 @@ the three answer metrics, v2 on the three retrieval metrics.}
 %     clipb32   zs R@5 .0260 -> INERT       (fresh zs, fresh v3)
 %     siglip2   zs R@5 .0823 -> CONTRACTION (fresh zs, fresh v3)
 %     => boundary in (.026, .082), entirely within-wave.
+%   DECISION TREE for the incoming fresh clip zero-shot (agreed both sessions; NO training cell
+%   in any branch -- if a branch seems to need one, re-read the dependency split below first):
+%     near .054  -> tight bracket (.026,.054) promotes to fresh; clipb16's v3 cell becomes
+%                   interpretable; nothing else in the section moves.
+%     far  .054  -> FIRST cross-wave discrepancy on this cluster (gme2b arms reproduced within
+%                   .002, SFT bit-exact) => investigate the RECORDED clip-zeroshot itself
+%                   (config / preprocessing diff), quote fall-magnitude and bracket from the fresh
+%                   number, and leave the contraction verdict untouched.
 %   WHAT DEPENDS ON THE clip-L ZERO-SHOT, precisely (checked: runs/clip-v3pure/args.json exists,
 %     so clip-v3pure is a FRESH run on this cluster; only its zs baseline is recorded):
 %       phenotype verdict (contraction)  -- FRESH and self-contained: distinct-top5 214, R@5 .0043.

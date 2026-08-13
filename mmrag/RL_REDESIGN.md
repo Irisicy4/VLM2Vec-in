@@ -442,3 +442,14 @@ qwen25_3b-v3pure's retrieval metrics unchanged to FOUR DECIMALS is evidence the 
 gradient was exactly zero (uniform reward -> zero advantage -> no update), not merely
 small. Verifiable from train logs (loss/adv should be ~0 throughout); stronger inertness
 evidence than "flat metrics". Same check applies to clipb32 (near-flat, small nonzero).
+
+### Zero-gradient VERIFIED from qwen25_3b-v3pure/metrics.jsonl — mechanism sharpened
+loss/policy and ppo/advantage_mean = 0.000000 exactly, all 500 steps. BUT reward/raw_mean
+= 0.135 (max 0.75) — rewards are NOT zero/uniform across queries. Mechanism: inertness =
+WITHIN-GROUP reward degeneracy. With near-random retrieval, the G=4 sampled lists from a
+junk top-24 are interchangeable to the reader — identical reward within every group —
+so the group-z advantage is identically zero even though the reader sometimes answers
+right (parametric knowledge). Inert cells are where the reward cannot DISCRIMINATE
+between lists, not where it is absent. (This also predicts: any base whose top-24
+contains at least occasional signal escapes inertness — consistent with contraction
+starting by 0.054.)

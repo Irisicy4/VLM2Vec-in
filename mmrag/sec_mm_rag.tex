@@ -1334,6 +1334,17 @@ most of the bootstrap along with it.
 %   plot_scaling.py computes draws from args so the figure was never affected. Series is
 %   2k .3400 (3 seeds) / 6k .3480 (1) / 12k .3407 (1) -> PLATEAU ~.34-.35; do NOT draw a sag
 %   from single-seed points. ***
+% ADAPTER DISPLACEMENT (lora_B abs-sum; B is zero-init so this is distance travelled).
+%   Harvest: mmrag/adapter_stats.py on VLM2Vec-rl v23-base (runner), no GPU. Verified here:
+%     lr        bgevl_l          clip-L
+%     1e-5       812  (+5.50)     838  (-1.27)
+%     3e-5      2573  (-0.96)    2415  (-3.67)
+%     1e-4      7796  (-15.03)   7780  (-4.94)   [deltas = entR@5 change from that base's zs]
+%   Displacement is set by LR and is nearly BASE-INDEPENDENT (812~838, 2573~2415, 7796~7780).
+%   Damage tracks displacement; LEARNING DOES NOT -- at ~800 displacement one base gains 5.50 and
+%   the other loses 1.27. So LR decides how far and whether it destroys; the base's retrieval
+%   finetuning decides whether the movement accomplishes anything. The learning cell moved LEAST.
+%   Third case for the didn't-train / didn't-help distinction: moved-far-and-destroyed.
 % LR DOSE-RESPONSE (fresh, 1 seed each; distinct-top5 / entR@5), contraction is GRADED:
 %     clip-L    1e-5 2882/.0410 | 3e-5 1795/.0170 | 1e-4  214/.0043
 %     bgevl_l   1e-5 2966/.2123 | 3e-5 2364/.1477 | 1e-4  197/.0070
@@ -1492,6 +1503,18 @@ and simply catching \textsc{BGE-VL} on its way down from a genuine gain. The one
 does so in a window that has already closed by $3\mathrm{e}{-}5$; whether it extends below
 $1\mathrm{e}{-}5$ is being measured, so $1\mathrm{e}{-}5$ is a boundary cell rather than an
 established optimum and the $+5.50$ may understate what this base can do.
+
+Reading the adapters makes ``overshoot'' a measurement rather than a label, and separates the two
+findings cleanly. Since LoRA's $B$ matrices start at zero, their magnitude after training is how
+far the optimiser travelled. Across the same three rates the two bases travel almost identically
+--- $812$, $2{,}573$, $7{,}796$ for \textsc{BGE-VL-large} against $838$, $2{,}415$, $7{,}780$ for
+\textsc{CLIP-L} --- so displacement is set by the learning rate and is essentially independent of
+which base is being trained. Damage tracks that displacement: both contract at the far end. What
+does \emph{not} track it is learning. At a matched displacement of roughly $800$,
+\textsc{BGE-VL-large} gains $5.50$ points of recall and \textsc{CLIP-L} loses $1.27$. The
+optimiser setting therefore decides how far a run moves and whether it destroys anything; the
+base's retrieval finetuning decides whether that movement accomplishes something. That is also
+why the cell that learns is the one that moved \emph{least}.
 
 The casualty of all this is worth stating plainly: phenotype is a function of starting signal
 \emph{and} learning rate, not of starting signal alone, so any boundary drawn on zero-shot

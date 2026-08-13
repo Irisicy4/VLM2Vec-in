@@ -443,7 +443,17 @@ gradient was exactly zero (uniform reward -> zero advantage -> no update), not m
 small. Verifiable from train logs (loss/adv should be ~0 throughout); stronger inertness
 evidence than "flat metrics". Same check applies to clipb32 (near-flat, small nonzero).
 
-### Zero-gradient VERIFIED from qwen25_3b-v3pure/metrics.jsonl — mechanism sharpened
+### RETRACTED (writer control): the entry below claimed verification from an identity
+loss/policy = -mean(A) with A group-z-scored is ZERO BY CONSTRUCTION for every plgrpo
+run — the healthy v3-pure logs |loss/policy|max 1.49e-08 too. A zero scalar loss also
+does not imply zero gradient (grad = -mean(A*gradlogpi) at rho=1, generally nonzero).
+The within-group-degeneracy account is DEMOTED to hypothesis (still the best one; the
+across-query reward variation stands). Verification requires per-group reward std,
+which was not logged. FIX: train_rl.py now logs reward/group_std_mean and
+reward/group_degenerate_frac; 50-step probe cells queued (qwen25_3b + gme2b control).
+Prediction, registered: qwen25_3b degenerate_frac ~1.0, gme2b well below 1.
+
+### Zero-gradient claim (RETRACTED ABOVE — kept for the record) — mechanism sharpened
 loss/policy and ppo/advantage_mean = 0.000000 exactly, all 500 steps. BUT reward/raw_mean
 = 0.135 (max 0.75) — rewards are NOT zero/uniform across queries. Mechanism: inertness =
 WITHIN-GROUP reward degeneracy. With near-random retrieval, the G=4 sampled lists from a

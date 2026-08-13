@@ -247,6 +247,7 @@ def main():
     metrics_log = open(os.path.join(args.output_dir, "metrics.jsonl"), "a")
 
     for step in range(args.max_steps):
+        extra_metrics = {}  # per-step; only the plgrpo branch populates it
         if corpus_emb is None or (args.refresh_steps and step % args.refresh_steps == 0):
             refresh_corpus()
 
@@ -342,6 +343,11 @@ def main():
                         ids = [owner[b][j] for j in pl_idx[b, g].tolist()]
                         R[b, g] = r_doc[ids].mean()
                 raw_mean, gold_mean = R.mean().item(), float("nan")
+                # Within-group reward discriminability: std=0 for a group forces its z-scored
+                # advantage (and hence its gradient contribution) to exactly zero.
+                grp_std = R.std(1)
+                extra_metrics = {"reward/group_std_mean": grp_std.mean().item(),
+                                 "reward/group_degenerate_frac": (grp_std == 0).float().mean().item()}
                 if args.baseline == "rloo":
                     advantages = rloo_advantages(R)
                 else:
@@ -505,6 +511,7 @@ def main():
 
         m.update({"step": step, "loss": loss.item(), "reward/raw_mean": raw_mean,
                   "reward/gold_mean": gold_mean, "retrieval/gold_in_topN": gold_hit / args.batch_size})
+        m.update(extra_metrics)
         if noctx_keep_rate is not None:
             m["gate/noctx_keep_rate"] = noctx_keep_rate
         if noctx_gate_xtab is not None:

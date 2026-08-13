@@ -662,7 +662,10 @@ whose runs are all on such bases and which sees only drift --- though that also 
 evidence non-discriminating. One seed and one rung here: a conjecture, not a result. The consequence for practice is firmer
 than the explanation: \emph{no single static diagnostic is sufficient, even within one
 modality}. A distinct-count sees contraction and is blind to drift; a recall-against-base
-comparison sees drift and needs ground truth. We recommend reporting the pair.
+comparison sees drift and needs ground truth. We recommend reporting the pair, and reading a
+clean count with care: on a drift failure the diversity metric is not merely uninformative but
+\emph{silent} --- \textsc{VLM2Vec-2B} returns a perfect $3{,}000/3{,}000$ while its retrieval has
+fallen twenty-twofold --- and silence is not absolution.
 
 \paragraph{What bad context does to a reader.} On these rungs VQA accuracy is \emph{anti}-diagnostic. \textsc{SigLIP2} supplies the cleanest demonstration, because it is a
 within-rung comparison --- one encoder, two retrievers, nothing else varied. Zero-shot it

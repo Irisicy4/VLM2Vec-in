@@ -921,10 +921,13 @@ class MMEBModel(nn.Module):
                     base_model.model = lora_model
                 print_master("LoRA attached to qwen2_5_omni thinker.model.")
                 encoder = base_model
-            elif model_args.model_backbone in {QWEN2_VL, QWEN2_VL_TOKENSELECTION}:
-                # VLM2Vec adapters for Qwen2-VL are exported against the full
-                # conditional-generation model. Attaching to `base_model.model`
-                # causes widespread key mismatch and near-random retrieval scores.
+            elif model_args.model_backbone in {QWEN2_VL, QWEN2_VL_TOKENSELECTION, QWEN2_5_VL}:
+                # VLM2Vec adapters for Qwen2-VL (and our fresh mm-RAG adapters for
+                # Qwen2.5-VL) are exported against the full conditional-generation
+                # model. Attaching to `base_model.model` causes widespread key
+                # mismatch: for Qwen2-VL it degrades to near-random retrieval; for
+                # Qwen2.5-VL it silently matches nothing, so merge_and_unload is an
+                # identity and the checkpoint is a NO-OP at eval time.
                 lora_model = PeftModel.from_pretrained(
                     base_model, model_name_or_path, config=lora_config, is_trainable=is_trainable
                 )

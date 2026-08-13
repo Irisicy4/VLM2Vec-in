@@ -463,3 +463,14 @@ right (parametric knowledge). Inert cells are where the reward cannot DISCRIMINA
 between lists, not where it is absent. (This also predicts: any base whose top-24
 contains at least occasional signal escapes inertness — consistent with contraction
 starting by 0.054.)
+
+### Conventions (adopted from writer exchange, 2026-08-13 morning)
+Diagnostic runs use name suffixes -stdprobe/-probe/-smoke/-debug; the writer's collectors
+exclude these BY NAME (EXCLUDE_RUNS), because config rules deliberately free max_steps on
+the consumption axis and a 50-step diagnostic would otherwise be admitted as a legitimate
+200-draw curve point. General shape, theirs, worth keeping: "the more permissive an axis
+is by design, the more it admits things that are not results" — any future axis that
+frees a config key inherits the same exposure. New diagnostic suffixes must be announced
+(protocol runs both directions). Methods-narrative decision: process near-misses stay
+OUT of the paper; rigour is shown by scored misses, withdrawn registrations, and the
+audited headline, not by narrating the catch.

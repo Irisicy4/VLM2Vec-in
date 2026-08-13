@@ -1452,6 +1452,21 @@ most of the bootstrap along with it.
 %   STRONGLY SUBLINEAR IN STEPS (6x budget -> 2.2x distance). Steps and LR are NOT interchangeable
 %   movement currencies; the collapse boundary must stay stated per-LR, never per-budget.
 %   Corollary for the consumption axis: the 34-35 plateau is NOT a plateau in distance travelled.
+%   PRE-REGISTERED, before v3-cos / b16cos land (agreed with the runner 2026-08-13; written down
+%   now so it cannot be retrofitted to whatever arrives):
+%     PREDICTION. A cosine schedule spends most of its budget at a reduced rate, so at MATCHED
+%     STEPS a cos cell must travel LESS than its constant-LR twin, and its steps->movement curve
+%     must be MORE sublinear than the 500/1500/3000 ladder above. Direction is the claim; we do
+%     NOT predict a magnitude, because displacement is only ~linear in rate at FIXED steps and we
+%     have no cell isolating the interaction.
+%     FALSIFIER. cos displacement >= constant displacement at matched steps kills the reading that
+%     displacement tracks the integral of the LR schedule, and with it the per-LR framing of the
+%     collapse boundary. That would be a real finding and gets written up as one, not buried.
+%     SCOPE. cos cells are SCHEDULE cells. They are not consumption points and not movement
+%     points, and "a long cos run ~ a short hot run" is pre-blocked as an inference in both
+%     directions. plot_scaling.py already enforces the data half of this: lr_schedule is NOT in
+%     FREE_KEYS and sits in LATER_FLAG_DEFAULTS as "constant" (verified 2026-08-13), so a cos run
+%     cannot silently join a constant-LR series -- it can only ever be drawn as its own series.
 % *** RELAYED AND CHECKED -- text-side LR ladder. Runner message gives:
 %     5e-6 lora_B 1226 / 70.0 | 1e-5 2140 / 68.8 | 2e-5 4028 / 68.2, plus 3x steps -> 1.75x
 %     movement (ours 1.66x).

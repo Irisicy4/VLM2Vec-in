@@ -284,6 +284,10 @@ relevance-SFT             & 31.00 & \emph{pending} & 23.87 & 32.13 & 59.13 & 73.
 v1 listwise $+$ anchor (1 seed) & 33.33 & --- & 24.87 & 33.61 & 58.70 & 79.40 & 63.96 \\
 v2 PL-PG $+$ anchor       & $33.82 \pm 0.60$ & --- & 25.74 & 34.14 & \textbf{59.82} & \textbf{80.13} & \textbf{65.46} \\
 \textbf{v3-pure} (ours)   & $\mathbf{34.71 \pm 0.19}$ & $\mathbf{34.71 \pm 0.19}$ & \textbf{25.93} & \textbf{34.77} & 59.42 & 76.09 & 63.46 \\
+\midrule
+\multicolumn{8}{l}{\emph{\textsc{GME-7B} backbone, fresh wave, one seed per arm}} \\
+relevance-SFT             & 33.20 & --- & 25.27 & 34.20 & \textbf{64.40} & 77.67 & 63.02 \\
+v3-pure                   & 34.60 & --- & 26.20 & 34.85 & 62.87 & 80.97 & 69.02 \\
 \bottomrule
 \end{tabular}
 
@@ -299,7 +303,10 @@ $p = 4.2\mathrm{e}{-}6 / 3.2\mathrm{e}{-}7 / 5.3\mathrm{e}{-}7$ --- all signific
 attach to the \emph{endpoint} comparison; because per-question predictions are stored for every
 evaluation, they will be recomputed on the max-over-checkpoint pair once both columns exist.
 v2 per seed ($0/2/3$): $34.27 / 33.07 / 34.13$. Entity R@10: base $76.63$, SFT $79.83$,
-v1 $85.73$, v2 $85.73$, v3-pure $82.23$. Bold marks the best trained arm per column: v3-pure on
+v1 $85.73$, v2 $85.73$, v3-pure $82.23$; at $7$B, SFT $81.83$ and v3-pure $85.93$. The $7$B pair
+is fresh and McNemar-able but one seed per arm: v3-pure over SFT is $+1.40$, $p{=}0.089$,
+\emph{not significant}, and the $7$B SFT is a single learning-rate point (the recorded sweep's
+best rung) since no fresh $7$B sweep exists. Bold marks the best trained arm per column: v3-pure on
 the three answer metrics, v2 on the three retrieval metrics.}
 \end{table}
 
@@ -1127,6 +1134,20 @@ One seed decides neither, and the two cells that would --- replicate seeds at $7
 $7$B v1 twin --- are not yet queued. Raw \textsc{Qwen2-VL-7B} meanwhile fails exactly as its $2$B
 counterpart does (entity R@5 $0.00$), so scale does not substitute for retrieval pretraining at
 either size.
+
+The fresh pair now closes this, and it closes it against us. A matched $7$B SFT scores
+$33.20$, so the fresh like-for-like gap at $7$B is $+1.40$ ($34.60$ against $33.20$) with
+$p{=}0.089$ --- not significant, at one seed per arm --- where the $2$B gap is $+3.71$ at
+$p \le 4.8\mathrm{e}{-}5$ across three seeds. The gap \emph{compresses} with capacity, and the
+reason is visible in which arm moves: SFT gains $+2.20$ going from $2$B to $7$B
+($31.00 \to 33.20$, $p{=}0.015$, significant), while v3-pure gains nothing
+($34.71 \to 34.60$). Supervised contrastive training scales with the backbone; the indirect
+correction does not. We state this plainly rather than defensively, but also without
+overreaching: $p{=}0.089$ at one seed per arm cuts both ways, a replicate is training, and the
+$7$B SFT is a single learning-rate point. What we will not write is that RL loses its advantage
+at $7$B --- the retrieval advantage is undiminished there (entity R@5 $80.97$ against $77.67$,
+answer R@5 $69.02$ against $63.02$), and the out-of-domain advantage that was decisive at $2$B is
+simply untested at $7$B.
 
 The recorded wave's own ``the advantage grows with capacity'' reading also weakens under the
 baseline discipline we already applied at $2$B. That claim pairs the $7$B gold-seeded arm against

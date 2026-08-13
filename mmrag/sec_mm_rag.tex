@@ -1369,6 +1369,15 @@ most of the bootstrap along with it.
 %   pathway, not just an observation. bgevl 1e-4 cells (.178/.183 from .159) are partway along it.
 %   MOVEMENT-vs-OUTCOME, second confirmation: clipb32 lora_B 3048 (inert) vs clipb16 3126
 %   (deepest collapse) -- near-identical displacement, opposite phenotypes.
+% bgevl_l LR WINDOW COMPLETE [fresh, zs entR@5 .1573]:
+%     3e-6  R@5 .1523 (-0.50)  distinct 2952  lora_B  260   flat / undertrained at 500 steps
+%     1e-5  R@5 .2123 (+5.50)  distinct 2966  lora_B  812   LEARNS  <- INTERIOR MAXIMUM
+%     3e-5  R@5 .1477 (-0.96)  distinct 2364  lora_B 2573   damaged
+%     1e-4  R@5 .0070 (-15.03) distinct  197  lora_B 7796   contracts
+%   1e-5 is no longer a boundary cell, so the +5.50 SHEDS the "may be an underestimate by
+%   construction" caveat. Remaining qualifier is the ordinary one: finer grid / longer runs
+%   unexplored. Displacement is MONOTONE in lr while outcome is an INVERTED U -> the window is
+%   not a movement effect; the peak is not where the model moves most.
 % ADAPTER DISPLACEMENT (lora_B abs-sum; B is zero-init so this is distance travelled).
 %   Harvest: mmrag/adapter_stats.py on VLM2Vec-rl v23-base (runner), no GPU. Verified here:
 %     lr        bgevl_l          clip-L
@@ -1534,13 +1543,22 @@ dose-response. Across $1\mathrm{e}{-}5$, $3\mathrm{e}{-}5$ and $1\mathrm{e}{-}4$
 $4.10 \to 1.70 \to 0.43$) and \textsc{BGE-VL-large}'s falls $2{,}966 \to 2{,}364 \to 197$
 (R@5 $21.23 \to 14.77 \to 0.70$). Contraction is therefore not a categorical failure of certain
 bases but a \emph{graded} consequence of optimiser overshoot, arriving at the same rate on both
-and simply catching \textsc{BGE-VL} on its way down from a genuine gain. The one base that learns
-does so in a window that has already closed by $3\mathrm{e}{-}5$; whether it extends below
-$1\mathrm{e}{-}5$ is being measured, so $1\mathrm{e}{-}5$ is a boundary cell rather than an
-established optimum and the $+5.50$ may understate what this base can do.
+and simply catching \textsc{BGE-VL} on its way down from a genuine gain. The one base that learns does so inside a window, and the window is
+now closed on both sides. Adding $3\mathrm{e}{-}6$ completes the ladder for
+\textsc{BGE-VL-large}: flat there ($15.73 \to 15.23$), $+5.50$ at $1\mathrm{e}{-}5$, damaged at
+$3\mathrm{e}{-}5$, contracted at $1\mathrm{e}{-}4$. So $1\mathrm{e}{-}5$ is an interior maximum
+rather than an edge of the grid, and the $+5.50$ is the rate's own result rather than a lower
+bound imposed by where we stopped looking. The window's two edges fail for opposite reasons ---
+below it the optimiser barely moves, above it the same contraction that kills every
+non-retrieval-finetuned base at any rate we tried. A finer grid or longer runs could still shift
+the peak; a decade of learning rate could not.
 
 Reading the adapters makes ``overshoot'' a measurement rather than a label, and separates the two
-findings cleanly. Since LoRA's $B$ matrices start at zero, their magnitude after training is how
+findings cleanly. It also shows the window is not a movement effect: across
+$3\mathrm{e}{-}6$ to $1\mathrm{e}{-}4$ \textsc{BGE-VL-large} travels $260$, $812$, $2{,}573$ and
+$7{,}796$ --- monotone in the learning rate --- while its outcome traces an inverted U. Distance
+travelled rises smoothly through a peak in usefulness, so the peak is not where the model moves
+most. Since LoRA's $B$ matrices start at zero, their magnitude after training is how
 far the optimiser travelled. Across the same three rates the two bases travel almost identically
 --- $812$, $2{,}573$, $7{,}796$ for \textsc{BGE-VL-large} against $838$, $2{,}415$, $7{,}780$ for
 \textsc{CLIP-L} --- so displacement is set by the learning rate and is essentially independent of

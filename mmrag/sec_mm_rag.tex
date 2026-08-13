@@ -672,7 +672,14 @@ within-rung comparison --- one encoder, two retrievers, nothing else varied. Zer
 retrieves weakly relevant but wrong passages (entity R@5 $8.23$) and scores $13.13$; after the
 collapse it retrieves essentially noise (R@5 $0.40$) and scores $18.67$. The \emph{worse}
 retriever is worth $5.5$ points \emph{more} accuracy. \textsc{CLIP-L} shows the same sign more
-weakly ($19.00$ collapsed against $17.27$ for its anchored twin).
+weakly ($19.00$ collapsed against $17.27$ for its anchored twin). The \textsc{BGE-VL} pair is
+cleaner still, because both rungs move the same way from a common starting position: training
+raises accuracy by $1.87$ and $2.40$ points while destroying retrieval by factors of $221$ and
+$22$. And the direction is exactly what the floor predicts. Both started \emph{below} the
+image-alone floor ($-3.33$ and $-3.40$), where their weak-but-real retrieval was actively
+misleading the reader; destroying that retrieval moved them back \emph{up} toward the floor
+($-1.47$ and $-1.00$), which is where uniform junk lands you. An accuracy-only table would have
+recorded both of these cells as improvements.
 
 The reading this supports is that noise and plausible error are not equivalent for the reader:
 noise is ignored and it falls back on the image, whereas relevant-looking but wrong context
@@ -1071,8 +1078,11 @@ and we report it mid-flight rather than waiting, because its direction is alread
 arms are being re-read at their best checkpoint rather than their trained endpoint. For v3-pure
 that is settled and it confirmed the headline: every seed scores lower at half budget than at
 $500$ steps, so the endpoint is the maximum. For SFT it is still running, and the partial curve
-is already informative --- $29.53$ at $150$ steps, $32.07$ at $300$, $32.27$ at $450$, still
-rising, and past the released checkpoint's $31.00$ by step $300$. So the released SFT checkpoint
+is already informative --- $29.53$ at $150$ steps, $32.07$ at $300$, $32.27$ at $450$, then
+$31.07$ at $600$ and $33.00$ at $750$ --- past the released checkpoint's $31.00$ by step $300$,
+and \emph{not monotone}. That non-monotonicity is itself an argument for the audit: a curve that
+dips and recovers cannot be summarised by any single checkpoint, least of all the last one, which
+is what both arms were originally reported at. So the released SFT checkpoint
 was not that configuration's best either, and the audited gap will be smaller than the headline
 $+3.71$. We will not guess by how much: the remaining checkpoints and a recomputed McNemar on the
 max-over-checkpoint pair land before this section is final, and the number goes in then.
@@ -1155,6 +1165,18 @@ most of the bootstrap along with it.
 %     IS the GME-2B rate); qwen7b/gme7b 1e-5. The concern is right -- every rung inherited a rate
 %     tuned on a different base -- but the qualifier must name the rung's own rate, and writing
 %     "at the GME-tuned learning rate" on the CLIP row would be factually wrong.
+%   WAVE 2 RESULTS [acc top-5 n=1500 / entR@5 n=3000 / distinct-top5, fresh, 1 seed]:
+%     bgevl_b-zeroshot  .1593 / .1473 / 2984   -> bgevl_b-v3pure .1780 / .0007 / 133  (221x fall)
+%     bgevl_l-zeroshot  .1587 / .1573 / 2964   -> bgevl_l-v3pure .1827 / .0070 / 197  (22x fall)
+%     qwen25_3b-zeroshot .1607 / .0373 / 2992  (near-random; its training cells test a near-zero start)
+%     REGISTRATION SCORED: a retrieval objective in pretraining does NOT rescue CLIP-arch at
+%     matched-poor zs. Per the amended registration this leaves pretraining-vs-architecture OPEN,
+%     not refuted -- BGE-VL's pretraining failed to transfer, so the cell cannot separate the
+%     zs-competence-floor account from an architectural one. The bgevl_l LR controls carry the
+%     discriminating weight now.
+%     ANTI-DIAGNOSTIC INSTANCE #2 (cleanest): accuracy ROSE +1.87 / +2.40 while retrieval died.
+%     Direction matches the floor account: both started BELOW the 0.1927 floor (-3.33/-3.40) and
+%     moved UP toward it (-1.47/-1.00) once their misleading retrieval was destroyed.
 %   WAVE 2 (launched 2026-08-13, pre-registered in VLM2Vec-rl RL_REDESIGN.md; code 6877e49 on
 %     branch v23-base). Cells: bgevl_b-v3pure, bgevl_l-v3pure, qwen25_3b-v3pure plus their three
 %     zero-shot rows. MLX jobs 5310cbb94793e62c / b8803548161beb61 / 7ece3f2262c030cf.
@@ -1230,6 +1252,16 @@ tests is whether a retrieval \emph{objective} in pretraining helps at matched-po
 than the original design would have given, because the starting points are matched; if it
 collapses, the pretraining-versus-architecture question stays open rather than being settled
 against us.
+
+Both cells have now landed and both contract: entity R@5 falls $14.73 \to 0.07$ for the base and
+$15.73 \to 0.70$ for the large, with distinct top-$5$ counts of $133$ and $197$ --- the same
+signature as \textsc{CLIP-L} and \textsc{SigLIP2}. So a retrieval objective in pretraining does
+not rescue CLIP architecture from a matched-poor starting point. Per the registration, that
+leaves the question \emph{open} rather than answered: the result is consistent with a
+zero-shot-competence floor, below which nothing trains regardless of what the pretraining
+objective was, but it does not separate that account from an architectural one, because
+\textsc{BGE-VL}'s pretraining failed to transfer in the first place. The learning-rate controls
+now carry the discriminating weight, and the boundary rows stay qualified until they land.
 
 Two things are worth saying about those zero-shot numbers on their own. Both \textsc{BGE-VL} rungs
 answer \emph{below} the image-alone floor --- $15.93$ and $15.87$ against $19.27$ --- so their
@@ -1319,14 +1351,14 @@ encoder & retrieval pretraining & acc & R@5 & acc & R@5 & acc & R@5 \\
 CLIP-B/32 ($\sim$150M) & CLIP   & 15.13 & 2.60 & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} \\
 CLIP-L ($\sim$430M)    & CLIP   & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} \\
 SigLIP2-so400m         & SigLIP & 13.13 & 8.23 & \multicolumn{2}{c}{\emph{pending}} & 18.67 & 0.40 \\
-BGE-VL-base (CLIP-arch)  & MegaPairs & 15.93 & 14.73 & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} \\
-BGE-VL-large (CLIP-arch) & MegaPairs & 15.87 & 15.73 & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} \\
+BGE-VL-base (CLIP-arch)  & MegaPairs & 15.93 & 14.73 & \multicolumn{2}{c}{\emph{pending}} & 17.80 & 0.07 \\
+BGE-VL-large (CLIP-arch) & MegaPairs & 15.87 & 15.73 & \multicolumn{2}{c}{\emph{pending}} & 18.27 & 0.70 \\
 \midrule
 Qwen2-VL-2B (raw)      & none             & 19.93 & 0.03 & \multicolumn{2}{c}{\emph{pending}} & 22.60 & 0.00 \\
 VLM2Vec-2B             & MMEB contrastive & 17.60 & 15.67 & \multicolumn{2}{c}{\emph{pending}} & 17.20 & 0.70 \\
 GME-2B \emph{(headline)} & GME            & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} \\
 \midrule
-Qwen2.5-VL-3B (raw)    & none             & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} \\
+Qwen2.5-VL-3B (raw)    & none             & 16.07 & 3.73 & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} \\
 Qwen2-VL-7B (raw)      & none             & 16.20 & 0.47 & \multicolumn{2}{c}{\emph{pending}} & 20.60 & 0.00 \\
 VLM2Vec-7B             & MMEB contrastive & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} \\
 GME-7B                 & GME              & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} & 34.60 & 80.97 \\

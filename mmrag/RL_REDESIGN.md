@@ -268,3 +268,15 @@ delta-acc; if the boundary is about VLM-class architecture/capacity, bgevl_l col
 clip (R@5 ~0). Secondary: bgevl_b (0.15B) tests whether size alone blocks training at
 matched pretraining. qwen25_3b slots the raw-VLM size ladder between qwen2b and qwen7b;
 expectation from domain-uniformity: drift phenotype like qwen2b, not contraction.
+
+### Wave-2 amendment (2026-08-13, zs landed, TRAINING CELLS STILL BLIND)
+zs placements: bgevl_b entR@5 0.1473 / acc 0.1593; bgevl_l entR@5 0.1573 / acc 0.1587 —
+both AT the known failure boundary (<=0.157), and both BELOW the no-context floor (0.1927):
+their retrieved context actively hurts the reader. MegaPairs CIR finetuning does not
+transfer to InfoSeek wiki-KB retrieval; BGE-VL sits in the raw-CLIP zs band here.
+AMENDED READING (registered before any training number lands): the original clean
+discrimination (same arch, retrieval pretraining, higher start) is unavailable — BGE-VL is
+NOT higher-start. The cell now tests: retrieval-style objective at matched-bad zs level.
+If bgevl_l-v3pure still trains where clip collapsed -> objective/geometry mechanism result
+(stronger than the original claim). If it collapses -> consistent with a zs-competence
+floor; pretraining-vs-architecture question stays OPEN (not refuted).

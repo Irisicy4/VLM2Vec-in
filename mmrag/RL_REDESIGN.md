@@ -371,3 +371,26 @@ Fresh clip-zeroshot chain launched (GPU 5) — makes the tight bracket within-wa
 PREREQUISITE for interpreting clipb16-v3pure as a tight-bracket bisection. qwen25_3b
 (0.0373) bisects either bracket. Print-once discipline: nothing writable until qwen25_3b
 lands.
+
+### LR ladder first landings + gme7b-s1 (2026-08-13 04:21) — MY LR PREDICTION: MISS
+**bgevl_l-v3pure-lr1e5: TRAINS.** entR@5 0.1573 -> 0.2123 (+5.5, 1.35x), distinct
+2966/3000, acc 0.1587 -> 0.1693. Contraction at 1e-4 was an LR ARTIFACT for BGE-VL-L.
+My registered prediction ("contraction persists; failure is signal-starvation not step
+size") SCORES AS MISS on the phenotype claim. User's tuning instinct was right.
+**clip-v3pure-lr1e5: rescued phenotype, NO learning.** entR@5 0.0410 (vs recorded zs
+0.054), distinct 2882 — no contraction, but no improvement either (slight sag).
+=> THE WAVE-2 DISCRIMINATION RETURNS WITH AN ANSWER: at matched tuned LR (1e-5), the
+retrieval-pretrained CLIP-arch (BGE-VL-L) LEARNS (+5.5 R@5) while raw CLIP-L does not
+(-1.3). Retrieval pretraining is an enabling ingredient; step size was a masking artifact
+on top. Margin account survives only its signal-starvation half (clip has nothing to
+learn from); its phenotype half was wrong.
+HONESTY CLAUSE: bgevl_l-lr1e5 acc 0.1693 remains BELOW the no-ctx floor (0.1927) — its
+retrieval improved but is still net-harmful to the reader. "Trains" means retrieval
+learns; it does NOT yet mean useful RAG. 500 steps; longer runs unregistered.
+**gme7b-v3pure-s1 = 0.3573** (entR@5 0.8030, distinct 2895): vs gme7b-sft +0.0253
+McNemar p=0.0014 SIG (87/49); vs 2B base +0.0493 p=5.9e-08. 7B RL 2-seed: 0.3460/0.3573
+(mean 0.3517, spread 0.0113). The s0-only "n.s. convergence at 7B" verdict does NOT
+survive s1: RL>SFT at 7B is SIG in the stronger seed, mean gap +2.0 vs 2B's +3.7.
+Capacity story v4: margin persists at 7B, somewhat smaller than 2B; "capacity helps SFT
+not RL" weakens (RL-7B mean 0.3517 vs RL-2B 0.3471, +0.5 within seed noise).
+sft-curve ck900 = 0.3133 (max still ck750 0.3300; ck1050/1200 pending).

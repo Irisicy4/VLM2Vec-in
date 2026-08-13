@@ -625,3 +625,10 @@ span inside spread) — decline to read the rise. My earlier "consumption possib
 phrasings are superseded.
 Also recorded: gate 2 discharged (+2.2/+2.4 cEM is anchor strength at matched rate AND
 movement); first relay scored accurate-but-unsourced in their provenance block.
+
+### qwen25_3b-v3pure-lr3e5 (14:13) — ladder complete: dead at all rates, phenotype slides
+entR@5 0.0373(zs) -> 0.0060, distinct 2901/3000 (full diversity), acc 0.1733. Full ladder:
+2e-5 dead/partial-diversity(2033) | 3e-5 dead/full-diversity(2901, drift-like) | 1e-4
+dead/contracted(32). Raw Qwen2.5-VL-3B fails at every tested rate; LR slides the failure
+MODE (drift-like at gentle, contraction at hot) without changing the verdict. Non-
+monotone diversity across the ladder (2033 < 2901 at gentler rate) noted, uninterpreted.

@@ -492,3 +492,18 @@ adapter moved a lot, could be anything; (2) "amended prediction HIT" un-scored �
 CORRECT (fix landed before their eval step); (5) stdprobe data reinterpreted: 29% live
 groups is CONSISTENT with the large adapter movement — there never was a reward-side
 inertness at this rung.
+
+### Zero-gradient account DEAD on both rungs (writer refutation, accepted)
+Writer's checks, both sharper than mine: (1) artifact signature is BIT-IDENTICAL outputs
+— qwen25_3b identical on every metric; clipb32 moved (.0260->.0257, 2971->2825, .1513->
+.1473) => different phenomenon, clipb32 verdict stands (test works without reading code).
+(2) lora_B abs-sums: clipb32 3048 — FOUR TIMES bgevl_l-lr1e5's 812 (which gained +5.5
+R@5). clipb32's gradient was emphatically nonzero; retrieval didn't follow. With gme2b
+control 0.55 degenerate, uniform-reward -> zero-advantage -> no-update is dead on BOTH
+rungs it was proposed for. INERTNESS IS NOW AN OBSERVATION, NOT A MECHANISM: substantial
+parameter movement buying no measurable retrieval change, cause unresolved. Do not
+restore the mechanism without new evidence.
+CONVENTIONS: lora_B abs-sum added to the standard harvest (mmrag/adapter_stats.py, no
+GPU) — separates "didn't train" from "trained and it didn't help"; would have flagged
+44041 on landing. Re-eval of qwen25_3b treated as a FRESH CELL: first check outputs
+differ from base, then interpret.

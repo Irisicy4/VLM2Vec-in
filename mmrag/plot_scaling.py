@@ -42,6 +42,12 @@ import matplotlib.pyplot as plt  # noqa: E402
 # match the reference run exactly. NOTE `pool` is free here but constrained per series by
 # POOLS below -- pool_train and pool_train_big are different query DISTRIBUTIONS
 # (train_per_entity 10 vs 200), so a curve must not silently mix them.
+# Diagnostic probes are NOT data points. A 50-step gme2b-stdprobe differs from the v3-pure
+# reference only in max_steps -- which is FREE on the consumption axis -- so it would otherwise
+# appear as a hollow 200-draw marker on a publication figure. Excluded by name; add any future
+# probe suffix here rather than relaxing the config rules.
+EXCLUDE_RUNS = re.compile(r"(-stdprobe|-probe|-smoke|-debug)$")
+
 FREE_KEYS = {"seed", "max_train_rows", "pool", "output_dir", "data_dir", "n_distractor_articles"}
 
 # Reference runs defining each fresh-wave series (must exist in $MMRAG_DATA/runs/).
@@ -226,6 +232,8 @@ def collect_fresh(D, ref_run, recipe, pools):
     out = {}
     for p in sorted(glob.glob(os.path.join(D, "results", "*.vqa_top5.json"))):
         run = os.path.basename(p)[: -len(".vqa_top5.json")]
+        if EXCLUDE_RUNS.search(run):
+            continue
         a = args_of(D, run)
         if a is None or recipe_of(a) != recipe or not same_config(a, ref):
             continue
@@ -350,6 +358,8 @@ def collect_consumption(D, ref_run, recipe, avail_rows):
     out = {}
     for p in sorted(glob.glob(os.path.join(D, "results", "*.vqa_top5.json"))):
         run = os.path.basename(p)[: -len(".vqa_top5.json")]
+        if EXCLUDE_RUNS.search(run):
+            continue
         a0 = args_of(D, run)
         n, a = consumed_of(D, run, a0)
         if a is None or n is None or recipe_of(a) != recipe:

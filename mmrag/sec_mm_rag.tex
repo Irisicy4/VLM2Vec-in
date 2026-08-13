@@ -1267,6 +1267,18 @@ most of the bootstrap along with it.
 %   must be labelled as such wherever it appears.
 %   RESIDUAL ASYMMETRY, disclosed in prose: SFT max is one retrain at 8 checkpoints; RL endpoints
 %   verified against ck250 on all 3 seeds but not finely swept. OOD/transfer untouched by this.
+% INSTRUMENTED FIX IN FLIGHT (runner, v23-base @ 2f83c05): train_rl.py now logs
+%   reward/group_std_mean AND reward/group_degenerate_frac (fraction of groups with exactly zero
+%   within-group std -- the sharper of the two, since a mean std can be held up by a few live
+%   groups while most are dead). Probes: qwen25_3b-stdprobe (1e-4) + gme2b-stdprobe (2e-5
+%   control), 50 steps each.
+%   REGISTERED PREDICTION (runner): qwen25_3b degenerate_frac ~1.0 throughout; gme2b well below 1.
+%   IF qwen25_3b's frac is NOT ~1 the degeneracy hypothesis is WRONG and inertness has no
+%   mechanism -- the four-decimal-flat metric would then be genuinely unexplained. Score either way.
+%   NOTE these probes are 50-step DIAGNOSTICS, not result cells: plot_scaling.py excludes them by
+%   name (EXCLUDE_RUNS) because gme2b-stdprobe differs from the v3-pure reference only in
+%   max_steps, which is free on the consumption axis, and would otherwise have appeared as a
+%   200-draw marker on a publication figure.
 % *** DO NOT CLAIM INERTNESS IS VERIFIED AT THE GRADIENT LEVEL. Checked and it is not. ***
 %   loss/policy and ppo/advantage_mean are ~0 in EVERY plgrpo run, including the healthy one:
 %     v3-pure (learns, R@5 .685->.753)  |loss/policy|max = 1.49e-08

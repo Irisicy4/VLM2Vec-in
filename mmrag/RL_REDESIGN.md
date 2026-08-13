@@ -326,3 +326,13 @@ SFT verdict survives). Estimator x capacity, text column: PL > enumeration at 0.
 (plgT4b_tj ck175 61.4/72.0 vs enum 57.5/70.8). MM column: our gme 2B/7B pair — with the
 caveat that MM 7B RL-SFT gap compresses to n.s.; text 4B still shows PL>enum clearly
 (different comparison: estimator-vs-estimator, not RL-vs-SFT).
+
+### LR-confound propagation from text side (2026-08-13, their config audit)
+Their anchored plg twins/klfix/ppofix ran 1e-5; T-era family (plgT*, plgTa, cc0 arms) ran
+2e-5. CONSEQUENCE FOR THIS LEDGER: the "text no-anchor no-gold arms COLLAPSE" attribution
+(entry above citing Trivia R@5 43.1) compared unanchored-2e-5 vs anchored-1e-5 — the
+anchor-prevents-collapse reading carries an LR confound there. PARTIAL RESCUE already in
+hand: the composed-cell pair plgTa vs plgT_cc0 is same-rate (both 2e-5) and shows the
+anchor removing the early drop (+5.5-7.4 R@5) at matched LR — anchor attribution survives
+at matched rate, magnitude of the old "collapse" rows awaits their wave-3 plgTlr1e5 cell.
+Cross-modality claims should cite the T-era same-rate pair, not the old twins.

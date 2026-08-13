@@ -280,3 +280,14 @@ NOT higher-start. The cell now tests: retrieval-style objective at matched-bad z
 If bgevl_l-v3pure still trains where clip collapsed -> objective/geometry mechanism result
 (stronger than the original claim). If it collapses -> consistent with a zs-competence
 floor; pretraining-vs-architecture question stays OPEN (not refuted).
+
+### LR-sensitivity control wave (2026-08-13, user-directed, registered pre-landing)
+All non-GME v3pure cells so far inherited lr=1e-4 (tuned on GME). Control cells submitted:
+clip-v3pure-lr{1e5:MLX b530a228, 3e5:local}, bgevl_l-v3pure-lr{1e5:MLX b319c018, 3e5:local},
+siglip2-v3pure-lr1e5 (local), qwen25_3b-v3pure-lr3e5 (local).
+PREDICTION: if the CLIP-class contraction phenotype is an LR overshoot artifact, lower LR
+rescues R@5 toward zs level and the boundary claim must be rewritten as "fails at
+GME-tuned lr" (per-family tuning required, boundary table gains an lr column). If
+contraction persists across the 10x ladder, the boundary claim survives LR as a confound.
+Registered expectation from the margin account: contraction persists (the failure is
+signal-starvation in the top-M support, not step size) — but genuinely uncertain.

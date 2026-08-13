@@ -409,3 +409,24 @@ to probe below 1e-5 — 1e-5 is a boundary cell, not established as the peak.
 sft-curve ck1050 = 0.3133 (plateau; max still ck750 0.3300; ck1200 last).
 v3-b16-s750 = 0.3487 acc, entR@5 0.7590, distinct 2891 — batch-16, 12k draws: consumption
 curve gains a >=headline point (0.3487 vs 0.3471), consistent with consumption-rising.
+
+### 05:59 landings — fairness audit COMPLETE; qwen25_3b prediction HIT; bracket halves
+**2B fairness verdict (final): SFT curve complete** (.2953/.3207/.3227/.3107/.3300/.3133/
+.3133/.3153, ck150-1200; max ck750 = 0.3300; released 600-step ckpt confirmed post-peak).
+v3-pure fresh seeds vs SFT-max McNemar: s0 +0.0147 p=0.084 n.s.; s1 +0.0173 p=0.042 SIG;
+s2 +0.0193 p=0.02 SIG. AUDITED HEADLINE: RL 0.3471 (3-seed mean) vs SFT-best-checkpoint
+0.3300 = +1.7, SIG in 2/3 seeds. (Old +3.7-vs-endpoint number retired from headline use.)
+Residual asymmetry, disclosed: SFT max is from ONE retrain (8 ckpts); RL endpoints
+verified >= their ck250 on s0 only.
+**qwen25_3b-v3pure: INERT, exactly** — entR@5 0.0373 -> 0.0373, distinct 2992, acc
+identical. Amended prediction (drift->inert, registered pre-landing) SCORES HIT. Bracket
+halves: at lr 1e-4, inert/contraction boundary now (0.0373, 0.054), fully fresh. Note the
+bracket is LR-CONDITIONED (at 1e-5 nothing contracts anywhere). clipb16-v3pure (zs .031,
+queued) now tests inert-region consistency rather than bisecting.
+**siglip2-v3pure-lr1e5: no contraction (2917), no learning (R@5 .0823 -> .0660)** — same
+class as clip-L at 1e-5. At 1e-5 the only base that LEARNS remains bgevl_l. Wording
+nuance for the discrimination claim: BGE-VL is retrieval-FINETUNED (MegaPairs CIR);
+clip/siglip are image-text contrastive — say "retrieval-finetuned", not "-pretrained".
+**v3-rows200k-s3000 = 0.3407** (R@5 .764, distinct 2885): big-pool consumption curve now
+4k:0.3400(3s) / 12k:0.3480(1s) / 24k:0.3407(1s) — plateau ~0.34-0.35, no clear rise
+beyond 12k; 1-seed points, do not claim a sag.

@@ -242,6 +242,32 @@ different axis entirely.
 %   Eval per REPRO(eval-any-checkpoint). Significance @ mmrag 785022b:
 %   python3 mmrag/significance.py --results_dir $MMRAG_DATA/results \
 %       --pairs v3-pure:sft-lr1e4-h0-repro v3-pure:gme2b-zeroshot-3k-repro   # and -s1, -s2
+%
+%   FRESH 7B PAIR [acc/EM/F1 top-5 n=1500; R@k in-domain n=3000], runs gme7b-sft, gme7b-v3pure:
+%     gme7b-sft     0.3320 / 0.2527 / 0.3420 | R@1 .6440 R@5 .7767 R@10 .8183 ansR@5 .6302
+%     gme7b-v3pure  0.3460 / 0.2620 / 0.3485 | R@1 .6287 R@5 .8097 R@10 .8593 ansR@5 .6902
+%     McNemar n=1500: v3 over SFT +0.0140 p=0.089 N.S. (CI -0.0013..+0.0293)
+%                     gme7b-sft over 2B sft-repro +0.0220 p=0.015 SIG <- SFT scales with capacity
+%                     gme7b-v3pure over 2B base +0.0380 p=1.1e-05 SIG (sanity)
+%     CAVEATS THAT MUST TRAVEL WITH THESE NUMBERS: one seed per arm; gme7b-v3pure-s1 training;
+%     the 7B SFT is a SINGLE LR point (recorded sweep's best rung lr1e-4) -- no fresh 7B LR sweep.
+%     DO NOT WRITE "RL loses its advantage at 7B": n.s. at 1 seed cuts both ways, the retrieval
+%     advantage is undiminished (R@5 .8097 vs .7767), and OOD at 7B is untested.
+%
+%   ENDPOINT-vs-MAX AUDIT (symmetric, applied to BOTH arms, fresh wave). Reading an arm at its
+%   trained endpoint can understate it, and the direction differs by arm: the recorded sweep has
+%   SFT better at 1200 steps than 600 (sft-lr1e4-h0-s1200 0.3173 vs 0.3100) while the text side
+%   finds RL arms peaking early. Applied to both rather than to whichever it flatters.
+%     RL half RESOLVED: v3-pure{,-s1,-s2}-ck250 = 0.3333 / 0.3393 / 0.3393 vs endpoint
+%       0.3447 / 0.3473 / 0.3493 -- LOWER on all three seeds, so max-over-ckpt == endpoint and
+%       the headline is unrevised. entR@5 at ck250: 0.7600 / 0.7817 / 0.7747.
+%     SFT half IN PROGRESS: sft-curve-ck{150..1200}, tuned config retrained to 1200 steps,
+%       checkpoints every 150. Partial: ck150 0.2953 -> ck300 0.3207 -> ck450 0.3227, still
+%       rising, and already above the 600-step released-ckpt repro (0.3100) by ck300 -- so that
+%       checkpoint was not the config's best either. HOLD the fairness-table edits until all 8
+%       points land; then recompute the 2B gap against SFT's max WITH McNemar (per-question preds
+%       are stored for every eval). Projection if SFT max ~0.3227: gap +0.024 from +0.037,
+%       expected to stay significant on the discordant-pair arithmetic -- verify, do not assume.
 \paragraph{A pure policy gradient is the best arm.} Table~\ref{tab:mm_main} gives the headline.
 v3-pure reaches $34.71 \pm 0.19$ VQA accuracy over three seeds, against $31.00$ for the
 relevance-SFT baseline and $30.80$ for the zero-shot base --- $+3.71$ over SFT and $+3.91$ over

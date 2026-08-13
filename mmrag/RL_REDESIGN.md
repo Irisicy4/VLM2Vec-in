@@ -572,3 +572,29 @@ strength); (3) movement SUBLINEAR in steps (3x steps = 1.75x movement) — steps
 not interchangeable movement currencies; (4) above-base candidate (70.4-70.6 vs base
 69.8) pre-registered with 3 seeds before any headline. Their discriminator cell
 plgTaBudget (1.7e-6 x 1500) + anneal cell (cc 1->0 first quarter) submitted.
+
+### Writer pass (14:3x): consumption series complete; sublinearity replicates on MM
+(1) v3 consumption series COMPLETE: 2k 34.00+/-0.47 (3s) / 6k 34.80 (1s) / 12k 34.07 (1s)
+— plateau in the 34-35 band; 34.80 is NOT quotable as a maximum (span < 3-seed spread).
+Shared-cell warning fired correctly on their side (two paragraphs, one cell, different
+numbers) — fixed; honest scoring adopted: replicates .3433/.3420 => "no pool-composition
+effect at matched consumption (vs 25k cell: exactly 0.00)", NOT "deficit was a low draw"
+(3-seed mean .3400 came in below the .347 the low-draw branch anticipated).
+(2) Trajectory form (theirs, better): early-peak is conditioned on BUDGET, not modality —
+at matched short budgets neither estimator has peaked; modalities separate only under
+extended consumption (MM plateaus, text declines).
+(3) SUBLINEARITY REPLICATES ON OUR ADAPTERS (their harvest, lr/pool fixed, only
+max_steps differs): 500st 7194 / 1500st 11915 (x1.66) / 3000st 15584 (x2.17). With the
+LR ladder (~linear in rate), displacement is ~LINEAR IN RATE, SUBLINEAR IN BUDGET.
+RULES ADOPTED: collapse boundary stated PER LEARNING RATE, never per budget (a long safe-
+rate run does not reach where a short damaging-rate run goes); budget sweeps are NOT
+movement sweeps — applies to interpreting v3-cos/b16cos tails (cos reduces late LR;
+movement even more sublinear there). Best line, theirs: across the plateau "the optimiser
+keeps moving; it stops converting."
+(4) Cross-side provenance rule tightened: FIVE of my relayed text-side figures failed
+their reconciliation against trl PAPER_TABLES.md (numbers were from messages, not tables
+— summarisation drift, not fabrication). New rule: cross-side numbers quoted in either
+paper must come from the source repo's TABLES file; message numbers are coordination
+only.
+(5) v1-vs-v3 over-training contrast held soft (1 seed/arm at upper points) — the
+scale200k-ck dense checkpoints are its test; flag to writer the moment they land.

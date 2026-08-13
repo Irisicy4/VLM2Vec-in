@@ -542,3 +542,18 @@ the 1e-5 run's 812) — undertrained at 500 steps. BGE-VL-L window over the full
 3e-6 flat | 1e-5 LEARNS +5.5 | 3e-5 damaged -1.0 | 1e-4 contracts. 1e-5 upgrades from
 boundary cell to interior maximum; the +5.5 rescue number is no longer an underestimate
 by construction (longer-run/finer-grid gains remain possible but unregistered).
+
+### 5e-6 low-end controls (13:03) — drift is NOT an LR artifact; qwen2b zs corrected
+**vlm2vec2b-v3pure-lr5e6: STILL DRIFTS** — entR@5 0.157(zs) -> 0.0017, distinct 2999/3000
+(full diversity, retrieval destroyed), acc 0.1793. With the 2e-5 twin, vlm2vec2b's drift
+is robust across a 4x LR range — the writer's coverage-gap cell answers its question:
+unlike BGE-VL's contraction (an LR artifact), vlm2vec2b's drift is not rescued by gentler
+LR at 500 steps. SHARPENS THE DISCRIMINATION at matched zs signal (~0.157): retrieval-
+finetuned CLIP-arch (bgevl_l) LEARNS at 1e-5; VLM2Vec-trained Qwen2-VL drifts at every
+tested rate.
+**qwen2b ZS CORRECTION (my error in messages/summary): qwen2b-zeroshot entR@5 = 0.0003**,
+near-zero — NOT ~0.15 (that was vlm2vec2b). qwen2b sits in the near-zero-signal corner
+with clipb32; its "drift/contraction" labels are largely vacuous (nothing to lose:
+0.0003 -> 0.0000 at 5e-6, distinct 2503, acc 0.1993 -> 0.2187 — both accs ABOVE the
+floor, consistent with near-random context being ignorable). Any ladder/phenotype text
+placing "raw-qwen2b" at mid-signal is wrong and must cite vlm2vec2b instead.

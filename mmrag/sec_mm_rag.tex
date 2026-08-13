@@ -387,6 +387,20 @@ the three answer metrics, v2 on the three retrieval metrics.}
 %   0.03; gap_i = (sim(q_i, own top-1) - max cross-query pool doc sim) / tau.
 %   Text-side row measured by the text session: trl-projects .../rag/PAPER_TABLES.md Table 8d.
 %
+% PENDING SLOT -- anchor STRENGTH (not presence), text side, 3 seeds in flight as of 2026-08-13.
+%   Relayed headline: +2.4 cEM for a stronger anchor. NOTHING PRINTABLE YET and nothing is
+%   drafted around it -- deliberately, per the rule two blocks down at REPRO(anchor-scope).
+%   When it lands, three things must be checked BEFORE any prose is written:
+%   (1) the figure must be read out of PAPER_TABLES.md, not out of a message (see the LR-ladder
+%       post-mortem in the ADAPTER DISPLACEMENT block: 3 of 5 relayed figures were unlocatable);
+%   (2) their coef rows are LR-confounded by their own line 453, so a strength effect must come
+%       from a SAME-RATE pair or it is measuring the learning rate again;
+%   (3) it is a claim about their anchor, whose positive is the ANNOTATED passage -- ours is
+%       self-argmax. Our section already carries that definitional caveat; a strength result does
+%       NOT transfer to our anchor without restating it.
+%   Our own side of this question is the v2/v3 contrastive_coef 0.3-vs-0 pair already in
+%   tab:mm_v3add; we have no intermediate-coef cell and are not planning one.
+%
 % REPRO(anchor-scope): the collapse counter-example is the text side's exact anchor-removal twin
 %   of v3 -- their runs plgcc0_{trivia,wq}_ng vs the anchored twins, measured in their session
 %   (trl-projects; cite as a joint note, same as the margin-table text row): Trivia R@5 43.1 vs
@@ -1146,14 +1160,18 @@ cannot attach a McNemar $p$ to it because that cell is a recorded run without pe
 predictions. We report the exposure-matched number as the honest one; the ordering is unchanged.
 A further asymmetry remained until late, and we closed it in both directions at once. Reading an
 arm at its trained endpoint can understate it, and the recorded sweep shows SFT doing better at
-$1{,}200$ steps than at $600$ ($31.73$ against $31.00$), while the text side finds its RL arms
-peaking early. Rather than apply the correction to whichever arm it flatters, we ran the same
+$1{,}200$ steps than at $600$ ($31.73$ against $31.00$), while the text side had reported its RL
+arms peaking early. Rather than apply the correction to whichever arm it flatters, we ran the same
 intermediate-checkpoint discipline on both --- a full SFT curve to $1{,}200$ steps and
 checkpoint evaluations of all three v3-pure seeds --- and report a max-over-checkpoint column for
 each (Table~\ref{tab:mm_main}). The RL half has resolved and it confirmed rather than revised the
 number: every v3-pure seed scores lower at half budget than at the endpoint, so this arm is still
-improving when we stop it and the text side's early-peak pattern does not transfer. The SFT curve
-is still training. This is the third fairness audit applied to our own headline,
+improving when we stop it. That early-peak concern turns out to be conditioned on budget rather
+than on modality: at the matched short budgets these headline cells are trained to, neither
+modality's estimator has peaked by its endpoint, and the two separate only under extended
+consumption, where our curve plateaus while theirs declines
+(Table~\ref{tab:mm_consumption}; the cause of the decline is under investigation on their side).
+The SFT curve is still training. This is the third fairness audit applied to our own headline,
 after the SFT tuning sweep and the estimator-correctness rewrite; we would rather find the
 compressions ourselves than have them found for us.
 This matters beyond bookkeeping. On the text side the same audit discipline killed several
@@ -1344,6 +1362,18 @@ most of the bootstrap along with it.
 %   plot_scaling.py computes draws from args so the figure was never affected. Series is
 %   2k .3400 (3 seeds) / 6k .3480 (1) / 12k .3407 (1) -> PLATEAU ~.34-.35; do NOT draw a sag
 %   from single-seed points. ***
+%   LANDED IN THE TABLE 2026-08-13: the 12k v3 cell had been sitting in this comment as .3407
+%   while tab:mm_consumption still read "pending" -- the exact message-only-fact failure mode.
+%   Checklist strings for this batch: "34.07", "34.00 \pm 0.47", "plateau in the $34$--$35$ band".
+%   SHARED CELL WARNING (v3-rows200k) IS NOW DISCHARGED. Pre-registration said: replicates near
+%   .347 => first seed was a low draw and the row becomes a 3-seed mean; near .335 => pool
+%   composition matters at fixed consumption. Outcome: -s1 .3433, -s2 .3420, mean .3400 +/- .0047.
+%   SCORED AS THE LOW-DRAW BRANCH -- both replicates land above .3347 and neither is near .335 --
+%   but note the mean (.3400) is BELOW the .347 the low-draw branch anticipated, so the honest
+%   reading is "no pool-composition effect", not "the deficit was entirely a low draw". Against
+%   the 25k cell (.3400, 1 seed) the pool effect at matched consumption is exactly zero. BOTH
+%   paragraphs the warning named have now been revised together (consumption + the mm_scaling
+%   control), which was the point of flagging the cell as shared.
 % qwen25_3b CORRECTED VERDICTS (adapter-loaded, verified per the fresh-cell rule: outputs differ
 %   from base on every metric -- acc .1607->.1707, R@5 .0373->.0000, distinct 2992->32):
 %     qwen25_3b-v3pure      (lr 1e-4) acc .1707 / R@5 .0000 / distinct   32  CONTRACTS, deepest yet
@@ -1405,6 +1435,39 @@ most of the bootstrap along with it.
 %   the other loses 1.27. So LR decides how far and whether it destroys; the base's retrieval
 %   finetuning decides whether the movement accomplishes anything. The learning cell moved LEAST.
 %   Third case for the didn't-train / didn't-help distinction: moved-far-and-destroyed.
+% DISPLACEMENT vs STEPS (computed HERE, read-only, from the shipped adapters -- same lora_B
+%   abs-sum measure as the LR ladder above, so the two are directly comparable):
+%     python3 - <<'EOF'   # $MMRAG_DATA/runs/<name>/adapter_model.safetensors, sum |lora_B|
+%     from safetensors import safe_open
+%     t=0.0
+%     with safe_open(f'runs/{name}/adapter_model.safetensors','pt') as g:
+%         for k in g.keys():
+%             if 'lora_B' in k: t += g.get_tensor(k).abs().sum().item()
+%     EOF
+%     v3-rows200k        500 steps  lora_B  7194   x1.00
+%     v3-rows200k-s1500 1500 steps  lora_B 11915   x1.66  (3x the budget)
+%     v3-rows200k-s3000 3000 steps  lora_B 15584   x2.17  (6x the budget)
+%   All three are lr 2e-5, same pool, same recipe -- ONLY max_steps differs (verified in
+%   args.json). So displacement is ~LINEAR IN LR (33x rate -> 30x distance, 260->7796 above) but
+%   STRONGLY SUBLINEAR IN STEPS (6x budget -> 2.2x distance). Steps and LR are NOT interchangeable
+%   movement currencies; the collapse boundary must stay stated per-LR, never per-budget.
+%   Corollary for the consumption axis: the 34-35 plateau is NOT a plateau in distance travelled.
+% *** RELAYED AND CHECKED -- text-side LR ladder. Runner message gives:
+%     5e-6 lora_B 1226 / 70.0 | 1e-5 2140 / 68.8 | 2e-5 4028 / 68.2, plus 3x steps -> 1.75x
+%     movement (ours 1.66x).
+%   CHECKED AGAINST THEIR SOURCE, trl-projects/projects/indirect/rag/PAPER_TABLES.md:
+%     - there is NO lora_B / displacement column anywhere in that file;
+%     - 70.0 @ lr5e6 DOES appear (line 325, in-domain Trivia cEM, max-over-ckpts);
+%     - 68.8 does NOT appear anywhere; neither does the steps sublinearity.
+%   So three of the five relayed figures are unlocatable in their own results table, and the one
+%   that checks out (70.0) sits in a row whose own note flags an anchor/LR confound (line 453:
+%   "their anchored twins ran 1e-5 -- the anchor attribution in these rows is confounded with LR").
+%   DECISION: their numbers do NOT go in the prose. The cross-modality decoupling is stated
+%   QUALITATIVELY and attributed, with an explicit "not yet in their tables" caveat in the body
+%   text itself. Our own step ladder above carries the entire quantitative claim. Revisit only if
+%   the text session lands a displacement table; then print figures from THAT, not from a message.
+%   (This is the fifth time a relayed figure failed to reconcile with their source table. The rule
+%   that keeps paying: relayed numbers are leads, and a lead never becomes body text.) ***
 % LR DOSE-RESPONSE (fresh, 1 seed each; distinct-top5 / entR@5), contraction is GRADED:
 %     clip-L    1e-5 2882/.0410 | 3e-5 1795/.0170 | 1e-4  214/.0043
 %     bgevl_l   1e-5 2966/.2123 | 3e-5 2364/.1477 | 1e-4  197/.0070
@@ -1596,7 +1659,25 @@ why the cell that learns is the one that moved \emph{least}. A second pair makes
 from the other direction: \textsc{CLIP-B/32} and \textsc{CLIP-B/16} travel almost the same
 distance, $3{,}048$ and $3{,}126$, and end in opposite phenotypes --- one barely perturbed, the
 other the deepest collapse in the table. How far a run moves is not what determines what happens
-to it.
+to it. The text side reports the identical decoupling on its own adapters --- displacement rising
+monotonically with the learning rate while its best-scoring cell is again its least-displaced one
+--- which, if it holds up in their write-up, would make this a property of the training signal
+rather than of image encoders. We state that convergence without numbers on purpose: their
+displacement harvest is not yet in their results tables, and nothing here rests on it.
+
+Two consequences follow, and the second bears on how the consumption axis should be read. First,
+displacement is close to linear in the learning rate: a $33\times$ range of rate moves
+\textsc{BGE-VL-large} $30\times$ ($260$ to $7{,}796$). Second, it is strongly \emph{sub}linear in
+the step budget. Holding the rate at $2\mathrm{e}{-}5$ and lengthening the $200$K-pool v3 run from
+$500$ to $1{,}500$ to $3{,}000$ steps travels $7{,}194$, $11{,}915$ and $15{,}584$ --- a $6\times$
+budget for $2.2\times$ the distance. The two ladders run on different bases, so it is the exponents
+being compared and not the magnitudes, but the gap between them is far too large to be a base
+effect. Steps and learning rate are therefore not interchangeable currencies for movement, and
+nothing in this section should be read as though they were: a long run at a safe rate does not
+reach where a short run at a damaging rate goes, which is why the collapse boundary is stated per
+learning rate and never per budget. It also means the plateau on the consumption axis is not a
+plateau in distance travelled --- across the range where accuracy stays inside a single point, the
+adapter travels more than twice as far. The optimiser keeps moving; it stops converting.
 
 The casualty of all this is worth stating plainly: phenotype is a function of starting signal
 \emph{and} learning rate, not of starting signal alone, so any boundary drawn on zero-shot
@@ -1765,14 +1846,25 @@ $200$K pool and a $45$K pool reach statistically indistinguishable accuracy from
 of draws. Consumption is the axis; availability is not. Going to $6$K draws on the same $200$K
 pool then reaches $34.80$, at or above the headline level, so more drawing does buy something
 here --- though that point is a single seed against a three-seed base and we put it no more
-strongly than that. The practical reading is the useful one: a larger pool costs nothing at
+strongly than that. Extending to $12$K returns $34.07$, back at the $2$K level. The v3 series
+across the range is therefore $34.00 \pm 0.47$, $34.80$, $34.07$: a plateau in the $34$--$35$ band,
+not a rise and not a decay. With the two upper points at one seed each against a three-seed spread
+of $0.47$ we specifically decline to read a peak into the middle one --- the whole span sits inside
+the noise of the one cell we replicated. What the range does establish is a contrast the v1 arm
+does not share: over a $6\times$ span of consumption the corrected estimator ends where it began,
+whereas v1 gives up $1.73$ points across the same span ($34.80 \to 33.07$). The natural reading is
+that whatever over-training costs the anchored recipe, dropping the anchor drops that cost with it
+--- but the upper points are one seed per arm, so we flag that as the hypothesis the dense
+checkpoints are there to test, not as a result.
+The practical reading is the useful one: a larger pool costs nothing at
 matched consumption and keeps successive draws near-collision-free (the birthday bound caps
 repeats at $2.9\%$ even at $12$K), so if more cheap VQA data is available, the way it pays is
 by supporting more draws rather than by sitting in the pool. We do not write that big pools hurt;
 at three seeds and $p{\approx}0.10$ that is not what the data says.
 
-\emph{Status: the dense curve is in flight and the conclusion is not yet fixed.} We state in
-advance how it will be read, so that neither outcome can be written up as the one we wanted.
+\emph{Status: the v3 endpoints above are complete, but the dense v1 curve is still in flight and
+its conclusion is not yet fixed.} We state in advance how it will be read, so that neither outcome
+can be written up as the one we wanted.
 The three v1 endpoints already in hand fall monotonically --- $34.80$ at $2$K consumed, $34.57$
 at $6$K, $33.07$ at $12$K --- so on present evidence the curve peaks at or before the smallest
 budget we have measured. If the intermediate checkpoints confirm that shape, the honest claim is
@@ -1816,7 +1908,7 @@ $6$K  & ck1500                      & \emph{pending} & --- \\
 $6$K  & final, $1{,}500$ steps      & 34.57 (2 seeds) & $34.80$ \\
 $8$K  & ck2000                      & \emph{pending} & --- \\
 $10$K & ck2500                      & \emph{pending} & --- \\
-$12$K & final, $3{,}000$ steps      & 33.07 & \emph{pending} \\
+$12$K & final, $3{,}000$ steps      & 33.07 & 34.07 \\
 \bottomrule
 \end{tabular}
 
@@ -1833,12 +1925,15 @@ $200$K \texttt{pool\_train\_big} ($200$/entity) the other v3 rows use. Once
 %   (configs in mmrag/mlx_configs/). Every cell is the V1 RECIPE -- verified in args.json:
 %   algo=grpo, contrastive_coef=0.3 -- so it predates v3 and says nothing about the headline arm.
 %   25k per-seed (mean 34.62 +/- 0.19): scale-rows25k 34.87 / -s1 34.60 / -s2 34.40.
-%   v3 cells on this axis: v3-rows25k 0.3400 (25k pool) and v3-rows200k 0.3347 (200k pool), both
-%     2k drawn, 1 seed each, fresh. SHARED CELL WARNING: 0.3347 is also the left endpoint of the
-%     consumption fork, so when v3-rows200k-s1/-s2 (jobs aac4d3f9 / 844029d3) land, BOTH this
-%     paragraph and the consumption paragraph need revisiting together. If the replicates come in
-%     near 0.347 the 0.3347 cell was a low draw and this row should become a 3-seed mean; if near
-%     0.335 then pool composition matters at fixed consumption and that is a finding in itself.
+%   v3 cells on this axis (RESOLVED 2026-08-13; the shared-cell warning below is discharged):
+%     v3-rows25k   0.3400 (25k pool, 1 seed)
+%     v3-rows200k  0.3400 +/- 0.0047 (200k pool, 3 seeds: .3347 / .3433 / .3420)
+%     both 2k drawn, fresh. The 8x pool range moves the mean by 0.00 -- the cleanest form this
+%     control has taken, and it is now a 3-seed statement on the wide end rather than 1-vs-1.
+%   SHARED CELL WARNING [DISCHARGED]: 0.3347 was also the left endpoint of the consumption fork,
+%     so this paragraph and the consumption paragraph had to be revised together -- they were,
+%     in the same edit. Pre-registered branches and the score are recorded once, at the
+%     consumption REPRO block above; do not re-litigate them here.
 %   Compute-axis rows, v1 RECORDED wave (results_summary.json @ 8be8e67), within-wave pairs:
 %     rl-j2e5-nogold-det 34.13 -> -det-1500 31.93 (-2.20) at 41K
 %     rl-j2e5-nogold-rows8k 34.07 -> -rows8k-1500 32.20 (-1.87) at 8K
@@ -1856,11 +1951,13 @@ pool from $12.5$K to $200$K queries leaves accuracy flat --- $34.33$, $34.62 \pm
 $34.67$, $32.87$, $34.80$, a $2.0$-point spread against a $3.7$-point RL-to-SFT gap
 (Table~\ref{tab:mm_scaling} and Figure~\ref{fig:mm_scaling}) --- because rows beyond the visited
 ${\sim}2{,}000$ are never sampled. Pool size beyond the visited count is irrelevant: data only
-matters if it is consumed. The corrected estimator behaves the same way where we have measured it
---- v3-pure scores $34.00$ at a $25$K pool and $33.47$ at $200$K, an $8\times$ range spanning
-$0.53$ points, both single seeds against a fresh-retrain spread of $0.2$--$0.6$ --- so this
-control is not an artefact of the v1 recipe either. The $200$K cell is the one whose replicates
-are pending, and it is shared with the consumption analysis above. Raising the budget at fixed pool likewise costs accuracy in every pair
+matters if it is consumed. The corrected estimator behaves the same way, and here the replicates
+have landed: v3-pure scores $34.00$ at a $25$K pool (one seed) and $34.00 \pm 0.47$ at $200$K
+(three seeds), so an $8\times$ range in available data moves the mean by nothing at all --- this
+control is not an artefact of the v1 recipe either. That agreement also resolves a fork we had
+flagged: the $200$K cell's first seed read $33.47$ and looked like a half-point pool penalty, and
+the two replicates ($34.33$, $34.20$) identify it as a low draw rather than an effect of pool
+composition. Raising the budget at fixed pool likewise costs accuracy in every pair
 we have ($34.13 \to 31.93$ at $41$K and $34.07 \to 32.20$ at $8$K, both v1 recorded wave and
 therefore compared within-wave), which is the observation the consumption curve exists to
 resolve --- whether that is over-training or a genuine data ceiling cannot be told apart from

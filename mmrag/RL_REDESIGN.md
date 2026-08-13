@@ -610,3 +610,18 @@ is inert insurance under dense image-conditioned reward and an active performanc
 under sparse same-modality reward." Outstanding gate: cc2 3-seed mean only. Table-first
 executed on their side (8g @ 2635af6b carries all relayed figures incl. lora_B column and
 our adapter-ladder replication credited).
+
+### Conventions round (writer, 15:1x) — three adopted
+(1) NAME THE METRIC IN THE CLAIM: "best cell moved least" is true in-domain (R@5/cEM)
+and INVERTS on NQ-transfer (most-displaced best: 47.6 @2e-5 vs 46.6 @5e-6). Displacement
+predicts neither quality nor damage on its own; what it predicts depends on the metric
+asked. Same shape as the ordering-holds-everywhere catch from the 12th: the omitted
+column is where cross-side claims fail.
+(2) ANCHOR TYPE RIDES WITH ARM NAME, always: text composed cells = anchor(self); text
+GOLD arm = anchor(ext) (their table lines 449-450 carry both). Three true statements
+coexisted and the arms crossed twice in correspondence; the label prevents the third.
+(3) MM consumption wording: PLATEAU (34.00+/-0.47 / 34.80 / 34.07, upper two 1-seed,
+span inside spread) — decline to read the rise. My earlier "consumption possibly rising"
+phrasings are superseded.
+Also recorded: gate 2 discharged (+2.2/+2.4 cEM is anchor strength at matched rate AND
+movement); first relay scored accurate-but-unsourced in their provenance block.

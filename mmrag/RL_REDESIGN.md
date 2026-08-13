@@ -507,3 +507,16 @@ CONVENTIONS: lora_B abs-sum added to the standard harvest (mmrag/adapter_stats.p
 GPU) — separates "didn't train" from "trained and it didn't help"; would have flagged
 44041 on landing. Re-eval of qwen25_3b treated as a FRESH CELL: first check outputs
 differ from base, then interpret.
+
+### clipb16-v3pure (09:14): CONTRACTS — bracket tightens to (0.026, 0.031) CLIP-family
+zs entR@5 0.0310 -> 0.0003, distinct 96/3000 (deepest contraction recorded), acc ROSE
+0.1680 -> 0.1947 = the no-ctx floor (0.1927) within noise. ANTI-DIAGNOSTIC INSTANCE #3,
+the cleanest: retrieval fully dead, reader reverts exactly to context-free behavior —
+acc-at-floor is now a predicted signature of full contraction (bgevl cells were en route:
+0.178/0.183 rising toward floor from 0.159).
+BRACKET (lr 1e-4, CLIP family, both endpoints fresh): inert/contraction boundary in
+(0.0260, 0.0310) — clipb32 inert, clipb16 contracts. Print-once: this version can print;
+the qwen25_3b point (zs 0.0373) now sits ABOVE the bracket and its re-eval tests whether
+the boundary TRANSFERS ACROSS FAMILIES (raw-VLM), not bisection. FAMILY-SCOPE the claim.
+lora_B: clipb16 3126 ~= clipb32 3048 — same optimiser movement, opposite phenotype;
+movement magnitude does not determine outcome (second confirmation).

@@ -731,17 +731,16 @@ case: after v3-pure its entity R@5 is $2.57$ against a zero-shot $2.60$, its dis
 count $2{,}825$ against $2{,}971$, and its accuracy $14.73$ against $15.13$. Nothing moved --- its retrieval after training matches its
 zero-shot to four decimals.
 
-The mechanism we propose is not that the reward is absent. The reader still answers some queries
-from parametric knowledge, and mean per-passage reward on this rung is $0.135$ with a maximum of
-$0.75$. It is that the reward cannot \emph{discriminate}: when the top-$24$ support holds nothing
-useful, the sampled lists are interchangeable to the reader, so the $G$ rewards within a query
-come out equal, the group-relative advantage is zero for every member, and the update vanishes
-regardless of how large the absolute rewards are. That account predicts the boundary --- any base
-whose support occasionally contains something answerable escapes inertness --- and it is
-consistent with contraction beginning by a zero-shot R@5 of $5.37$. We flag it as a hypothesis
-rather than a measurement: the training logs record only batch-mean rewards, and separating a
-zero gradient from a small one needs the \emph{within-group} reward variance, which is not
-currently logged. Which one
+What inertness is \emph{not} is an absence of learning signal, and we can rule that out
+directly. LoRA's $B$ matrices are zero-initialised, so their magnitude after training measures how
+far the optimiser actually moved: \textsc{CLIP-B/32} ends at an absolute sum of $3{,}048$, four
+times the $812$ of the run that gained $5.5$ points of recall and comparable to the healthy
+\textsc{GME-2B} arm's $7{,}285$. The gradient was not zero and the weights moved substantially;
+the retrieval simply did not follow. Direct instrumentation agrees --- across sampled groups only
+some are reward-degenerate, and the healthy control is itself partly degenerate --- so the tidy
+story that a uniform reward yields a zero advantage and no update is \emph{not} what happens here.
+We therefore report inertness as an observation rather than a mechanism: substantial parameter
+movement that buys no measurable retrieval, cause unresolved. Which one
 appears tracks the base's pretraining rather than the modality. The distinction is not simply
 contrastive pretraining --- CLIP and SigLIP are contrastively trained too, and they contract ---
 but whether pretraining ever spread the \emph{retrieval domain}: \textsc{VLM2Vec} is trained
@@ -1267,6 +1266,32 @@ most of the bootstrap along with it.
 %   must be labelled as such wherever it appears.
 %   RESIDUAL ASYMMETRY, disclosed in prose: SFT max is one retrain at 8 checkpoints; RL endpoints
 %   verified against ck250 on all 3 seeds but not finely swept. OOD/transfer untouched by this.
+% *** RETRACTION 2026-08-13: the qwen25_3b-v3pure "inert" verdict was an EVAL ARTIFACT. ***
+%   The eval never loaded the adapter: model.py attached qwen2_5_vl adapters to the inner
+%   base_model.model where the keys match nothing, so merge_and_unload was an identity
+%   (QWEN2_5_VL was missing from the branch whose comment warns of exactly this). Verified by the
+%   runner: checkpoint-vs-base embedding diff 0.0 EXACTLY, 0.328 after the fix. Fixed and pushed.
+%   PAPER CONSEQUENCES APPLIED: qwen25_3b v3 row -> pending; the bracket halving is UN-PRINTED and
+%   reverts to (2.60, 5.37) with the interior unresolved; the runner's "amended prediction HIT" is
+%   un-scored; the phenotype ladder drops the qwen25_3b point. Re-eval running.
+%   SCOPE, verified independently rather than accepted: the artifact signature is BIT-IDENTICAL
+%   outputs. qwen25_3b was bit-identical (R@5 .0373->.0373, distinct 2992->2992, acc .1607->.1607);
+%   clipb32's outputs DID move (.0260->.0257, 2971->2825, .1513->.1473), so it is a different
+%   phenomenon and its verdict stands. Other families visibly moved and are unaffected.
+% *** ZERO-GRADIENT ACCOUNT REFUTED FOR clipb32 TOO, by a check the runner did not run. ***
+%   lora_B is zero-initialised, so its abs-sum after training measures actual optimiser movement:
+%     qwen25_3b-v3pure     44041  (huge; eval never loaded it -> the artifact)
+%     clip-v3pure           7780  (contracts)
+%     v3-pure (healthy)     7285
+%     clipb32-v3pure        3048  <- INERT, yet moved 4x more than bgevl_l
+%     siglip2-lr1e5         1496
+%     bgevl_l-lr1e5          812  (gained +5.5 R@5)
+%   A zero gradient would leave B at exactly 0. clipb32's gradient was NOT zero and its weights
+%   moved substantially; the retrieval did not follow. Combined with the probe result
+%   (qwen25_3b degenerate_frac 0.71, healthy gme2b control 0.55 -- partial degeneracy is NORMAL),
+%   the uniform-reward -> zero-advantage -> no-update story is dead. Inertness is now reported as
+%   an OBSERVATION (movement without effect), cause unresolved. Do not restore the mechanism.
+%   Probe numbers stay as baseline data; the hypothesis they were built to test is moot as posed.
 % INSTRUMENTED FIX IN FLIGHT (runner, v23-base @ 2f83c05): train_rl.py now logs
 %   reward/group_std_mean AND reward/group_degenerate_frac (fraction of groups with exactly zero
 %   within-group std -- the sharper of the two, since a mean std can be held up by a few live
@@ -1470,12 +1495,12 @@ established optimum and the $+5.50$ may understate what this base can do.
 
 The casualty of all this is worth stating plainly: phenotype is a function of starting signal
 \emph{and} learning rate, not of starting signal alone, so any boundary drawn on zero-shot
-competence has to be conditioned on the optimiser setting that produced it. Conditioned that way,
-we can state it. At $1\mathrm{e}{-}4$ the boundary between inertness and contraction lies between
-entity R@5 of $3.73$ and $5.37$: raw \textsc{Qwen2.5-VL-3B} starts at $3.73$ and is exactly inert
---- its retrieval after training is $3.73$, unchanged to four decimals, with $2{,}992$ distinct
-sets --- while \textsc{CLIP-L} starts at $5.37$ and contracts. Both endpoints are fresh. At
-$1\mathrm{e}{-}5$ there is no boundary to draw, because nothing contracts anywhere.
+competence has to be conditioned on the optimiser setting that produced it. Conditioned that way, what we
+can currently bracket is wide: at $1\mathrm{e}{-}4$ the transition from inertness to contraction
+falls somewhere between entity R@5 of $2.60$, where \textsc{CLIP-B/32} barely moves, and $5.37$,
+where \textsc{CLIP-L} contracts. An interior point at $3.73$ would have halved it, but that cell's
+evaluation proved not to have loaded its adapter and its verdict is withdrawn pending re-run. At
+$1\mathrm{e}{-}5$ there is no boundary to draw at all, because nothing contracts anywhere.
 
 Two things are worth saying about those zero-shot numbers on their own. Both \textsc{BGE-VL} rungs
 answer \emph{below} the image-alone floor --- $15.93$ and $15.87$ against $19.27$ --- so their
@@ -1574,7 +1599,7 @@ Qwen2-VL-2B (raw)      & none             & 19.93 & 0.03 & \multicolumn{2}{c}{\e
 VLM2Vec-2B             & MMEB contrastive & 17.60 & 15.67 & \multicolumn{2}{c}{\emph{pending}} & 17.20 & 0.70 \\
 GME-2B \emph{(headline)} & GME            & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} \\
 \midrule
-Qwen2.5-VL-3B (raw)    & none             & 16.07 & 3.73 & \multicolumn{2}{c}{\emph{pending}} & 16.07 & 3.73 \\
+Qwen2.5-VL-3B (raw)    & none             & 16.07 & 3.73 & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} \\
 Qwen2-VL-7B (raw)      & none             & 16.20 & 0.47 & \multicolumn{2}{c}{\emph{pending}} & 20.60 & 0.00 \\
 VLM2Vec-7B             & MMEB contrastive & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} \\
 GME-7B                 & GME              & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} & 34.60 & 80.97 \\

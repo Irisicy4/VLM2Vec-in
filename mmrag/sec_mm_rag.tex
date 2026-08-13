@@ -728,10 +728,20 @@ Failures wear one name but are not one thing. The embedding may \emph{contract},
 queries to a handful of fixed sets; it may \emph{drift} out of alignment while staying fully
 spread; or training may be \emph{inert} and do nothing at all. \textsc{CLIP-B/32} is the third
 case: after v3-pure its entity R@5 is $2.57$ against a zero-shot $2.60$, its distinct top-$5$
-count $2{,}825$ against $2{,}971$, and its accuracy $14.73$ against $15.13$. Nothing moved. With
-retrieval that poor the reward is nearly uniform across the sampled lists, so the advantage is
-nearly zero and there is no gradient to speak of --- failure by absence of signal rather than by
-damage. Which one
+count $2{,}825$ against $2{,}971$, and its accuracy $14.73$ against $15.13$. Nothing moved --- its retrieval after training matches its
+zero-shot to four decimals.
+
+The mechanism we propose is not that the reward is absent. The reader still answers some queries
+from parametric knowledge, and mean per-passage reward on this rung is $0.135$ with a maximum of
+$0.75$. It is that the reward cannot \emph{discriminate}: when the top-$24$ support holds nothing
+useful, the sampled lists are interchangeable to the reader, so the $G$ rewards within a query
+come out equal, the group-relative advantage is zero for every member, and the update vanishes
+regardless of how large the absolute rewards are. That account predicts the boundary --- any base
+whose support occasionally contains something answerable escapes inertness --- and it is
+consistent with contraction beginning by a zero-shot R@5 of $5.37$. We flag it as a hypothesis
+rather than a measurement: the training logs record only batch-mean rewards, and separating a
+zero gradient from a small one needs the \emph{within-group} reward variance, which is not
+currently logged. Which one
 appears tracks the base's pretraining rather than the modality. The distinction is not simply
 contrastive pretraining --- CLIP and SigLIP are contrastively trained too, and they contract ---
 but whether pretraining ever spread the \emph{retrieval domain}: \textsc{VLM2Vec} is trained
@@ -1257,6 +1267,19 @@ most of the bootstrap along with it.
 %   must be labelled as such wherever it appears.
 %   RESIDUAL ASYMMETRY, disclosed in prose: SFT max is one retrain at 8 checkpoints; RL endpoints
 %   verified against ck250 on all 3 seeds but not finely swept. OOD/transfer untouched by this.
+% *** DO NOT CLAIM INERTNESS IS VERIFIED AT THE GRADIENT LEVEL. Checked and it is not. ***
+%   loss/policy and ppo/advantage_mean are ~0 in EVERY plgrpo run, including the healthy one:
+%     v3-pure (learns, R@5 .685->.753)  |loss/policy|max = 1.49e-08
+%     qwen25_3b-v3pure (inert)          |loss/policy|max = 7.45e-09
+%     clip-v3pure 1.12e-08 | bgevl_l-lr1e5 1.21e-08
+%   Zero BY CONSTRUCTION: with ratio==1 at one inner epoch, pg_loss reduces to -mean(A), and A is
+%   the per-group z-score whose mean is exactly zero. advantage_mean likewise. The metric cannot
+%   separate inert from healthy, and a zero LOSS does not imply a zero GRADIENT --
+%   grad = -mean(A * grad log pi), non-zero whenever A varies within the group.
+%   WHAT WOULD VERIFY IT: within-group reward variance. All G equal -> A = 0/(0+1e-6) = 0
+%   elementwise -> gradient exactly zero. Not logged; reward/raw_mean is a batch mean and cannot
+%   recover it. Cheap fix: log R.std(dim=1).mean() in train_rl.py where advantages are computed,
+%   then one short qwen25_3b cell plus a gme2b control.
 % qwen25_3b-v3pure: entR@5 .0373 -> .0373 IDENTICAL to 4dp, distinct 2992, acc unchanged .1607.
 %   Runner's amended prediction (drift -> inert) scores a HIT. BRACKET HALVES AND PRINTS, per the
 %   print-once plan: at lr 1e-4 the inert/contraction boundary is (.0373, .0537), both endpoints

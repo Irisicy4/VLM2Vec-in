@@ -336,3 +336,15 @@ hand: the composed-cell pair plgTa vs plgT_cc0 is same-rate (both 2e-5) and show
 anchor removing the early drop (+5.5-7.4 R@5) at matched LR — anchor attribution survives
 at matched rate, magnitude of the old "collapse" rows awaits their wave-3 plgTlr1e5 cell.
 Cross-modality claims should cite the T-era same-rate pair, not the old twins.
+
+### clipb32-v3pure landed (2026-08-13 03:55): THIRD PHENOTYPE — INERT
+acc 0.1513->0.1473, entR@5 0.0260->0.0257, distinct 2825/3000 (healthy). Training was a
+no-op. New failure vocabulary: INERT (nothing moves) vs CONTRACTION vs DRIFT.
+HYPOTHESIS (registered now, qwen25_3b-v3pure still blind): phenotype tracks starting
+signal level — zs entR@5 ~0.03 -> inert (reward ~uniform, no gradient direction);
+~0.15 -> contraction (bgevl_b 0.147, bgevl_l 0.157, clip, siglip2 — enough signal to
+chase, not enough to rank within); ~0.16 raw-VLM -> drift (vlm2vec2b, qwen2b);
+0.69 -> healthy (gme). AMENDED PREDICTION for qwen25_3b-v3pure (zs entR@5 0.0373,
+supersedes my earlier drift registration, recorded pre-landing): INERT, not drift.
+If it drifts instead, the ladder hypothesis loses the level-not-family part (raw-VLMs
+may drift at any level); if inert, phenotype-by-signal-level gains its second point.

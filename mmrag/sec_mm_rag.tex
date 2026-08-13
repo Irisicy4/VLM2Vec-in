@@ -683,9 +683,10 @@ cell available (HotpotQA cover-EM $-8.8$, no retrieval collapse) therefore confo
 type with reward regime and cannot settle it.
 \textsc{SigLIP2} then replicated it
 independently --- $8.23 \to 0.40$, a $20.6\times$ fall --- and raw \textsc{Qwen2-VL-2B}, which
-starts at random ($0.03$), ends at entity R@5 of exactly $0.00$. At all three measured weak rungs
-pure RL fails, and at the two that had something to lose it does not merely fail to learn: it
-destroys the retrieval ability the encoder started with. One qualifier belongs on every sentence
+starts at random ($0.03$), ends at entity R@5 of exactly $0.00$ --- though for a base that began
+with nothing, losing it says little. Across every weak rung we have measured, pure RL fails at
+the rate it was given, and wherever there was something to lose it does not merely fail to learn:
+it destroys the retrieval ability the encoder started with. One qualifier belongs on every sentence
 of this kind, and we have not yet earned the right to drop it: none of these rungs had its
 learning rate tuned. Each inherited a rate chosen for a different base --- $1\mathrm{e}{-}4$ for
 the CLIP-family cells, $2\mathrm{e}{-}5$ for the $2$B cells --- so what is measured is failure
@@ -1369,6 +1370,21 @@ most of the bootstrap along with it.
 %   pathway, not just an observation. bgevl 1e-4 cells (.178/.183 from .159) are partway along it.
 %   MOVEMENT-vs-OUTCOME, second confirmation: clipb32 lora_B 3048 (inert) vs clipb16 3126
 %   (deepest collapse) -- near-identical displacement, opposite phenotypes.
+% 5e-6 COVERAGE-GAP CELLS [fresh] -- the low-end controls for the two collapses already at a low
+%   rate, queued after the writer flagged that the first LR grid covered only the CLIP family:
+%     vlm2vec2b-v3pure-lr5e6  acc .1793 / R@5 .0017 / distinct 2999  -> STILL DRIFTS
+%     qwen2b-v3pure-lr5e6     acc .2187 / R@5 .0000 / distinct 2503  -> uninformative (zs .0003,
+%       nothing to lose); do NOT give it a boundary-table row beyond its zs entry.
+%   VLM2VEC2B DRIFT IS LR-ROBUST across 4x (2e-5 -> 5e-6), unlike BGE-VL contraction which WAS an
+%   LR artefact. That asymmetry is what separates the two failure modes.
+%   MATCHED-SIGNAL CONTRAST, the best form of the discrimination: bgevl_l zs .1573 and vlm2vec2b
+%   zs .1567 -- within a tenth of a point -- diverge completely (+5.50 vs destruction at every
+%   tested rate). Quote this pair if the boundary paragraph quotes one.
+%   RUNNER CORRECTION ABSORBED: qwen2b's zs entR@5 is .0003 (near-zero), NOT ~.15; the runner had
+%   conflated it with vlm2vec2b in messages. Grepped every Qwen2-VL-2B mention in the prose --
+%   all correctly place it at random retrieval, so the conflation never reached the file. Its
+%   phenotype labels are largely vacuous (.0003 -> .0000). Wrinkle left uninterpreted: its accs
+%   (.1993 -> .2260) sit ABOVE the floor, unlike the contraction endpoints which pin AT it.
 % bgevl_l LR WINDOW COMPLETE [fresh, zs entR@5 .1573]:
 %     3e-6  R@5 .1523 (-0.50)  distinct 2952  lora_B  260   flat / undertrained at 500 steps
 %     1e-5  R@5 .2123 (+5.50)  distinct 2966  lora_B  812   LEARNS  <- INTERIOR MAXIMUM
@@ -1526,7 +1542,16 @@ optimisation artefact, and the registered prediction that it would persist acros
 its phenotype is rescued --- $2{,}882$ distinct sets, no contraction --- but it does not learn,
 ending at entity R@5 $4.10$ against a fresh zero-shot of $5.37$. \textsc{SigLIP2} at $1\mathrm{e}{-}5$ behaves the same way --- no contraction ($2{,}917$
 distinct) and no learning, entity R@5 $8.23 \to 6.60$ --- making three bases that are rescued from
-contraction without being taught anything. At matched learning rate, then, the one base that
+contraction without being taught anything.
+
+The sharpest form of the contrast holds the starting signal fixed. \textsc{BGE-VL-large} and
+\textsc{VLM2Vec-2B} begin within a tenth of a point of each other, at entity R@5 $15.73$ and
+$15.67$, and diverge completely: the first gains $5.50$ at $1\mathrm{e}{-}5$, while the second
+destroys its retrieval at every rate we tried, falling to $0.70$ at $2\mathrm{e}{-}5$ and $0.17$
+at $5\mathrm{e}{-}6$. That second point matters, because it is what distinguishes the two failure
+modes. \textsc{BGE-VL}'s contraction at $1\mathrm{e}{-}4$ was an optimiser artefact and a gentler
+rate dissolved it; \textsc{VLM2Vec-2B}'s drift survives a fourfold reduction and is not an
+artefact of the same kind. At matched learning rate, then, the one base that
 learns is the one carrying \emph{retrieval finetuning}: \textsc{BGE-VL}'s MegaPairs training is
 composed-image-retrieval supervision, whereas CLIP and SigLIP2 are image--text contrastive models
 with no retrieval objective at all. That distinction is doing the work, and calling it

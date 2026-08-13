@@ -297,3 +297,21 @@ GME-tuned lr" (per-family tuning required, boundary table gains an lr column). I
 contraction persists across the 10x ladder, the boundary claim survives LR as a confound.
 Registered expectation from the margin account: contraction persists (the failure is
 signal-starvation in the top-M support, not step size) — but genuinely uncertain.
+
+### Wave-2 blind cells landed (2026-08-13 03:13) — SCORED
+bgevl_b-v3pure acc 0.1780, entR@5 0.1473->0.0007, distinct-top5 133/3000.
+bgevl_l-v3pure acc 0.1827, entR@5 0.1573->0.0070, distinct-top5 197/3000.
+Both CONTRACT at lr 1e-4 — same phenotype as clip/siglip2. Amended registered reading
+scores as: retrieval finetuning does NOT rescue CLIP-arch at matched-bad zs;
+pretraining-vs-architecture stays OPEN (zs-competence-floor account consistent).
+Weight shifts to the LR controls (bgevl_l 1e-5/3e-5, running).
+ANTI-DIAGNOSTIC INSTANCE #2 (cleanest yet): acc ROSE +2 to +2.4 pts while retrieval
+died 20-200x — with R@5 ~0 the context stream approaches uniform junk and the reader
+drifts toward its no-ctx floor (0.1927) from below. Accuracy alone would have called
+these cells "improved." The diagnostic PAIR is mandatory; log this instance in the paper's
+diagnostics paragraph.
+qwen25_3b-zeroshot: acc 0.1607, entR@5 0.0373 (distinct 2992/3000) — raw Qwen2.5-VL-3B
+zs retrieval is near-random, far below the boundary; its v3 cells now test training from
+a near-zero start.
+sft-curve ck750 = 0.3300 — NEW SFT MAX, curve non-monotone (.2953/.3207/.3227/.3107/.3300);
+provisional fair 2B gap 0.3471-0.3300 = +0.0171; McNemar at fair pair when curve completes.

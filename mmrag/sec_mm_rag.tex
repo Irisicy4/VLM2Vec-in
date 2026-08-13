@@ -468,6 +468,25 @@ the three answer metrics, v2 on the three retrieval metrics.}
 %   NOISE BAND: the four sub-0.5% R@5 rungs span +0.67 to -3.07 pts, and two cells at .0040 vs
 %   .0047 R@5 differ by 2.5 pts -- so only deviations >3 pts are interpretable. Do NOT lean on
 %   qwen7b's -3.07: it sits inside the band.
+% PHENOTYPE x DIAGNOSTIC TABLE (all fresh, verified from jsons; distinct = distinct top-5/3000):
+%   phenotype    example            distinct   R@5 vs its own base
+%   healthy      v3-pure               2899    .685 -> .753  UP
+%   inert        clipb32-v3pure        2825    .026 -> .026  FLAT
+%   drift        vlm2vec2b-v3pure      3000    .157 -> .007  DOWN
+%   contraction  clip-v3pure            214    .054 -> .004  DOWN
+%   => recall-vs-base separates healthy / inert / damaged but CANNOT split contraction vs drift;
+%      distinct-count splits those two but detects ONLY contraction -- healthy, drift and inert
+%      all sit at 2800-3000 and are indistinguishable to it. Neither dominates; the PAIR is
+%      minimal and sufficient.
+%   *** CORRECTION to the framing that came with the inert cell: it was suggested that inert is
+%   "the one case where the distinct-count IS informative on its own". It is the opposite --
+%   clipb32-v3pure's 2825 is indistinguishable from healthy v3-pure's 2899, so the count alone
+%   cannot identify inertness at all. What identifies inert is FLAT recall against base. ***
+% PHENOTYPE LADDER BY STARTING SIGNAL -- registered, NOT yet writable as a claim: ~0.03 zs R@5
+%   inert (reward near-uniform, no gradient) | ~0.15 contraction (signal enough to chase, not to
+%   rank) | raw-VLM ~0.16 drift | 0.69 healthy. Runner has AMENDED its qwen25_3b-v3pure
+%   prediction from drift to INERT (its zs R@5 is .0373), recorded pre-landing; that blind cell is
+%   the hypothesis test. Do not write the ladder until it lands.
 % REPRO(distinct-top5): collapse signature, 3 lines over any retrieval json, no GPU --
 %     d=json.load(open(f)); Counter(tuple(v['topk'][:5]) for v in d.values())
 %   report len(counter) and the modal share. Helper now shipped as collect_results.distinct_top5
@@ -674,8 +693,14 @@ v3-pure, \textsc{VLM2Vec-2B} fails just as completely (entity R@5 $15.67 \to 0.7
 returning $3{,}000$ distinct top-$5$ sets out of $3{,}000$ queries --- perfect diversity, zero
 utility. Both phenotypes therefore occur \emph{within} our modality.
 
-Two failures wear one name: the embedding either \emph{contracts}, mapping most queries to a
-handful of fixed sets, or it \emph{drifts} out of alignment while staying fully spread. Which one
+Failures wear one name but are not one thing. The embedding may \emph{contract}, mapping most
+queries to a handful of fixed sets; it may \emph{drift} out of alignment while staying fully
+spread; or training may be \emph{inert} and do nothing at all. \textsc{CLIP-B/32} is the third
+case: after v3-pure its entity R@5 is $2.57$ against a zero-shot $2.60$, its distinct top-$5$
+count $2{,}825$ against $2{,}971$, and its accuracy $14.73$ against $15.13$. Nothing moved. With
+retrieval that poor the reward is nearly uniform across the sampled lists, so the advantage is
+nearly zero and there is no gradient to speak of --- failure by absence of signal rather than by
+damage. Which one
 appears tracks the base's pretraining rather than the modality. The distinction is not simply
 contrastive pretraining --- CLIP and SigLIP are contrastively trained too, and they contract ---
 but whether pretraining ever spread the \emph{retrieval domain}: \textsc{VLM2Vec} is trained
@@ -686,9 +711,14 @@ contraction, forcing the failure into misalignment instead. It is consistent wit
 whose runs are all on such bases and which sees only drift --- though that also makes their
 evidence non-discriminating. One seed and one rung here: a conjecture, not a result. The consequence for practice is firmer
 than the explanation: \emph{no single static diagnostic is sufficient, even within one
-modality}. A distinct-count sees contraction and is blind to drift; a recall-against-base
-comparison sees drift and needs ground truth. We recommend reporting the pair, and reading a
-clean count with care: on a drift failure the diversity metric is not merely uninformative but
+modality}. The three phenotypes make the division of labour exact, and it is not the
+one we would have guessed. Recall-against-base separates \emph{healthy} (recall rises) from
+\emph{inert} (recall flat) from the two damaging failures (recall falls), but cannot tell
+contraction from drift. The distinct-count tells those two apart --- $214$ against $3{,}000$ ---
+but on its own is nearly useless, because contraction is the only state it detects: healthy,
+drift and inert all return counts between $2{,}800$ and $3{,}000$ and are indistinguishable to
+it. Neither diagnostic dominates and neither is redundant, which is why we recommend the pair;
+and read a clean count with care: on a drift failure the diversity metric is not merely uninformative but
 \emph{silent} --- \textsc{VLM2Vec-2B} returns a perfect $3{,}000/3{,}000$ while its retrieval has
 fallen twenty-twofold --- and silence is not absolution.
 
@@ -1373,7 +1403,7 @@ inferred from a neighbouring rung.}}
 \cmidrule(lr){3-4}\cmidrule(lr){5-6}\cmidrule(lr){7-8}
 encoder & retrieval pretraining & acc & R@5 & acc & R@5 & acc & R@5 \\
 \midrule
-CLIP-B/32 ($\sim$150M) & CLIP   & 15.13 & 2.60 & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} \\
+CLIP-B/32 ($\sim$150M) & CLIP   & 15.13 & 2.60 & \multicolumn{2}{c}{\emph{pending}} & 14.73 & 2.57 \\
 CLIP-L ($\sim$430M)    & CLIP   & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} \\
 SigLIP2-so400m         & SigLIP & 13.13 & 8.23 & \multicolumn{2}{c}{\emph{pending}} & 18.67 & 0.40 \\
 BGE-VL-base (CLIP-arch)  & MegaPairs & 15.93 & 14.73 & \multicolumn{2}{c}{\emph{pending}} & 17.80 & 0.07 \\

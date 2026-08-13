@@ -474,3 +474,21 @@ frees a config key inherits the same exposure. New diagnostic suffixes must be a
 (protocol runs both directions). Methods-narrative decision: process near-misses stay
 OUT of the paper; rigour is shown by scored misses, withdrawn registrations, and the
 audited headline, not by narrating the catch.
+
+### INVALIDATION (2026-08-13 08:47): qwen25_3b-v3pure "inert" was an EVAL ARTIFACT
+Chain that exposed it: stdprobe prediction MISSED (qwen25_3b degenerate_frac 0.71, NOT
+~1.0; healthy gme2b control itself 0.55) -> partial degeneracy cannot give four-decimal
+flatness -> checked adapter: lora_B abs-sum 44k (HUGE — bgevl_l's +5.5 R@5 came from 812)
+-> loaded ckpt vs base embeddings: diff 0.0 EXACTLY -> src/model/model.py reload path
+attached qwen2_5_vl adapters to base_model.model, keys matched NOTHING, merge_and_unload
+was identity. FIXED (QWEN2_5_VL added to full-model-attach set; verified diff 0.328) and
+pushed. SCOPE: only qwen2_5_vl CHECKPOINT RELOADS — training was real (fresh-LoRA attach
+is a different path); qwen25_3b-zeroshot valid (no ckpt); qwen2_vl/gme/clip families
+unaffected (their landed metrics visibly moved); reader unaffected.
+CONSEQUENCES: (1) qwen25_3b-v3pure verdict UNKNOWN pending re-eval (running, GPU 0) —
+adapter moved a lot, could be anything; (2) "amended prediction HIT" un-scored — pending;
+(3) bracket REVERTS to (0.026, 0.054) with interior point unresolved; phenotype-ladder
+%-comment must drop the qwen25_3b point; (4) lr2e5/lr3e5 cells' upcoming evals are
+CORRECT (fix landed before their eval step); (5) stdprobe data reinterpreted: 29% live
+groups is CONSISTENT with the large adapter movement — there never was a reward-side
+inertness at this rung.

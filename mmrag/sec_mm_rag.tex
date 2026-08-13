@@ -393,11 +393,26 @@ the three answer metrics, v2 on the three retrieval metrics.}
 %   When it lands, three things must be checked BEFORE any prose is written:
 %   (1) the figure must be read out of PAPER_TABLES.md, not out of a message (see the LR-ladder
 %       post-mortem in the ADAPTER DISPLACEMENT block: 3 of 5 relayed figures were unlocatable);
-%   (2) their coef rows are LR-confounded by their own line 453, so a strength effect must come
-%       from a SAME-RATE pair or it is measuring the learning rate again;
-%   (3) it is a claim about their anchor, whose positive is the ANNOTATED passage -- ours is
-%       self-argmax. Our section already carries that definitional caveat; a strength result does
-%       NOT transfer to our anchor without restating it.
+%   (2) [DISCHARGED 2026-08-13 by Table 8g] their coef rows were LR-confounded by their own line
+%       453, so a strength effect had to come from a SAME-RATE pair. It does: cc05/cc2/cc1 all run
+%       2e-5 and move 4038/4035/4028 -- matched to 0.25% -- while scoring 70.4/70.6/68.2. So the
+%       +2.2/+2.4 cEM is anchor strength at MATCHED movement AND matched rate, not the rate again.
+%   (3) [PREMISE WAS WRONG -- corrected 2026-08-13] I wrote that their anchor's positive is the
+%       ANNOTATED passage. That is true of their GOLD arm but NOT of the cells the strength result
+%       comes from. Table 8g's header states all plgTa cells run online_force_gold: false with
+%       positive = policy top-1, i.e. anchor(self), the same type as our 39 anchored runs. So the
+%       strength result IS mechanism-comparable to ours and gate 3 falls away.
+%   *** DO NOT "FIX" THE GOLD-ARM SENTENCE IN THE BODY TEXT ON THE STRENGTH OF THIS. ***
+%       Our prose ("on text the gold arm's anchor takes the annotated passage as its positive, an
+%       external-positive anchor") is about a DIFFERENT ARM and is CONFIRMED CORRECT by their own
+%       PAPER_TABLES.md line 449: "mus_gold ... 39.6 anchor(ext)" against line 450 "mus_ng ...
+%       32.8 anchor(self)". Their table labels the two arms with the two different anchor types
+%       explicitly. Both statements are true of different cells; the 8g header's "same type as all
+%       39 MM anchored runs" is scoped to the composed plgTa cells and must not be read across to
+%       the gold arm. This is the second time these two arms have been conflated in a message.
+%   Outstanding gate: SEED MEAN ONLY. Every 8g strength cell is 1 seed; their cc2 3-seed
+%       replication is pre-registered and in flight, and they have committed that no above-base
+%       claim ships before it holds. Nothing is drafted here until it does.
 %   Our own side of this question is the v2/v3 contrastive_coef 0.3-vs-0 pair already in
 %   tab:mm_v3add; we have no intermediate-coef cell and are not planning one.
 %
@@ -1467,22 +1482,28 @@ most of the bootstrap along with it.
 %     directions. plot_scaling.py already enforces the data half of this: lr_schedule is NOT in
 %     FREE_KEYS and sits in LATER_FLAG_DEFAULTS as "constant" (verified 2026-08-13), so a cos run
 %     cannot silently join a constant-LR series -- it can only ever be drawn as its own series.
-% *** RELAYED AND CHECKED -- text-side LR ladder. Runner message gives:
-%     5e-6 lora_B 1226 / 70.0 | 1e-5 2140 / 68.8 | 2e-5 4028 / 68.2, plus 3x steps -> 1.75x
-%     movement (ours 1.66x).
-%   CHECKED AGAINST THEIR SOURCE, trl-projects/projects/indirect/rag/PAPER_TABLES.md:
-%     - there is NO lora_B / displacement column anywhere in that file;
-%     - 70.0 @ lr5e6 DOES appear (line 325, in-domain Trivia cEM, max-over-ckpts);
-%     - 68.8 does NOT appear anywhere; neither does the steps sublinearity.
-%   So three of the five relayed figures are unlocatable in their own results table, and the one
-%   that checks out (70.0) sits in a row whose own note flags an anchor/LR confound (line 453:
-%   "their anchored twins ran 1e-5 -- the anchor attribution in these rows is confounded with LR").
-%   DECISION: their numbers do NOT go in the prose. The cross-modality decoupling is stated
-%   QUALITATIVELY and attributed, with an explicit "not yet in their tables" caveat in the body
-%   text itself. Our own step ladder above carries the entire quantitative claim. Revisit only if
-%   the text session lands a displacement table; then print figures from THAT, not from a message.
-%   (This is the fifth time a relayed figure failed to reconcile with their source table. The rule
-%   that keeps paying: relayed numbers are leads, and a lead never becomes body text.) ***
+% *** TEXT-SIDE LADDER: RECONCILIATION NOW PASSES. Printed in the prose above.
+%   HISTORY, kept because it is why the table-first rule exists. First relay (5e-6 1226/70.0 |
+%   1e-5 2140/68.8 | 2e-5 4028/68.2, plus 3x steps -> 1.75x) did NOT reconcile: PAPER_TABLES.md
+%   had no displacement column at all, 68.8 appeared nowhere, and the one figure that did check
+%   out (70.0) sat in a row their own line 453 flagged as anchor/LR confounded. Numbers were
+%   withheld from the prose and the convergence stated qualitatively.
+%   RE-CHECKED 2026-08-13 against PAPER_TABLES.md Table 8g (their commit 2635af6b), lines 518-546.
+%   All five figures now sit at table rows and match the relay exactly:
+%     lr    movement   in-dom R@5/cEM   NQ-transfer
+%     2e-5    4028       55.6/68.2        47.6     <- MOST displaced, BEST transfer
+%     1e-5    2140       56.9/68.8        45.8
+%     5e-6    1226       57.8/70.0        46.6     <- LEAST displaced, BEST in-domain
+%   Their finding 2 also credits our adapter ladder (3x -> 1.66x, 6x -> 2.17x) against their 1.75x.
+%   ONE SCOPE CORRECTION APPLIED ON TOP OF THEIR SUMMARY: they state "best-cEM cell moved least"
+%   unqualified. True in-domain; the NQ-transfer column INVERTS it (47.6 at the most-displaced
+%   cell vs 46.6 at the least). Prose says so. This is the same shape as catch #1 from 2026-08-12
+%   ("ordering holds on every metric" when it did not) -- when a cross-side claim omits a metric,
+%   check the omitted column, because that is where these fail.
+%   Outcome of the episode: the relay was ACCURATE and merely unsourced; withholding cost nothing
+%   and the numbers shipped one day later from a table. Both sides have adopted a table-first rule
+%   (cross-side figures come from the source repo's TABLES file; messages are coordination only).
+%   Keep the rule anyway -- 5 of the prior relays were genuinely wrong, not merely unsourced. ***
 % LR DOSE-RESPONSE (fresh, 1 seed each; distinct-top5 / entR@5), contraction is GRADED:
 %     clip-L    1e-5 2882/.0410 | 3e-5 1795/.0170 | 1e-4  214/.0043
 %     bgevl_l   1e-5 2966/.2123 | 3e-5 2364/.1477 | 1e-4  197/.0070
@@ -1674,11 +1695,16 @@ why the cell that learns is the one that moved \emph{least}. A second pair makes
 from the other direction: \textsc{CLIP-B/32} and \textsc{CLIP-B/16} travel almost the same
 distance, $3{,}048$ and $3{,}126$, and end in opposite phenotypes --- one barely perturbed, the
 other the deepest collapse in the table. How far a run moves is not what determines what happens
-to it. The text side reports the identical decoupling on its own adapters --- displacement rising
-monotonically with the learning rate while its best-scoring cell is again its least-displaced one
---- which, if it holds up in their write-up, would make this a property of the training signal
-rather than of image encoders. We state that convergence without numbers on purpose: their
-displacement harvest is not yet in their results tables, and nothing here rests on it.
+to it. The text side finds the identical decoupling on its own adapters. Across $5\mathrm{e}{-}6$,
+$1\mathrm{e}{-}5$ and $2\mathrm{e}{-}5$ their runs travel $1{,}226$, $2{,}140$ and $4{,}028$ ---
+again monotone in the rate --- while in-domain recall runs the other way, $57.8$, $56.9$ and
+$55.6$, so their least-displaced cell is again their best one. The same decoupling on a different
+modality, a different base and a different reward makes it a property of the training signal
+rather than of image encoders. One scope note, which we would want applied to our claims as
+readily as to theirs: it holds on the in-domain metric, and their transfer column inverts it, the
+\emph{most}-displaced cell transferring best ($47.6$ against $46.6$ for the least-displaced). So
+displacement predicts neither quality nor damage on its own --- what it predicts depends on which
+metric is asked, which is the proxy/objective trade of this section arriving by another route.
 
 Two consequences follow, and the second bears on how the consumption axis should be read. First,
 displacement is close to linear in the learning rate: a $33\times$ range of rate moves

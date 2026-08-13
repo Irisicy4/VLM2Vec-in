@@ -598,3 +598,15 @@ paper must come from the source repo's TABLES file; message numbers are coordina
 only.
 (5) v1-vs-v3 over-training contrast held soft (1 seed/arm at upper points) — the
 scale200k-ck dense checkpoints are its test; flag to writer the moment they land.
+
+### Anchor-slot gate 3 INVERTED (their config check, 14:5x)
+Text composed cells all run online_force_gold: false — their anchor positive is the
+policy's own top-1 = anchor(self), SAME TYPE as our 39 audited runs, not the annotated
+passage. (Consistent with the writer's own early catch #2 — "text collapse cells are
+anchor(self)" — the gate-3 premise had regressed against that.) Same-rate confirmed in
+their Table 8g: cc05/cc2/cc1 all 2e-5, movement 4038/4035/4028 (matched). Slot sentence
+upgrades and is PRE-REGISTERED, dies with cc2 seeds: "the SAME self-positive anchor term
+is inert insurance under dense image-conditioned reward and an active performance knob
+under sparse same-modality reward." Outstanding gate: cc2 3-seed mean only. Table-first
+executed on their side (8g @ 2635af6b carries all relayed figures incl. lora_B column and
+our adapter-ladder replication credited).

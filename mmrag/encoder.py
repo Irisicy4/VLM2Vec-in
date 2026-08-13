@@ -56,6 +56,9 @@ ENCODER_PROFILES = {
     "bgevl_l": {"model": "BAAI/BGE-VL-large", "checkpoint": None, "style": "clip"},
     # Newer-generation VLM raw (size ladder point between 2B and 7B).
     "qwen25_3b": {"model": "Qwen/Qwen2.5-VL-3B-Instruct", "checkpoint": None, "style": "vlm2vec"},
+    # Original VLM2Vec full-model release (Phi-3.5-V, 4.1B) — mid-size vlm2vec point on a
+    # different backbone; full checkpoint, so model IS the trained encoder (no adapter).
+    "vlm2vec4b": {"model": "TIGER-Lab/VLM2Vec-Full", "checkpoint": None, "style": "vlm2vec"},
 }
 
 

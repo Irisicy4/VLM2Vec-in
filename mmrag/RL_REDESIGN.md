@@ -394,3 +394,18 @@ survive s1: RL>SFT at 7B is SIG in the stronger seed, mean gap +2.0 vs 2B's +3.7
 Capacity story v4: margin persists at 7B, somewhat smaller than 2B; "capacity helps SFT
 not RL" weakens (RL-7B mean 0.3517 vs RL-2B 0.3471, +0.5 within seed noise).
 sft-curve ck900 = 0.3133 (max still ck750 0.3300; ck1050/1200 pending).
+
+### 05:18 landings: bracket promotes; LR dose-response; b16 consumption point
+clip-zeroshot FRESH entR@5 0.0537 (recorded 0.054, delta 0.0003 — cluster repro fidelity
+holds). Tight bracket (0.026, 0.054) PROMOTES to fully-fresh. clipb16-zeroshot 0.0310 —
+inside the bracket, below qwen25_3b 0.0373; bracket coverage now .026/.031/.0373/.054.
+clipb16-v3pure stays queued (in-bracket condition met).
+LR DOSE-RESPONSE (phenotype=f(zs,lr) now has gradients, not just endpoints):
+clip-L: 1e-5 no contraction/no learning (2882, R@5 .041) | 3e-5 PARTIAL contraction
+(1795, .0170) | 1e-4 full (214, .0043).
+bgevl_l: 1e-5 LEARNS (+5.5, 2966) | 3e-5 mild damage (2364, R@5 .1477 < zs) | 1e-4 full
+contraction (197). Learning window closes between 1e-5 and 3e-5. QUEUED bgevl_l-v3pure-lr3e6
+to probe below 1e-5 — 1e-5 is a boundary cell, not established as the peak.
+sft-curve ck1050 = 0.3133 (plateau; max still ck750 0.3300; ck1200 last).
+v3-b16-s750 = 0.3487 acc, entR@5 0.7590, distinct 2891 — batch-16, 12k draws: consumption
+curve gains a >=headline point (0.3487 vs 0.3471), consistent with consumption-rising.

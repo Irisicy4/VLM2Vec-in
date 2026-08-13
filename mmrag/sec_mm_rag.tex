@@ -325,7 +325,7 @@ v2 PL-PG $+$ anchor       & $33.82 \pm 0.60$ & --- & 25.74 & 34.14 & \textbf{59.
 \midrule
 \multicolumn{8}{l}{\emph{\textsc{GME-7B} backbone, fresh wave, one seed per arm}} \\
 relevance-SFT             & 33.20 & --- & 25.27 & 34.20 & \textbf{64.40} & 77.67 & 63.02 \\
-v3-pure                   & 34.60 & --- & 26.20 & 34.85 & 62.87 & 80.97 & 69.02 \\
+v3-pure (2 seeds)         & $35.17$ & --- & 26.23 & 35.04 & 62.90 & 80.63 & 68.71 \\
 \bottomrule
 \end{tabular}
 
@@ -341,10 +341,11 @@ $p = 4.2\mathrm{e}{-}6 / 3.2\mathrm{e}{-}7 / 5.3\mathrm{e}{-}7$ --- all signific
 attach to the \emph{endpoint} comparison; because per-question predictions are stored for every
 evaluation, they will be recomputed on the max-over-checkpoint pair once both columns exist.
 v2 per seed ($0/2/3$): $34.27 / 33.07 / 34.13$. Entity R@10: base $76.63$, SFT $79.83$,
-v1 $85.73$, v2 $85.73$, v3-pure $82.23$; at $7$B, SFT $81.83$ and v3-pure $85.93$. The $7$B pair
-is fresh and McNemar-able but one seed per arm: v3-pure over SFT is $+1.40$, $p{=}0.089$,
-\emph{not significant}, and the $7$B SFT is a single learning-rate point (the recorded sweep's
-best rung) since no fresh $7$B sweep exists. Bold marks the best trained arm per column: v3-pure on
+v1 $85.73$, v2 $85.73$, v3-pure $82.23$; at $7$B, SFT $81.83$ and v3-pure $85.93$. The $7$B v3-pure row is a
+two-seed mean ($34.60 / 35.73$); its per-seed McNemar against the $7$B SFT is $+1.40$
+($p{=}0.089$, n.s.) and $+2.53$ ($p{=}0.0014$, significant, $87/49$ discordant). The $7$B SFT
+remains a single learning-rate point --- the recorded sweep's best rung --- since no fresh $7$B
+sweep exists. Bold marks the best trained arm per column: v3-pure on
 the three answer metrics, v2 on the three retrieval metrics.}
 \end{table}
 
@@ -596,10 +597,9 @@ consequences follow, and they are the transferable part: check the anchor's loss
 concluding anything about anchors; choose v2 or v3 by which metric you are shipping; and note
 that v3-pure is demonstrated on a \emph{retrieval-pretrained} base (\textsc{GME-2B}; the 7B cell
 is pending), while on weak bases the anchored variant is not optional --- anchored \textsc{CLIP-L}
-learns entity R@5 $5.4 \to 29.1$ where the pure variant collapses to $0.43$ (the \textsc{CLIP-L}
-zero-shot $5.4$ is a recorded-wave number --- the trained cells are fresh, and we have no fresh
-\textsc{CLIP-L} zero-shot; the $0.43$ vs.\ $29.13$ comparison that carries the argument is
-within-wave).
+learns entity R@5 $5.37 \to 29.13$ where the pure variant collapses to $0.43$ --- all three
+numbers now fresh, the \textsc{CLIP-L} zero-shot having since been re-measured at $5.37$ against
+its recorded $5.4$.
 The in-domain trade understates the effect, however. Out of domain
 (Table~\ref{tab:mm_evqa}) the same two arms tie on entity recall while v3 leads
 \emph{answer}-level R@5 by $6.49$ points and accuracy by $3.27$ --- so what the anchor buys is
@@ -1336,15 +1336,27 @@ than the original design would have given, because the starting points are match
 collapses, the pretraining-versus-architecture question stays open rather than being settled
 against us.
 
-Both cells have now landed and both contract: entity R@5 falls $14.73 \to 0.07$ for the base and
-$15.73 \to 0.70$ for the large, with distinct top-$5$ counts of $133$ and $197$ --- the same
-signature as \textsc{CLIP-L} and \textsc{SigLIP2}. So a retrieval objective in pretraining does
-not rescue CLIP architecture from a matched-poor starting point. Per the registration, that
-leaves the question \emph{open} rather than answered: the result is consistent with a
-zero-shot-competence floor, below which nothing trains regardless of what the pretraining
-objective was, but it does not separate that account from an architectural one, because
-\textsc{BGE-VL}'s pretraining failed to transfer in the first place. The learning-rate controls
-now carry the discriminating weight, and the boundary rows stay qualified until they land.
+Both cells landed contracting at $1\mathrm{e}{-}4$ --- entity R@5 falling $14.73 \to 0.07$ and
+$15.73 \to 0.70$, distinct top-$5$ counts of $133$ and $197$ --- and at that point the reading
+was that a retrieval objective does not rescue CLIP architecture. The learning-rate controls then
+overturned it, and we report the reversal rather than the first reading. At
+$1\mathrm{e}{-}5$, \textsc{BGE-VL-large} \emph{trains}: entity R@5 rises $15.73 \to 21.23$, a gain
+of $5.50$, with a healthy $2{,}966$ distinct sets. The contraction at $1\mathrm{e}{-}4$ was an
+optimisation artefact, and the registered prediction that it would persist across the ladder is a
+\emph{miss}. \textsc{CLIP-L} at the same $1\mathrm{e}{-}5$ separates the two ingredients cleanly:
+its phenotype is rescued --- $2{,}882$ distinct sets, no contraction --- but it does not learn,
+ending at entity R@5 $4.10$ against a fresh zero-shot of $5.37$. At matched learning rate, then,
+retrieval-pretrained CLIP architecture learns and raw CLIP architecture does not. Retrieval
+pretraining is an enabling ingredient, and overshooting the learning rate had been masking it.
+
+That result needs one clause kept firmly attached to it. \textsc{BGE-VL-large} at
+$1\mathrm{e}{-}5$ answers at $16.93$, still $2.33$ points \emph{below} the image-alone floor: its
+retrieval improved substantially and remains net-harmful to the reader. ``Trains'' here means the
+retrieval metric moves in the right direction, not that the system became a useful RAG pipeline,
+and it is one seed at $500$ steps with longer runs unregistered. The remaining ladder cells refine
+this, and one casualty is already clear --- phenotype is a function of starting signal
+\emph{and} learning rate, not of starting signal alone, so any boundary drawn on zero-shot
+competence has to be conditioned on the optimiser setting that produced it.
 
 Two things are worth saying about those zero-shot numbers on their own. Both \textsc{BGE-VL} rungs
 answer \emph{below} the image-alone floor --- $15.93$ and $15.87$ against $19.27$ --- so their
@@ -1372,18 +1384,20 @@ $7$B v1 twin --- are not yet queued. Raw \textsc{Qwen2-VL-7B} meanwhile fails ex
 counterpart does (entity R@5 $0.00$), so scale does not substitute for retrieval pretraining at
 either size.
 
-The fresh pair now closes this, and it closes it against us. A matched $7$B SFT scores
-$33.20$, so the fresh like-for-like gap at $7$B is $+1.40$ ($34.60$ against $33.20$) with
-$p{=}0.089$ --- not significant, at one seed per arm --- where the $2$B gap is $+3.71$ at
-$p \le 4.8\mathrm{e}{-}5$ across three seeds. The gap \emph{compresses} with capacity, and the
-reason is visible in which arm moves: SFT gains $+2.20$ going from $2$B to $7$B
-($31.00 \to 33.20$, $p{=}0.015$, significant), while v3-pure gains nothing
-($34.71 \to 34.60$). Supervised contrastive training scales with the backbone; the indirect
-correction does not. Taken with the data and compute results, that is the shape of the whole
-finding: indirect RL extracts a roughly \emph{fixed} correction, which neither more data, nor
-more compute, nor a larger backbone amplifies, while supervised contrastive training scales with
-capacity --- so at $7$B the two begin to converge on accuracy, even as RL retains its
-retrieval-breadth advantage and, untested at this size, its out-of-domain one. We state this plainly rather than defensively, but also without
+The fresh pair settles part of this and leaves the rest open. A matched $7$B SFT scores $33.20$
+against a two-seed v3-pure mean of $35.17$ ($34.60$ and $35.73$), so the margin \emph{persists} at
+$7$B --- $+1.97$ pooled, significant in one of the two seeds ($p{=}0.0014$, $87/49$ discordant;
+the other $p{=}0.089$) --- but it is smaller than the $+3.71$ measured at $2$B across three seeds.
+Which arm moves is the informative part, and only half of it is conclusive: SFT clearly gains from
+capacity, $+2.20$ from $2$B to $7$B ($p{=}0.015$), whereas v3-pure's $+0.46$ ($34.71 \to 35.17$)
+sits inside its own $1.13$-point seed spread and settles nothing. So supervised contrastive
+training scales with the backbone; whether the indirect correction does is \emph{inconclusive} at
+two seeds, and we say inconclusive rather than no. Taken with the data and compute results, that is the shape of the whole
+finding: indirect RL extracts a roughly \emph{fixed} correction, which neither more data nor
+more compute amplifies and which capacity has not been shown to amplify either, while supervised
+contrastive training does scale with capacity --- so the margin narrows at $7$B without closing,
+and RL additionally retains its retrieval-breadth advantage and, untested at this size, its
+out-of-domain one. We state this plainly rather than defensively, but also without
 overreaching: $p{=}0.089$ at one seed per arm cuts both ways, a replicate is training, and the
 $7$B SFT is a single learning-rate point. What we will not write is that RL loses its advantage
 at $7$B --- the retrieval advantage is undiminished there (entity R@5 $80.97$ against $77.67$,

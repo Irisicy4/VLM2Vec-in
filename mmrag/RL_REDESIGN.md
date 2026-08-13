@@ -256,3 +256,15 @@ from "covers both modalities" to "required within a single modality."
   erratum. Fresh v3-7B: 0.3460 (1 seed) — no accuracy gain over 2B, +4.9 entR@5 only.
 - v3 boundary bracket: pure RL fails at zs entR@5 0.157 (vlm2vec2b, by DRIFT) and works at
   0.685 (gme2b); working range (0.157, 0.685] pending finer rungs.
+
+## Base-model wave 2 (registered 2026-08-13, pre-launch)
+New cells: bgevl_b-v3pure (5310cbb94793e62c), bgevl_l-v3pure (b8803548161beb61), qwen25_3b-v3pure
+(7ece3f2262c030cf); zs chains bgevl_b/bgevl_l/qwen25_3b local. BGE-VL = MegaPairs
+retrieval-FINETUNED CLIP-arch — same architecture as clipb16/clip, different pretraining.
+PREDICTION (registered before any number lands): if the working/failing boundary is about
+retrieval pretraining (domain-uniformity account), bgevl_l-v3pure avoids the contraction
+phenotype (distinct-top5 >> 338, R@5 within a few points of its own zs) and shows positive
+delta-acc; if the boundary is about VLM-class architecture/capacity, bgevl_l collapses like
+clip (R@5 ~0). Secondary: bgevl_b (0.15B) tests whether size alone blocks training at
+matched pretraining. qwen25_3b slots the raw-VLM size ladder between qwen2b and qwen7b;
+expectation from domain-uniformity: drift phenotype like qwen2b, not contraction.

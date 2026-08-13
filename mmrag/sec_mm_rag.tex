@@ -1128,9 +1128,18 @@ most of the bootstrap along with it.
 %     success is a retrieval-pretrained VLM, so ARCHITECTURE and RETRIEVAL PRETRAINING are
 %     confounded across the whole ladder. BGE-VL is CLIP architecture WITH MegaPairs retrieval
 %     pretraining, so it separates them. Registered readings: bgevl_l trains where clip-l
-%     collapsed => retrieval pretraining is the deciding variable, cleanest confirmation of the
-%     domain-uniformity conjecture; bgevl_l collapses => architecture is implicated and the
-%     conjecture is wrong as stated. qwen25_3b is the raw-VLM mid-point between the failing 2B
+%     collapsed => retrieval pretraining is the deciding variable; bgevl_l collapses =>
+%     architecture is implicated.
+%     *** REGISTRATION AMENDED 2026-08-13, before any training cell, recorded in RL_REDESIGN.md:
+%     the zero-shots landed AT the failure boundary (bgevl_b entR@5 .1473 acc .1593; bgevl_l
+%     entR@5 .1573 acc .1587), i.e. MegaPairs pretraining does not transfer to wiki-KB retrieval.
+%     The cell therefore no longer discriminates pretraining-vs-architecture from a HIGHER start;
+%     it now tests a retrieval OBJECTIVE at matched-bad zero-shot. Revised readings: bgevl_l-v3pure
+%     trains where clip collapsed => STRONGER mechanism result (starting points matched);
+%     bgevl_l-v3pure collapses => question stays OPEN, write it as open, NOT as refuted.
+%     Both bgevl zs cells sit BELOW the 0.1927 no-context floor (-3.34 / -3.40).
+%     SAME-R@5 CONFOUND EVIDENCE: vlm2vec2b-zs (R@5 .1567 -> acc .1760) vs bgevl_l-zs
+%     (R@5 .1573 -> acc .1587) differ 1.73 acc pts at matched retrieval quality. qwen25_3b is the raw-VLM mid-point between the failing 2B
 %     and 7B rungs, checking the failure is flat in scale rather than non-monotone.
 %   clipb16: the profile exists (978adfd) but NO cell is planned -- B/32 covers the floor
 %     question. Do not add a clipb16 row to the table.
@@ -1176,10 +1185,27 @@ Everything that collapsed so far was either a dual-tower CLIP/SigLIP encoder or 
 everything that worked was a retrieval-pretrained VLM --- so architecture and retrieval
 pretraining have moved together throughout, and the domain-uniformity conjecture rests on that
 coincidence. \textsc{BGE-VL} breaks it: it is CLIP \emph{architecture} carrying MegaPairs
-retrieval pretraining. If \textsc{BGE-VL-large} trains where \textsc{CLIP-L} collapsed, the
-deciding variable is retrieval pretraining and not architecture, which is the cleanest
-confirmation the conjecture can get; if it collapses too, architecture is implicated and the
-conjecture is wrong as stated. \textsc{Qwen2.5-VL-3B} fills the raw-VLM size ladder between $2$B
+retrieval pretraining. Their zero-shot cells have since landed and they force the
+registration to be amended before any training number exists. \textsc{BGE-VL} does not start
+high: entity R@5 is $14.73$ and $15.73$ for base and large, at the same failure boundary as
+\textsc{VLM2Vec-2B} rather than above it. MegaPairs retrieval pretraining, which targets composed
+image retrieval, evidently does not transfer to Wikipedia-passage retrieval. So the pair no longer
+separates retrieval pretraining from architecture starting from a strong retriever; what it now
+tests is whether a retrieval \emph{objective} in pretraining helps at matched-poor zero-shot. If
+\textsc{BGE-VL-large} trains where \textsc{CLIP-L} collapsed that is a stronger mechanism result
+than the original design would have given, because the starting points are matched; if it
+collapses, the pretraining-versus-architecture question stays open rather than being settled
+against us.
+
+Two things are worth saying about those zero-shot numbers on their own. Both \textsc{BGE-VL} rungs
+answer \emph{below} the image-alone floor --- $15.93$ and $15.87$ against $19.27$ --- so their
+retrieved context is actively worse for the reader than no context at all, which is the
+misleading-context effect appearing at yet another rung. And the pair sharpens the confound we
+flagged in that curve: \textsc{VLM2Vec-2B} and \textsc{BGE-VL-large} retrieve at almost exactly
+the same quality (entity R@5 $15.67$ and $15.73$) yet differ by $1.73$ accuracy points
+($17.60$ against $15.87$). At fixed retrieval quality, which encoder produced the context still
+matters --- direct evidence that the cross-encoder curve measures more than relevance, and the
+reason the within-encoder controls carry that argument instead. \textsc{Qwen2.5-VL-3B} fills the raw-VLM size ladder between $2$B
 and $7$B, both of which failed, to check that the failure is flat in scale rather than
 non-monotone. Both are pre-registered and in flight. The $7$B rungs complicate the capacity story rather than confirming it. The recorded v1 wave
 showed a clear gain with scale --- zero-shot $30.60$, SFT $33.07$, annotation-free RL
@@ -1254,8 +1280,8 @@ encoder & retrieval pretraining & acc & R@5 & acc & R@5 & acc & R@5 \\
 CLIP-B/32 ($\sim$150M) & CLIP   & 15.13 & 2.60 & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} \\
 CLIP-L ($\sim$430M)    & CLIP   & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} \\
 SigLIP2-so400m         & SigLIP & 13.13 & 8.23 & \multicolumn{2}{c}{\emph{pending}} & 18.67 & 0.40 \\
-BGE-VL-base (CLIP-arch)  & MegaPairs & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} \\
-BGE-VL-large (CLIP-arch) & MegaPairs & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} \\
+BGE-VL-base (CLIP-arch)  & MegaPairs & 15.93 & 14.73 & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} \\
+BGE-VL-large (CLIP-arch) & MegaPairs & 15.87 & 15.73 & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} \\
 \midrule
 Qwen2-VL-2B (raw)      & none             & 19.93 & 0.03 & \multicolumn{2}{c}{\emph{pending}} & 22.60 & 0.00 \\
 VLM2Vec-2B             & MMEB contrastive & 17.60 & 15.67 & \multicolumn{2}{c}{\emph{pending}} & 17.20 & 0.70 \\
@@ -1307,15 +1333,20 @@ the trainer samples each batch independently, so an example can recur across ste
 $200$K pool the birthday bound puts expected collisions at $0.5\%$ at $2$K draws and $2.9\%$ at
 $12$K, the largest budget shown. We write ``drawn'' rather than ``unique'' for that reason.
 
-The v3 arm's own two points on this axis do not yet settle its shape, and the reason is worth
-stating rather than resolving. Within the $200$K pool it rises, $33.47$ at $2$K drawn to $34.80$
-at $6$K, where v1's matched pair is flat ($34.80 \to 34.57$). Read alone that suggests the
-corrected estimator extracts something from extra data that v1 does not. But the $2$K endpoint of
-that rise is a single seed, and our other measurement at the same budget --- the three-seed
-headline cell, drawn from the smaller pool --- sits at $34.71$, which is level with the $6$K point
-rather than $1.3$ below it. So either the big-pool $2$K cell is a low draw and there is no rise,
-or pool composition depresses it and the rise is real. A replicate seed at $2$K decides between
-them more directly than the deeper budgets do, and we draw no growth conclusion until it exists.
+The fork we flagged in the v3 arm has resolved, and it resolved against the alarming reading.
+Replicating the $200$K-pool cell at $2$K drawn gives $34.00 \pm 0.47$ over three seeds, not the
+$33.47$ of its first seed --- so that seed was a low draw, and the apparent $1.3$-point deficit
+against the smaller pool's $34.71 \pm 0.19$ narrows to $0.71$, which is not significant
+(Welch $t{=}2.4$, $p{\approx}0.10$). At matched consumption, pool size does not matter: a
+$200$K pool and a $45$K pool reach statistically indistinguishable accuracy from the same number
+of draws. Consumption is the axis; availability is not. Going to $6$K draws on the same $200$K
+pool then reaches $34.80$, at or above the headline level, so more drawing does buy something
+here --- though that point is a single seed against a three-seed base and we put it no more
+strongly than that. The practical reading is the useful one: a larger pool costs nothing at
+matched consumption and keeps successive draws near-collision-free (the birthday bound caps
+repeats at $2.9\%$ even at $12$K), so if more cheap VQA data is available, the way it pays is
+by supporting more draws rather than by sitting in the pool. We do not write that big pools hurt;
+at three seeds and $p{\approx}0.10$ that is not what the data says.
 
 \emph{Status: the dense curve is in flight and the conclusion is not yet fixed.} We state in
 advance how it will be read, so that neither outcome can be written up as the one we wanted.
@@ -1355,7 +1386,7 @@ consumed & source & v1 listwise $+$ anchor & v3-pure \\
 \midrule
 $1$K  & ck250 of the $3$K-step run  & \emph{pending} & --- \\
 $2$K  & ck500 of the $3$K-step run  & \emph{pending} & --- \\
-$2$K  & final, $500$ steps, $200$K pool & 34.80 & $33.47$ \\
+$2$K  & final, $500$ steps, $200$K pool & 34.80 & $34.00 \pm 0.47$ (3 seeds) \\
 $2$K  & final, $500$ steps, $45$K pool  & --- & $\mathbf{34.71 \pm 0.19}$ (3 seeds)$^{\dagger}$ \\
 $4$K  & ck1000                      & \emph{pending} & --- \\
 $6$K  & ck1500                      & \emph{pending} & --- \\
@@ -1428,7 +1459,7 @@ setting & v1 listwise $+$ anchor & v3-pure \\
 \quad $25$K    & $34.62 \pm 0.19$ (3 seeds) & 34.00 \\
 \quad $50$K    & 34.67 & --- \\
 \quad $100$K   & 32.87 & --- \\
-\quad $200$K   & 34.80 & 33.47 \\
+\quad $200$K   & 34.80 & $34.00 \pm 0.47$ (3 seeds) \\
 \midrule
 \multicolumn{3}{l}{\emph{budget at fixed pool}} \\
 \quad $41$K, $500 \to 1{,}500$ steps (recorded) & $34.13 \to 31.93$ & --- \\

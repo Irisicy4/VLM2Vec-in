@@ -126,6 +126,10 @@ LATER_FLAG_DEFAULTS = {
     "reward_gate_noctx": False, "reward_gate_std": 0.0,
     "kl_beta": 0.0, "entropy_coef": 0.0, "baseline": "group_z",
     "pl_behavior_temperature": None, "pool_sample_temperature": None,
+    # added 2026-08-13; three COSINE runs exist on disk, so this must stay a default-match rather
+    # than a blanket allow -- a cosine cell is a genuinely different config and must not merge
+    # into the constant-LR curves.
+    "lr_schedule": "constant", "warmup_steps": 20,
 }
 _MISSING = object()
 

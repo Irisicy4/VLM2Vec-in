@@ -520,3 +520,18 @@ the qwen25_3b point (zs 0.0373) now sits ABOVE the bracket and its re-eval tests
 the boundary TRANSFERS ACROSS FAMILIES (raw-VLM), not bisection. FAMILY-SCOPE the claim.
 lora_B: clipb16 3126 ~= clipb32 3048 — same optimiser movement, opposite phenotype;
 movement magnitude does not determine outcome (second confirmation).
+
+### qwen25_3b corrected verdicts (10:41, fresh-cell rule applied: outputs differ from base)
+qwen25_3b-v3pure (lr 1e-4, RE-EVAL): **CONTRACTS, totally** — entR@5 0.0373 -> 0.0000,
+distinct 32/3000 (deepest recorded), acc 0.1607 -> 0.1707 (climbing toward floor 0.1927;
+acc-at-floor pathway consistent). My original amended prediction (INERT) now definitively
+scores MISS — the artifact had hidden a contraction.
+qwen25_3b-v3pure-lr2e5 (family rate): retrieval also dies — entR@5 0.0003, distinct
+2033/3000 (partial diversity loss), acc 0.1853 (near floor). Raw Qwen2.5-VL-3B fails at
+BOTH rates by retrieval-death; dose-response in diversity (32 @1e-4 vs 2033 @2e-5).
+CONSEQUENCES: (1) BOUNDARY TRANSFERS ACROSS FAMILIES at the one interior point — zs
+0.0373 > bracket upper 0.031 predicts contraction; observed. (2) The INERT phenotype has
+exactly ONE member (clipb32, zs 0.026) — it is an edge case at near-zero signal, not a
+band; the taxonomy's load-bearing split is contract-vs-drift-vs-learn, with inert as the
+degenerate corner. (3) stdprobe data now coherent: 29% live groups = gradient existed =
+contraction had fuel.

@@ -348,3 +348,17 @@ chase, not enough to rank within); ~0.16 raw-VLM -> drift (vlm2vec2b, qwen2b);
 supersedes my earlier drift registration, recorded pre-landing): INERT, not drift.
 If it drifts instead, the ladder hypothesis loses the level-not-family part (raw-VLMs
 may drift at any level); if inert, phenotype-by-signal-level gains its second point.
+
+### Taxonomy correction (writer catch #8, accepted) + boundary bracket
+My "inert is where distinct-count IS informative alone" INVERTED — distinct for inert
+(2825) is indistinguishable from healthy (2899). Corrected taxonomy (theirs, adopted):
+recall-vs-base separates healthy/inert/damaged but cannot split contraction from drift;
+distinct-count detects ONLY contraction (healthy/drift/inert all 2800-3000). The pair is
+minimal and sufficient — neither dominates, neither redundant.
+BRACKET (sharper than my three-band sketch): clip-L already CONTRACTS at zs entR@5 0.054,
+clipb32 INERT at 0.026 -> the inert/contraction boundary lies in (0.026, 0.054). My
+ladder bands ("~0.03 inert, ~0.15 contraction") were sloppy — the contraction band
+extends down to at least 0.054. qwen25_3b (zs 0.0373) sits MID-BRACKET: whichever
+phenotype it lands, the bracket halves. Queued clipb16-zeroshot to place a further
+intermediate point (expected zs between clipb32 and clip-L); its v3 cell follows if its
+zs lands inside the surviving half-bracket.

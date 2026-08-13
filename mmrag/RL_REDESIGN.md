@@ -315,3 +315,14 @@ zs retrieval is near-random, far below the boundary; its v3 cells now test train
 a near-zero start.
 sft-curve ck750 = 0.3300 — NEW SFT MAX, curve non-monotone (.2953/.3207/.3227/.3107/.3300);
 provisional fair 2B gap 0.3471-0.3300 = +0.0171; McNemar at fair pair when curve completes.
+
+### Text-side composed cell scored (2026-08-13, their wave) — my registration: HIT
+plgTa_triv (PL + anchor(self) cc=1.0 + 0.727 reader, 0.6B) ck175: Trivia R@5 55.6 vs base
+58.1 (within 2.5; registered ~2), cEM 68.0 vs 69.8 ~parity. 30%-clears-base branch did NOT
+fire (score that miss-of-branch). Decomposition as registered: anchor removed the early
+DROP (+5.5-7.4 R@5 vs both cc0 arms), PL removed the decay. Headline: NQ-transfer cEM 47.6
+= +3.0 over base = matches gold-seeded RL exactly; swept SFT 49.2 still +1.6 ahead (their
+SFT verdict survives). Estimator x capacity, text column: PL > enumeration at 0.6B AND 4B
+(plgT4b_tj ck175 61.4/72.0 vs enum 57.5/70.8). MM column: our gme 2B/7B pair — with the
+caveat that MM 7B RL-SFT gap compresses to n.s.; text 4B still shows PL>enum clearly
+(different comparison: estimator-vs-estimator, not RL-vs-SFT).

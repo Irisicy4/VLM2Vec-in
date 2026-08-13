@@ -362,3 +362,12 @@ extends down to at least 0.054. qwen25_3b (zs 0.0373) sits MID-BRACKET: whicheve
 phenotype it lands, the bracket halves. Queued clipb16-zeroshot to place a further
 intermediate point (expected zs between clipb32 and clip-L); its v3 cell follows if its
 zs lands inside the surviving half-bracket.
+
+### Bracket wave-audit (writer) + fresh clip-zeroshot launched
+Writer caught the (0.026, 0.054) bracket mixing waves: clip-L's 0.054 upper bound is
+RECORDED (no fresh clip-zeroshot existed on this cluster). Fully-fresh primary bracket:
+(0.026, 0.082) — clipb32 inert / siglip2 contracting, both endpoints fresh-zs + fresh-v3.
+Fresh clip-zeroshot chain launched (GPU 5) — makes the tight bracket within-wave and is
+PREREQUISITE for interpreting clipb16-v3pure as a tight-bracket bisection. qwen25_3b
+(0.0373) bisects either bracket. Print-once discipline: nothing writable until qwen25_3b
+lands.

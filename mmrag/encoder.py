@@ -50,6 +50,12 @@ ENCODER_PROFILES = {
     "clipb32": {"model": "openai/clip-vit-base-patch32", "checkpoint": None, "style": "clip"},
     "clipb16": {"model": "openai/clip-vit-base-patch16", "checkpoint": None, "style": "clip"},
     "siglip2": {"model": "google/siglip2-so400m-patch16-384", "checkpoint": None, "style": "clip"},
+    # Retrieval-pretrained CLIP-arch (MegaPairs): isolates "retrieval pretraining" from
+    # "VLM architecture" in the base-model boundary study — same arch as clipb16/clip.
+    "bgevl_b": {"model": "BAAI/BGE-VL-base", "checkpoint": None, "style": "clip"},
+    "bgevl_l": {"model": "BAAI/BGE-VL-large", "checkpoint": None, "style": "clip"},
+    # Newer-generation VLM raw (size ladder point between 2B and 7B).
+    "qwen25_3b": {"model": "Qwen/Qwen2.5-VL-3B-Instruct", "checkpoint": None, "style": "vlm2vec"},
 }
 
 

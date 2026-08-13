@@ -610,7 +610,15 @@ type with reward regime and cannot settle it.
 independently --- $8.23 \to 0.40$, a $20.6\times$ fall --- and raw \textsc{Qwen2-VL-2B}, which
 starts at random ($0.03$), ends at entity R@5 of exactly $0.00$. At all three measured weak rungs
 pure RL fails, and at the two that had something to lose it does not merely fail to learn: it
-destroys the retrieval ability the encoder started with. The
+destroys the retrieval ability the encoder started with. One qualifier belongs on every sentence
+of this kind, and we have not yet earned the right to drop it: none of these rungs had its
+learning rate tuned. Each inherited a rate chosen for a different base --- $1\mathrm{e}{-}4$ for
+the CLIP-family cells, $2\mathrm{e}{-}5$ for the $2$B cells --- so what is measured is failure
+\emph{at that rate}. A learning-rate ladder at $1\mathrm{e}{-}5$ and $3\mathrm{e}{-}5$ is running
+across the CLIP, SigLIP2, \textsc{BGE-VL} and \textsc{Qwen2.5-VL-3B} rungs. If a lower rate
+rescues any of them, the boundary is about optimisation rather than capability and this
+paragraph is wrong as written; if contraction survives a tenfold range, the finding is robust and
+we will say so with the ladder as evidence. The
 density branch fired, the structural explanation is dead, and the two-jobs account is now
 measured on a complete $2\times2$ across modalities: the identical estimator that gains on a
 reward-dense base collapses outright on a reward-sparse one.
@@ -1121,6 +1129,16 @@ most of the bootstrap along with it.
 %     Headroom arithmetic, all fresh: (0.3471-0.1927)/(0.5040-0.1927) = 0.4960 captured;
 %     residual to oracle 0.1569.
 %     -- REPRO(train) with --profile <rung>
+%   LEARNING-RATE CONTROLS (launched 2026-08-13; registered in RL_REDESIGN.md; jobs
+%     b530a228a3233a4c / b319c0184ad4d190 + 4 local cells): clip-v3pure at 1e-5 and 3e-5,
+%     bgevl_l-v3pure at 1e-5 and 3e-5, siglip2-v3pure at 1e-5, qwen25_3b-v3pure at 3e-5.
+%     Registered prediction (runner): contraction persists; genuinely uncertain.
+%   *** CORRECTION to the framing that accompanied these: the boundary cells did NOT all inherit
+%     "lr=1e-4 (GME-tuned)". Verified from args.json -- GME-2B v3-pure runs at 2e-5, so 1e-4 is
+%     not the GME-tuned rate at all. Actual rates: clip/siglip2 1e-4; qwen2b/vlm2vec2b 2e-5 (this
+%     IS the GME-2B rate); qwen7b/gme7b 1e-5. The concern is right -- every rung inherited a rate
+%     tuned on a different base -- but the qualifier must name the rung's own rate, and writing
+%     "at the GME-tuned learning rate" on the CLIP row would be factually wrong.
 %   WAVE 2 (launched 2026-08-13, pre-registered in VLM2Vec-rl RL_REDESIGN.md; code 6877e49 on
 %     branch v23-base). Cells: bgevl_b-v3pure, bgevl_l-v3pure, qwen25_3b-v3pure plus their three
 %     zero-shot rows. MLX jobs 5310cbb94793e62c / b8803548161beb61 / 7ece3f2262c030cf.
@@ -1267,7 +1285,12 @@ this method optimises, and both of which bound what any retrieval improvement al
 entity R@5, protocol as in Table~\ref{tab:mm_main}. The \textsc{GME-2B} rung is the headline
 configuration. Both trained columns use identical, entirely annotation-free inputs and differ
 only in whether the self-supervised InfoNCE term is present; ``anchored'' is a mechanism, not a
-supervision level. Zero-shot cells are fresh $3{,}000$-query evaluations, not the recorded
+supervision level. \textbf{Learning rates were not tuned per rung}: the CLIP and SigLIP2 cells
+run at $1\mathrm{e}{-}4$, the $2$B cells (raw \textsc{Qwen2-VL-2B}, \textsc{VLM2Vec-2B},
+\textsc{GME-2B}) at $2\mathrm{e}{-}5$, and the $7$B cells at $1\mathrm{e}{-}5$ --- in each case a
+rate selected on a \emph{different} base. Every failure in this table should therefore be read as
+a failure at that rate, not as a property of the rung; controls at $1\mathrm{e}{-}5$ and
+$3\mathrm{e}{-}5$ are in flight. Zero-shot cells are fresh $3{,}000$-query evaluations, not the recorded
 $5{,}000$-query ones. \textbf{Cells marked pending land from the runner session; nothing here is
 inferred from a neighbouring rung.}}
 \label{tab:mm_ladder}

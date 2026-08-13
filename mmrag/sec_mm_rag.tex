@@ -1133,6 +1133,19 @@ most of the bootstrap along with it.
 %     b530a228a3233a4c / b319c0184ad4d190 + 4 local cells): clip-v3pure at 1e-5 and 3e-5,
 %     bgevl_l-v3pure at 1e-5 and 3e-5, siglip2-v3pure at 1e-5, qwen25_3b-v3pure at 3e-5.
 %     Registered prediction (runner): contraction persists; genuinely uncertain.
+%   LADDER EXTENDED after review (the first grid covered only the CLIP family; the two collapses
+%     that were ALREADY at a low rate had no control). Added: qwen2b-v3pure-lr5e6,
+%     vlm2vec2b-v3pure-lr5e6, and qwen25_3b-v3pure-lr2e5 -- the last because wave-2's qwen25_3b
+%     copied the CLIP config and runs at 1e-4, 5x its own family's rate, so the family-rate cell
+%     is the apples-to-apples rung there.
+%     Full grid to state in the caption ONCE CELLS LAND:
+%       CLIP family  {1e-5, 3e-5, 1e-4}
+%       Qwen-raw     {5e-6, 2e-5, 3e-5, 1e-4 (qwen25_3b only)}
+%       VLM2Vec      {5e-6, 2e-5}
+%   WORDING GUARD for vlm2vec2b: its v3-pure retrieval DID fall 15.67 -> 0.70 (22x), so "fails"
+%     is accurate and stays. What must NOT be written is that it CONTRACTED -- its distinct-top5
+%     is 3000/3000, i.e. the drift phenotype, and its diversity count is uninformative by
+%     saturation rather than healthy. Its anchored twin is still in eval.
 %   *** CORRECTION to the framing that accompanied these: the boundary cells did NOT all inherit
 %     "lr=1e-4 (GME-tuned)". Verified from args.json -- GME-2B v3-pure runs at 2e-5, so 1e-4 is
 %     not the GME-tuned rate at all. Actual rates: clip/siglip2 1e-4; qwen2b/vlm2vec2b 2e-5 (this

@@ -725,11 +725,15 @@ returning $3{,}000$ distinct top-$5$ sets out of $3{,}000$ queries --- perfect d
 utility. Both phenotypes therefore occur \emph{within} our modality.
 
 Failures wear one name but are not one thing. The embedding may \emph{contract}, mapping most
-queries to a handful of fixed sets; it may \emph{drift} out of alignment while staying fully
-spread; or training may be \emph{inert} and do nothing at all. \textsc{CLIP-B/32} is the third
+queries to a handful of fixed sets, or it may \emph{drift} out of alignment while staying fully
+spread; those two account for every damaged cell we have. A third, \emph{inert}, has exactly one
+member and we report it as a degenerate corner rather than a band. \textsc{CLIP-B/32} is the third
 case: after v3-pure its entity R@5 is $2.57$ against a zero-shot $2.60$, its distinct top-$5$
 count $2{,}825$ against $2{,}971$, and its accuracy $14.73$ against $15.13$. Nothing moved --- its retrieval after training matches its
-zero-shot to four decimals.
+zero-shot to four decimals, and it is the only cell in the table of which that is true. (An
+earlier candidate for this phenotype, raw \textsc{Qwen2.5-VL-3B}, turned out to have been
+evaluated without its adapter loaded; re-run correctly it contracts, at both the rate it was
+given and its own family's rate.)
 
 What inertness is \emph{not} is an absence of learning signal, and we can rule that out
 directly. LoRA's $B$ matrices are zero-initialised, so their magnitude after training measures how
@@ -1339,6 +1343,20 @@ most of the bootstrap along with it.
 %   plot_scaling.py computes draws from args so the figure was never affected. Series is
 %   2k .3400 (3 seeds) / 6k .3480 (1) / 12k .3407 (1) -> PLATEAU ~.34-.35; do NOT draw a sag
 %   from single-seed points. ***
+% qwen25_3b CORRECTED VERDICTS (adapter-loaded, verified per the fresh-cell rule: outputs differ
+%   from base on every metric -- acc .1607->.1707, R@5 .0373->.0000, distinct 2992->32):
+%     qwen25_3b-v3pure      (lr 1e-4) acc .1707 / R@5 .0000 / distinct   32  CONTRACTS, deepest yet
+%     qwen25_3b-v3pure-lr2e5 (family) acc .1853 / R@5 .0003 / distinct 2033  retrieval also dies
+%   So the base fails at BOTH tested rates, with an LR dose-response in diversity (32 vs 2033)
+%   but retrieval death either way. lr3e5 still running, expect between.
+%   PREDICTION SCORING: the runner's amended INERT prediction is a DEFINITIVE MISS -- the artifact
+%   had concealed a contraction. Recorded as a miss, not quietly dropped.
+%   TRANSFER: zs .0373 is above the CLIP bracket's upper endpoint (.0310) and contraction is what
+%   that predicts. Write "consistent with transfer" -- ONE point across ONE family boundary.
+%   INERT is now a ONE-MEMBER corner (clipb32 only). The load-bearing split is contract vs drift
+%   vs learn; do not present inert as a band.
+%   NOTE the paper correctly places qwen2b-v3pure (67 distinct) among the CONTRACTED cells. A
+%   message earlier in the thread called it drift; that was wrong and never reached the file.
 % clipb16-v3pure LANDED [fresh]: zs acc .1680 / R@5 .0310 / distinct 2948
 %                             -> v3 acc .1947 / R@5 .0003 / distinct 96 / lora_B 3126
 %   BRACKET TIGHTENS AND PRINTS: (.0260, .0310) at lr 1e-4, CLIP FAMILY, both endpoints fresh.
@@ -1544,9 +1562,11 @@ Within the CLIP family at $1\mathrm{e}{-}4$, the transition from inertness to co
 between entity R@5 of $2.60$ and $3.10$: \textsc{CLIP-B/32} starts at $2.60$ and barely moves,
 while \textsc{CLIP-B/16} starts at $3.10$ and suffers the deepest contraction we have recorded,
 $3.10 \to 0.03$ with only $96$ distinct top-$5$ sets. Half a point of zero-shot recall separates
-doing nothing from losing everything. We scope that to the family deliberately: whether the same
-threshold governs raw VLMs is a separate question, and the cell that would answer it is under
-re-evaluation. At $1\mathrm{e}{-}5$ there is no boundary to draw at all, because nothing contracts
+doing nothing from losing everything. We scoped that to the family deliberately, and the one point
+that speaks to transfer is now in: raw \textsc{Qwen2.5-VL-3B} starts at $3.73$, above the CLIP
+bracket's upper endpoint, and contracts as that would predict --- entity R@5 to $0.00$ with only
+$32$ distinct sets, the most degenerate cell we have. One point across one family boundary is
+consistent with the threshold transferring; it does not establish that it does. At $1\mathrm{e}{-}5$ there is no boundary to draw at all, because nothing contracts
 anywhere.
 
 Two things are worth saying about those zero-shot numbers on their own. Both \textsc{BGE-VL} rungs
@@ -1647,7 +1667,7 @@ Qwen2-VL-2B (raw)      & none             & 19.93 & 0.03 & \multicolumn{2}{c}{\e
 VLM2Vec-2B             & MMEB contrastive & 17.60 & 15.67 & \multicolumn{2}{c}{\emph{pending}} & 17.20 & 0.70 \\
 GME-2B \emph{(headline)} & GME            & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} \\
 \midrule
-Qwen2.5-VL-3B (raw)    & none             & 16.07 & 3.73 & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} \\
+Qwen2.5-VL-3B (raw)    & none             & 16.07 & 3.73 & \multicolumn{2}{c}{\emph{pending}} & 17.07 & 0.00 \\
 Qwen2-VL-7B (raw)      & none             & 16.20 & 0.47 & \multicolumn{2}{c}{\emph{pending}} & 20.60 & 0.00 \\
 VLM2Vec-7B             & MMEB contrastive & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} \\
 GME-7B                 & GME              & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} & 34.60 & 80.97 \\

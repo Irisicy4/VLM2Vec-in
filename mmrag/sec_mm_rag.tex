@@ -222,6 +222,18 @@ correctly factorized Plackett--Luce policy gradient described above while keepin
 anchor; \emph{v3-pure} additionally removes the anchor. Only v2 and v3 are policy gradients, and
 only v3 is free of any contrastive term.
 
+The ordering that follows --- both Plackett--Luce arms above the enumerated v1 --- is not ours
+alone. The text-side project reports the same estimator ordering at two model scales of its own,
+with a matching two-factor decomposition in which the anchor prevents the collapse and the
+correctly factorised estimator prevents the late decay. We cite that as convergent evidence
+rather than restating its numbers: at the time of writing they are checkpoint peaks with final
+evaluations still running, and they are not yet in the companion paper's tables. Two limits
+travel with the citation. Their best swept relevance-SFT still leads their annotation-free
+composed recipe on transfer, so the convergence is about which \emph{estimator} to use and not
+about beating supervision on their data. And it must not be run together with our $7$B result:
+theirs compares Plackett--Luce against enumeration, ours compares RL against SFT, and the two
+are different contrasts that happen to sit in adjacent paragraphs.
+
 \emph{What ``anchored'' means here, since the word is load-bearing.} \textbf{Anchored} denotes
 the addition of an InfoNCE term whose positive is \emph{the policy's own top-$1$ retrieval} --- a
 self-supervised, label-free mechanism (v1 and v2). No anchored run in this paper uses a gold
@@ -336,6 +348,19 @@ best rung) since no fresh $7$B sweep exists. Bold marks the best trained arm per
 the three answer metrics, v2 on the three retrieval metrics.}
 \end{table}
 
+% REPRO(cross-estimator citation): text-side composed recipe (PL + anchor(self) + fixed reader,
+%   0.6B, annotation-free) [NQ-transfer cEM] 47.6 = +3.0 over base = parity with their gold-seeded
+%   RL; in-domain within 2.5 R@5 of base. PL over enumeration also at 4B: 61.4/72.0 vs 57.5/70.8
+%   at peak. Two-factor decomposition (anchor kills the drop, PL kills the decay) confirmed
+%   independently in both modalities.
+%   STATUS AS OF WRITING -- these are NOT printed in our prose and should not be until both hold:
+%     (a) they are ck175 PEAKS, finals still in eval; (b) they are not yet in the companion
+%     paper's PAPER_TABLES.md, so they cannot be checked against a table the way every other
+%     cross-cited number in this section can. Get the exact n from the text session before
+%     printing any of them.
+%   MUST TRAVEL WITH THE CITATION: their swept SFT (49.2 NQ) still leads their composed recipe by
+%   1.6 on transfer; and their PL-vs-enumeration contrast is NOT our 7B RL-vs-SFT compression --
+%   do not conflate them in a joint sentence.
 % REPRO(anchored-definition): "anchored" == contrastive_coef > 0 with the InfoNCE positive being
 %   candidate 0 of the pool, which under --no_force_gold is the policy's OWN top-1
 %   (train_rl.py: cands = retrieved[:N]; rl_core.infonce_loss labels = arange(B)*P, i.e. slot 0).

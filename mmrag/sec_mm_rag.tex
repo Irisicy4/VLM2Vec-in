@@ -482,11 +482,23 @@ the three answer metrics, v2 on the three retrieval metrics.}
 %   "the one case where the distinct-count IS informative on its own". It is the opposite --
 %   clipb32-v3pure's 2825 is indistinguishable from healthy v3-pure's 2899, so the count alone
 %   cannot identify inertness at all. What identifies inert is FLAT recall against base. ***
-% PHENOTYPE LADDER BY STARTING SIGNAL -- registered, NOT yet writable as a claim: ~0.03 zs R@5
-%   inert (reward near-uniform, no gradient) | ~0.15 contraction (signal enough to chase, not to
-%   rank) | raw-VLM ~0.16 drift | 0.69 healthy. Runner has AMENDED its qwen25_3b-v3pure
-%   prediction from drift to INERT (its zs R@5 is .0373), recorded pre-landing; that blind cell is
-%   the hypothesis test. Do not write the ladder until it lands.
+% INERT/CONTRACTION BOUNDARY -- state it as a BRACKET, not as bands. Bands ("~0.03 inert,
+%   ~0.15 contraction") were sloppy: the contraction band reaches at least down to clip-L.
+%   FRESH-ONLY bracket (both endpoints fresh wave):
+%     clipb32   zs R@5 .0260 -> INERT       (fresh zs, fresh v3)
+%     siglip2   zs R@5 .0823 -> CONTRACTION (fresh zs, fresh v3)
+%     => boundary in (.026, .082), entirely within-wave.
+%   TIGHTER but WAVE-MIXED: clip-L contracts from zs .054, and that .054 is RECORDED wave --
+%     no fresh clip-zeroshot exists on this cluster (checked). So (.026, .054) is the tighter
+%     bracket but its upper bound is cross-wave; quote the fresh-only bracket in any prose and
+%     keep the tighter one as an aside with its wave labelled.
+%   qwen25_3b zs R@5 .0373 sits inside BOTH brackets, so whichever phenotype it lands the bracket
+%     HALVES rather than merely sharpens. Runner AMENDED its prediction drift -> INERT
+%     pre-landing (recorded); that blind cell is the test.
+%   clipb16-zeroshot encoding now, expected between .026 and .054; its v3 cell runs if the zs
+%     lands inside whichever half-bracket survives qwen25_3b. A boundary you can bisect is a
+%     better object than bands you can gesture at.
+%   Do not write the ladder or the bracket in prose until qwen25_3b lands.
 % REPRO(distinct-top5): collapse signature, 3 lines over any retrieval json, no GPU --
 %     d=json.load(open(f)); Counter(tuple(v['topk'][:5]) for v in d.values())
 %   report len(counter) and the modal share. Helper now shipped as collect_results.distinct_top5

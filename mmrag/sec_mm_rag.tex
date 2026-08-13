@@ -488,6 +488,14 @@ the three answer metrics, v2 on the three retrieval metrics.}
 %     clipb32   zs R@5 .0260 -> INERT       (fresh zs, fresh v3)
 %     siglip2   zs R@5 .0823 -> CONTRACTION (fresh zs, fresh v3)
 %     => boundary in (.026, .082), entirely within-wave.
+%   WHAT DEPENDS ON THE clip-L ZERO-SHOT, precisely (checked: runs/clip-v3pure/args.json exists,
+%     so clip-v3pure is a FRESH run on this cluster; only its zs baseline is recorded):
+%       phenotype verdict (contraction)  -- FRESH and self-contained: distinct-top5 214, R@5 .0043.
+%                                           Does NOT depend on the zs at all.
+%       magnitude of the fall (12.6x)    -- depends on the zs.
+%       bracket upper bound (.054)       -- depends on the zs.
+%     So if the incoming fresh clip zs surprises, the fall size and the bracket move; the
+%     contraction verdict does not, and clip-v3pure does NOT need a fresh twin.
 %   TIGHTER but WAVE-MIXED: clip-L contracts from zs .054, and that .054 is RECORDED wave --
 %     no fresh clip-zeroshot exists on this cluster (checked). So (.026, .054) is the tighter
 %     bracket but its upper bound is cross-wave; quote the fresh-only bracket in any prose and

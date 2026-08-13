@@ -77,6 +77,11 @@ CONSUMPTION_AVAIL = {"v1": {200000}, "v3": {200000}}
 # different distribution from its own 6k/12k continuations on pool_train_big (200 q/entity).
 # Once v3-rows200k lands, the matched big-pool cell joins the curve and this marker becomes the
 # composition comparison rather than a substitute for it.
+# Explicit off-curve runs on the consumption axis: same draw count, DIFFERENT experiment.
+# v3-b16-s750 draws 12k at batch 16, i.e. 750 updates against the 3000 a batch-4 cell would take
+# for the same draws -- so it cannot join a curve whose other points hold batch fixed.
+CONSUMPTION_EXPLICIT = [("v3-b16-s750", "v3-pure (batch 16, off-curve)", "#009E73", "s")]
+
 CONSUMPTION_OFFCURVE = [("v3", "v3-pure", {45248}, "v3-pure (45k pool, off-curve)", "#009E73", "D")]
 
 # Recorded-wave points come from results_summary.json; same config-equivalence idea, but the
@@ -382,6 +387,14 @@ def draw_consumption(D, out_path, min_points=3):
             offcurve.append((label, colour, marker, pts))
             print(f"  consumption {recipe} OFF-CURVE ({label}): " + ", ".join(
                 f"{x}:{[p[0] for p in pts[x]]}" for x in sorted(pts)))
+    for run, label, colour, marker in CONSUMPTION_EXPLICIT:
+        a = args_of(D, run)
+        n, _ = consumed_of(D, run, a)
+        acc, r5 = acc_of(D, run), r5_of(D, run)
+        if n is not None and acc is not None:
+            offcurve.append((label, colour, marker, {n: [(run, acc, r5)]}))
+            print(f"  consumption EXPLICIT off-curve: {run} at {n} draws "
+                  f"(batch {a['batch_size']}, {a['max_steps']} updates)")
     if not any(len(pts) >= min_points for *_, pts in series):
         print(f"  consumption figure NOT written — no series has {min_points}+ points yet.")
         return False

@@ -1162,7 +1162,7 @@ arms are being re-read at their best checkpoint rather than their trained endpoi
 that is settled and it confirmed the headline: every seed scores lower at half budget than at
 $500$ steps, so the endpoint is the maximum. For SFT it is still running, and the partial curve
 is already informative --- $29.53$ at $150$ steps, $32.07$ at $300$, $32.27$ at $450$, then
-$31.07$ at $600$, $33.00$ at $750$ and $31.33$ at $900$ --- past the released checkpoint's $31.00$ by step $300$,
+$31.07$ at $600$, $33.00$ at $750$, then flat at $31.33$ for $900$ and $1{,}050$ --- past the released checkpoint's $31.00$ by step $300$,
 and \emph{not monotone}. That non-monotonicity is itself an argument for the audit: a curve that
 dips and recovers cannot be summarised by any single checkpoint, least of all the last one, which
 is what both arms were originally reported at. So the released SFT checkpoint
@@ -1243,6 +1243,20 @@ most of the bootstrap along with it.
 %   7B SECOND SEED: gme7b-v3pure-s1 acc .3573 / entR@5 .8030 / distinct 2895. 2-seed mean .3517,
 %     spread .0113. McNemar vs gme7b-sft: s0 +.0140 p=.089 n.s.; s1 +.0253 p=.0014 SIG (87/49).
 %     vs 2B base: +.0493 p=5.9e-08. RL 2B->7B is +.0046, INSIDE the seed spread => inconclusive.
+%   LR DOSE-RESPONSE (fresh, 1 seed each; distinct-top5 / entR@5), contraction is GRADED:
+%     clip-L    1e-5 2882/.0410 | 3e-5 1795/.0170 | 1e-4  214/.0043
+%     bgevl_l   1e-5 2966/.2123 | 3e-5 2364/.1477 | 1e-4  197/.0070
+%     bgevl_l LEARNS at 1e-5 (+5.50 over its zs .1573), is mildly damaged at 3e-5, contracts at
+%     1e-4. Learning window closed by 3e-5; bgevl_l at 3e-6 QUEUED because 1e-5 is a boundary
+%     cell, not an established optimum -- keep "window" language qualified until it lands.
+%   BRACKET COVERAGE now .0260 (clipb32) / .0310 (clipb16) / .0373 (qwen25_3b) / .0537 (clip-L),
+%     v3 cells run or queued at every point. Tight bracket (.026,.054) is fully fresh. STILL
+%     GATED on qwen25_3b per print-once, AND now needs lr-conditioning per the casualty above.
+%   CONSUMPTION, batch-16 cell: v3-b16-s750 acc .3487 / entR@5 .7590 / distinct 2891, batch 16 x
+%     750 steps = 12,000 draws. NOT a curve point: it takes 750 updates where a batch-4 cell at
+%     the same draw count takes 3000, so draws and update count are confounded in it. Drawn as an
+%     explicit off-curve marker (CONSUMPTION_EXPLICIT in plot_scaling.py) and described as a
+%     control on whether draws or updates carry the effect.
 %   sft-curve ck900 = .3133 (R@5 .7313); max still ck750 .3300; ck1050/ck1200 pending.
 %   LEARNING-RATE CONTROLS (launched 2026-08-13; registered in RL_REDESIGN.md; jobs
 %     b530a228a3233a4c / b319c0184ad4d190 + 4 local cells): clip-v3pure at 1e-5 and 3e-5,
@@ -1372,8 +1386,18 @@ That result needs one clause kept firmly attached to it. \textsc{BGE-VL-large} a
 $1\mathrm{e}{-}5$ answers at $16.93$, still $2.33$ points \emph{below} the image-alone floor: its
 retrieval improved substantially and remains net-harmful to the reader. ``Trains'' here means the
 retrieval metric moves in the right direction, not that the system became a useful RAG pipeline,
-and it is one seed at $500$ steps with longer runs unregistered. The remaining ladder cells refine
-this, and one casualty is already clear --- phenotype is a function of starting signal
+and it is one seed at $500$ steps with longer runs unregistered. The intermediate rate turns this from a pair of endpoints into a
+dose-response. Across $1\mathrm{e}{-}5$, $3\mathrm{e}{-}5$ and $1\mathrm{e}{-}4$,
+\textsc{CLIP-L}'s distinct top-$5$ count falls $2{,}882 \to 1{,}795 \to 214$ (entity R@5
+$4.10 \to 1.70 \to 0.43$) and \textsc{BGE-VL-large}'s falls $2{,}966 \to 2{,}364 \to 197$
+(R@5 $21.23 \to 14.77 \to 0.70$). Contraction is therefore not a categorical failure of certain
+bases but a \emph{graded} consequence of optimiser overshoot, arriving at the same rate on both
+and simply catching \textsc{BGE-VL} on its way down from a genuine gain. The one base that learns
+does so in a window that has already closed by $3\mathrm{e}{-}5$; whether it extends below
+$1\mathrm{e}{-}5$ is being measured, so $1\mathrm{e}{-}5$ is a boundary cell rather than an
+established optimum and the $+5.50$ may understate what this base can do.
+
+The casualty of all this is worth stating plainly: phenotype is a function of starting signal
 \emph{and} learning rate, not of starting signal alone, so any boundary drawn on zero-shot
 competence has to be conditioned on the optimiser setting that produced it.
 

@@ -770,7 +770,12 @@ retriever is worth $5.5$ points \emph{more} accuracy. \textsc{CLIP-L} shows the 
 weakly ($19.00$ collapsed against $17.27$ for its anchored twin). The \textsc{BGE-VL} pair is
 cleaner still, because both rungs move the same way from a common starting position: training
 raises accuracy by $1.87$ and $2.40$ points while destroying retrieval by factors of $221$ and
-$22$. And the direction is exactly what the floor predicts. Both started \emph{below} the
+$22$. \textsc{CLIP-B/16} is the anchor case and turns the pattern into a prediction: its accuracy
+rises $2.67$ points, from $16.80$ to $19.47$, while its retrieval falls ninety-threefold to
+essentially nothing --- and $19.47$ is the image-alone floor to within noise. Complete destruction
+of the retriever returns the reader exactly to context-free behaviour, which is the endpoint the
+account predicts, and the \textsc{BGE-VL} cells at $17.80$ and $18.27$ are visibly partway along
+the same path. And the direction is exactly what the floor predicts. Both started \emph{below} the
 image-alone floor ($-3.33$ and $-3.40$), where their weak-but-real retrieval was actively
 misleading the reader; destroying that retrieval moved them back \emph{up} toward the floor
 ($-1.47$ and $-1.00$), which is where uniform junk lands you. An accuracy-only table would have
@@ -1334,6 +1339,18 @@ most of the bootstrap along with it.
 %   plot_scaling.py computes draws from args so the figure was never affected. Series is
 %   2k .3400 (3 seeds) / 6k .3480 (1) / 12k .3407 (1) -> PLATEAU ~.34-.35; do NOT draw a sag
 %   from single-seed points. ***
+% clipb16-v3pure LANDED [fresh]: zs acc .1680 / R@5 .0310 / distinct 2948
+%                             -> v3 acc .1947 / R@5 .0003 / distinct 96 / lora_B 3126
+%   BRACKET TIGHTENS AND PRINTS: (.0260, .0310) at lr 1e-4, CLIP FAMILY, both endpoints fresh.
+%   clipb32 (.0260) inert, clipb16 (.0310) deepest contraction on record. FAMILY-SCOPED on
+%   purpose -- qwen25_3b (zs .0373) now sits ABOVE the bracket, so its re-eval tests whether the
+%   boundary TRANSFERS to the raw-VLM family; it is no longer a bisection point.
+%   ANTI-DIAGNOSTIC #3, the anchor case: acc ROSE .1680 -> .1947 = the .1927 floor within noise,
+%   while retrieval fell 93x to .0003. Full contraction returns the reader EXACTLY to
+%   context-free behaviour -> acc-at-floor is now the PREDICTED endpoint of the contraction
+%   pathway, not just an observation. bgevl 1e-4 cells (.178/.183 from .159) are partway along it.
+%   MOVEMENT-vs-OUTCOME, second confirmation: clipb32 lora_B 3048 (inert) vs clipb16 3126
+%   (deepest collapse) -- near-identical displacement, opposite phenotypes.
 % ADAPTER DISPLACEMENT (lora_B abs-sum; B is zero-init so this is distance travelled).
 %   Harvest: mmrag/adapter_stats.py on VLM2Vec-rl v23-base (runner), no GPU. Verified here:
 %     lr        bgevl_l          clip-L
@@ -1514,16 +1531,23 @@ does \emph{not} track it is learning. At a matched displacement of roughly $800$
 \textsc{BGE-VL-large} gains $5.50$ points of recall and \textsc{CLIP-L} loses $1.27$. The
 optimiser setting therefore decides how far a run moves and whether it destroys anything; the
 base's retrieval finetuning decides whether that movement accomplishes something. That is also
-why the cell that learns is the one that moved \emph{least}.
+why the cell that learns is the one that moved \emph{least}. A second pair makes the same point
+from the other direction: \textsc{CLIP-B/32} and \textsc{CLIP-B/16} travel almost the same
+distance, $3{,}048$ and $3{,}126$, and end in opposite phenotypes --- one barely perturbed, the
+other the deepest collapse in the table. How far a run moves is not what determines what happens
+to it.
 
 The casualty of all this is worth stating plainly: phenotype is a function of starting signal
 \emph{and} learning rate, not of starting signal alone, so any boundary drawn on zero-shot
-competence has to be conditioned on the optimiser setting that produced it. Conditioned that way, what we
-can currently bracket is wide: at $1\mathrm{e}{-}4$ the transition from inertness to contraction
-falls somewhere between entity R@5 of $2.60$, where \textsc{CLIP-B/32} barely moves, and $5.37$,
-where \textsc{CLIP-L} contracts. An interior point at $3.73$ would have halved it, but that cell's
-evaluation proved not to have loaded its adapter and its verdict is withdrawn pending re-run. At
-$1\mathrm{e}{-}5$ there is no boundary to draw at all, because nothing contracts anywhere.
+competence has to be conditioned on the optimiser setting that produced it. Conditioned that way it is narrow.
+Within the CLIP family at $1\mathrm{e}{-}4$, the transition from inertness to contraction falls
+between entity R@5 of $2.60$ and $3.10$: \textsc{CLIP-B/32} starts at $2.60$ and barely moves,
+while \textsc{CLIP-B/16} starts at $3.10$ and suffers the deepest contraction we have recorded,
+$3.10 \to 0.03$ with only $96$ distinct top-$5$ sets. Half a point of zero-shot recall separates
+doing nothing from losing everything. We scope that to the family deliberately: whether the same
+threshold governs raw VLMs is a separate question, and the cell that would answer it is under
+re-evaluation. At $1\mathrm{e}{-}5$ there is no boundary to draw at all, because nothing contracts
+anywhere.
 
 Two things are worth saying about those zero-shot numbers on their own. Both \textsc{BGE-VL} rungs
 answer \emph{below} the image-alone floor --- $15.93$ and $15.87$ against $19.27$ --- so their
@@ -1613,6 +1637,7 @@ inferred from a neighbouring rung.}}
 encoder & retrieval pretraining & acc & R@5 & acc & R@5 & acc & R@5 \\
 \midrule
 CLIP-B/32 ($\sim$150M) & CLIP   & 15.13 & 2.60 & \multicolumn{2}{c}{\emph{pending}} & 14.73 & 2.57 \\
+CLIP-B/16 ($\sim$150M) & CLIP   & 16.80 & 3.10 & \multicolumn{2}{c}{\emph{pending}} & 19.47 & 0.03 \\
 CLIP-L ($\sim$430M)    & CLIP   & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} \\
 SigLIP2-so400m         & SigLIP & 13.13 & 8.23 & \multicolumn{2}{c}{\emph{pending}} & 18.67 & 0.40 \\
 BGE-VL-base (CLIP-arch)  & MegaPairs & 15.93 & 14.73 & \multicolumn{2}{c}{\emph{pending}} & 17.80 & 0.07 \\

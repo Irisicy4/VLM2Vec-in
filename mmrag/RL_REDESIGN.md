@@ -557,3 +557,18 @@ with clipb32; its "drift/contraction" labels are largely vacuous (nothing to los
 0.0003 -> 0.0000 at 5e-6, distinct 2503, acc 0.1993 -> 0.2187 — both accs ABOVE the
 floor, consistent with near-random context being ignorable). Any ladder/phenotype text
 placing "raw-qwen2b" at mid-signal is wrong and must cite vlm2vec2b instead.
+
+### Cross-modality headroom exchange (13:30-14:00) — my axis-1 premise CORRECTED
+Text long-run (plgTa_long, 1e-5, 3x draws) DECLINED monotonically (67.4 -> 66.2 -> 63.8
+in-domain cEM). Consumption paying is NOT modality-independent: MM rises 2k->6k and
+plateaus; text declines by 3x. My "extend to 10x" advice was premised on rise — corrected
+by their data. Divergence hypothesis (unregistered): draws pay only while the reward
+stays informative per group; candidates for what saturates on text unresolved.
+THEIR NEW RESULTS, noted for cross-reference: (1) movement (lora_B) linear in LR on text
+too, and the BEST cell moved LEAST (70.0 cEM @ 1226) — movement-vs-outcome decoupling is
+now cross-modality; (2) anchor STRENGTH adds +2.4 cEM at MATCHED movement (cc05/cc2 ~4030
+moved, 70.4/70.6 vs baseline 68.2) — their frontier is (movement budget x anchor
+strength); (3) movement SUBLINEAR in steps (3x steps = 1.75x movement) — steps and LR are
+not interchangeable movement currencies; (4) above-base candidate (70.4-70.6 vs base
+69.8) pre-registered with 3 seeds before any headline. Their discriminator cell
+plgTaBudget (1.7e-6 x 1500) + anneal cell (cc 1->0 first quarter) submitted.

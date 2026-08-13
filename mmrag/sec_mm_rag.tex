@@ -1055,6 +1055,19 @@ evidence labels are such a proxy --- which is why SFT here barely separates from
 %     keep_given_no_gold = sum(keep_given_no_gold * n_no_gold_in_pool) / sum(n_no_gold_in_pool)
 %   NOTE: the gme2b verdict is against the FRESH ungated control (0.3333), not the released
 %   repro -- the fresh control flips the sign of the delta versus the earlier draft.
+\paragraph{The endpoint audit, in progress.} One asymmetry remains open at the time of writing
+and we report it mid-flight rather than waiting, because its direction is already known. Both
+arms are being re-read at their best checkpoint rather than their trained endpoint. For v3-pure
+that is settled and it confirmed the headline: every seed scores lower at half budget than at
+$500$ steps, so the endpoint is the maximum. For SFT it is still running, and the partial curve
+is already informative --- $29.53$ at $150$ steps, $32.07$ at $300$, $32.27$ at $450$, still
+rising, and past the released checkpoint's $31.00$ by step $300$. So the released SFT checkpoint
+was not that configuration's best either, and the audited gap will be smaller than the headline
+$+3.71$. We will not guess by how much: the remaining checkpoints and a recomputed McNemar on the
+max-over-checkpoint pair land before this section is final, and the number goes in then.
+% PLACEHOLDER: SFT max-over-checkpoint and the recomputed McNemar on (v3-pure max, SFT max).
+% Projection only, DO NOT PRINT: if SFT max ~0.3227 the gap is +0.024 from +0.037. Verify.
+
 \paragraph{A no-context utility gate is a good detector and a bad filter.} The text side finds
 that filtering training examples by reader utility --- keep $q$ only if
 $\max_c \text{judge}(c) > \text{judge}(\varnothing)$ --- separates correct from incorrect mined
@@ -1108,6 +1121,17 @@ most of the bootstrap along with it.
 %     Headroom arithmetic, all fresh: (0.3471-0.1927)/(0.5040-0.1927) = 0.4960 captured;
 %     residual to oracle 0.1569.
 %     -- REPRO(train) with --profile <rung>
+%   WAVE 2 (launched 2026-08-13, pre-registered in VLM2Vec-rl RL_REDESIGN.md; code 6877e49 on
+%     branch v23-base). Cells: bgevl_b-v3pure, bgevl_l-v3pure, qwen25_3b-v3pure plus their three
+%     zero-shot rows. MLX jobs 5310cbb94793e62c / b8803548161beb61 / 7ece3f2262c030cf.
+%     PURPOSE of the BGE-VL pair: every collapse so far is a dual-tower or raw VLM and every
+%     success is a retrieval-pretrained VLM, so ARCHITECTURE and RETRIEVAL PRETRAINING are
+%     confounded across the whole ladder. BGE-VL is CLIP architecture WITH MegaPairs retrieval
+%     pretraining, so it separates them. Registered readings: bgevl_l trains where clip-l
+%     collapsed => retrieval pretraining is the deciding variable, cleanest confirmation of the
+%     domain-uniformity conjecture; bgevl_l collapses => architecture is implicated and the
+%     conjecture is wrong as stated. qwen25_3b is the raw-VLM mid-point between the failing 2B
+%     and 7B rungs, checking the failure is flat in scale rather than non-monotone.
 %   clipb16: the profile exists (978adfd) but NO cell is planned -- B/32 covers the floor
 %     question. Do not add a clipb16 row to the table.
 %   Eval per REPRO(eval-any-checkpoint) with --profile <rung>.
@@ -1145,7 +1169,19 @@ above, \textsc{Qwen2-VL-2B} v3-pure should collapse, exactly as \textsc{CLIP-L} 
 the anchored \textsc{Qwen2-VL-2B} cell is the genuinely open one, testing whether the anchor
 extends the \textsc{CLIP-L} bootstrap ($5.4 \to 29.1$ entity R@5) all the way down to a randomly
 initialised retrieval geometry. \textsc{VLM2Vec-2B} (zero-shot R@5 $15.67$) is the boundary probe
-between the two regimes. The $7$B rungs complicate the capacity story rather than confirming it. The recorded v1 wave
+between the two regimes.
+
+Two rungs launched after the first wave are designed to cut the remaining confound in that story.
+Everything that collapsed so far was either a dual-tower CLIP/SigLIP encoder or a raw VLM, and
+everything that worked was a retrieval-pretrained VLM --- so architecture and retrieval
+pretraining have moved together throughout, and the domain-uniformity conjecture rests on that
+coincidence. \textsc{BGE-VL} breaks it: it is CLIP \emph{architecture} carrying MegaPairs
+retrieval pretraining. If \textsc{BGE-VL-large} trains where \textsc{CLIP-L} collapsed, the
+deciding variable is retrieval pretraining and not architecture, which is the cleanest
+confirmation the conjecture can get; if it collapses too, architecture is implicated and the
+conjecture is wrong as stated. \textsc{Qwen2.5-VL-3B} fills the raw-VLM size ladder between $2$B
+and $7$B, both of which failed, to check that the failure is flat in scale rather than
+non-monotone. Both are pre-registered and in flight. The $7$B rungs complicate the capacity story rather than confirming it. The recorded v1 wave
 showed a clear gain with scale --- zero-shot $30.60$, SFT $33.07$, annotation-free RL
 $35.13$/$35.27$/$35.33$ across three seeds, gold-seeded RL $35.87$, all measured before the
 cluster move --- but the fresh v3-pure cell at $7$B scores $34.60$, statistically
@@ -1168,7 +1204,11 @@ $p \le 4.8\mathrm{e}{-}5$ across three seeds. The gap \emph{compresses} with cap
 reason is visible in which arm moves: SFT gains $+2.20$ going from $2$B to $7$B
 ($31.00 \to 33.20$, $p{=}0.015$, significant), while v3-pure gains nothing
 ($34.71 \to 34.60$). Supervised contrastive training scales with the backbone; the indirect
-correction does not. We state this plainly rather than defensively, but also without
+correction does not. Taken with the data and compute results, that is the shape of the whole
+finding: indirect RL extracts a roughly \emph{fixed} correction, which neither more data, nor
+more compute, nor a larger backbone amplifies, while supervised contrastive training scales with
+capacity --- so at $7$B the two begin to converge on accuracy, even as RL retains its
+retrieval-breadth advantage and, untested at this size, its out-of-domain one. We state this plainly rather than defensively, but also without
 overreaching: $p{=}0.089$ at one seed per arm cuts both ways, a replicate is training, and the
 $7$B SFT is a single learning-rate point. What we will not write is that RL loses its advantage
 at $7$B --- the retrieval advantage is undiminished there (entity R@5 $80.97$ against $77.67$,
@@ -1214,11 +1254,14 @@ encoder & retrieval pretraining & acc & R@5 & acc & R@5 & acc & R@5 \\
 CLIP-B/32 ($\sim$150M) & CLIP   & 15.13 & 2.60 & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} \\
 CLIP-L ($\sim$430M)    & CLIP   & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} \\
 SigLIP2-so400m         & SigLIP & 13.13 & 8.23 & \multicolumn{2}{c}{\emph{pending}} & 18.67 & 0.40 \\
+BGE-VL-base (CLIP-arch)  & MegaPairs & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} \\
+BGE-VL-large (CLIP-arch) & MegaPairs & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} \\
 \midrule
 Qwen2-VL-2B (raw)      & none             & 19.93 & 0.03 & \multicolumn{2}{c}{\emph{pending}} & 22.60 & 0.00 \\
 VLM2Vec-2B             & MMEB contrastive & 17.60 & 15.67 & \multicolumn{2}{c}{\emph{pending}} & 17.20 & 0.70 \\
 GME-2B \emph{(headline)} & GME            & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} \\
 \midrule
+Qwen2.5-VL-3B (raw)    & none             & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} \\
 Qwen2-VL-7B (raw)      & none             & 16.20 & 0.47 & \multicolumn{2}{c}{\emph{pending}} & 20.60 & 0.00 \\
 VLM2Vec-7B             & MMEB contrastive & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} \\
 GME-7B                 & GME              & \multicolumn{2}{c}{\emph{pending}} & \multicolumn{2}{c}{\emph{pending}} & 34.60 & 80.97 \\

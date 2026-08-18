@@ -632,3 +632,14 @@ entR@5 0.0373(zs) -> 0.0060, distinct 2901/3000 (full diversity), acc 0.1733. Fu
 dead/contracted(32). Raw Qwen2.5-VL-3B fails at every tested rate; LR slides the failure
 MODE (drift-like at gentle, contraction at hot) without changing the verdict. Non-
 monotone diversity across the ladder (2033 < 2901 at gentler rate) noted, uninterpreted.
+
+### vlm2vec size axis (landed during session-restart gap, ~15:3x)
+vlm2vec7b-zeroshot: entR@5 0.1437, distinct 2963, acc 0.1733.
+vlm2vec7b-v3pure (2e-5): entR@5 0.1437 -> 0.0290, distinct 2983/3000 (full diversity),
+acc 0.1460 — **DRIFT, same phenotype as 2B** (0.157 -> 0.007/0.0017 at 2e-5/5e-6).
+VLM2Vec-trained Qwen2-VL drift is now LR-ROBUST (4x range, 2B) AND CAPACITY-ROBUST
+(2B->7B): the failure follows the training recipe, not scale. (In-domain entR@5 metric;
+lora_B 16037 not comparable across model sizes.)
+vlm2vec4b-zeroshot (Phi-3.5-V, VLM2Vec-Full): entR@5 0.1277, distinct 2925, acc 0.1553 —
+mid-signal ladder point established. vlm2vec4b-v3pure (MLX f1a4695950630a51) pending:
+tests whether drift follows the VLM2Vec RECIPE across backbones (Phi vs Qwen2-VL).

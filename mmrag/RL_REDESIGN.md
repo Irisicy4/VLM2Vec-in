@@ -675,3 +675,23 @@ consumption decline (anchor recipe fell at 3x, KL rose); 4B chain inverts (base 
 SFT — matches our raw-VLM damage findings); pool is not the constraint (oracle pool <=
 K=8); data scaling flat (novel ~= recycled); my saturation instrument arbitrated their
 plateau as CONVERSION-side (reward std RISES, degenerate frac 1.00->0.00).
+
+### 2026-08-18 06:1x: NODE HANDOVER — profile campaign design (charter: taxonomy > point-wins)
+Text-side taxonomy axes to test on MM: base headroom / domain saturation / regularizer
+type / budget. MM state per axis + cells launched:
+- HEADROOM: largely profiled (phenotype ladder; learners = retrieval-finetuned bases).
+  NEW: bgevl_b-v3pure-lr1e5 [GPU1] — does the LR window transfer within family size?
+- REGULARIZER: kl_beta now LIVE (was dead flag). v3kl001 (0.01) [GPU7], v3kl01 (0.1)
+  [GPU2] vs v3-pure baseline; if either wins, KLxbudget long cell follows (text: KL
+  INVERTED their consumption decline — MM analog tests whether KL lifts our plateau).
+- DOMAIN/TRANSFER: found landed OOD row — E-VQA transfer (gme2b, InfoSeek-trained):
+  zs 42.07/76.31, v3pure 45.87/81.34 (+3.8 acc/+5.0 R@5), v2 42.60/81.53 (retrieval
+  transfers, acc doesn't), v1 41.60 (BELOW zs acc), SFT 39.33/71.05 (ANTI-transfers,
+  -2.7/-5.3). RL-transfers-SFT-damages mirrors text's in-domain stability finding, OOD.
+  1-seed; protocol fix launched [GPU0]: evqa-v3pure-s1/-s2 + evqa-sft-ck750 (tuned SFT,
+  replacing released-config comparator).
+- BUDGET: profiled (plateau; movement sublinear). Await KL cells before KLxbudget.
+Estimator upgrades in force: SFT seeds s1/s2 [GPU5/6 chained]; decisive cells to use
+vqa n=3000 going forward. GPUs 3/4 finishing twin evals; MLX: 4b + 2 cos runs.
+Charter endpoint: 3+ working recipes OR the profile "gains require retrieval-finetuned
+base + in-window LR + (regularizer TBD); gains transfer OOD; SFT's do not".

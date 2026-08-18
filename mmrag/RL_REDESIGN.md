@@ -716,3 +716,26 @@ if the job dies at step N the curve to N survives via checkpoints; MLX walltime 
 at this length. Est. 3-3.5 days. Curve replaces the 3-point series everywhere when it
 lands; the b4 2k/6k/12k points stay as the separate low-batch lane (batch is a
 confound — never merge the lanes in one series).
+
+### Anchored twins landed (06:52) — ANCHOR RESCUES CONTRACTION, NOT DRIFT; 3rd recipe found
+[entR@5, 1 seed each, anchored = cc 0.3 same-config twin]
+- siglip2: zs 8.23 | bare-RL 0.40 (contracted) | ANCHORED **17.47** (distinct 2464), acc
+  13.13 -> 19.73. The anchor doesn't just prevent contraction — SigLIP2 LEARNS: largest
+  R@5 gain on record (+9.2 > bgevl's +5.5), largest acc gain (+6.6 > headline's +3.91).
+  Same movement as the collapsed bare run (lora_B 15394 vs 14610) — same movement,
+  opposite outcome, THIRD confirmation movement doesn't determine fate. lr 1e-4.
+  ** BREAKS the "only retrieval-finetuned bases learn" claim — the correct form is:
+  retrieval-finetuned bases learn bare; contraction-class bases can learn WITH the
+  self-anchor; drift-class cannot learn at all. **
+- vlm2vec2b: zs 15.67 | bare 0.70 | ANCHORED 1.30 — drift NOT rescued by the anchor
+  (text side's anchor DID hold drift at bay: 0.431 vs 0.063 — CROSS-MODALITY INVERSION:
+  anchor fixes drift on text, fixes contraction on MM, not vice versa).
+- qwen2b: zs 0.03 | anchored 0.00 (distinct 535) — nothing to rescue, corner stays.
+ANCHOR ROLE REVISED (3rd time, each time richer): not "inert insurance" — it is
+BASE-CONDITIONED: enabler for contraction-prone bases, no-op on stable bases (gme2b),
+useless against drift. CAMPAIGN STATUS: 3 working recipes = (1) v3-pure on retrieval-
+finetuned bases (gme2b 3s, gme7b 2s), (2) bgevl_l @1e-5 in-window (1s), (3) siglip2 +
+anchor (1s — REPLICATION CELLS NEEDED: 2 seeds + does it generalize to clip/clipb16?).
+EVQA transfer s1: +1.3 acc/+2.6 R@5 (s0: +3.8/+5.0) — margin real but varies; s2 pending
+before quoting a mean. Artifact updated: retrieval-first tables, 7B ordering table,
+siglip2 anchored row, base-row numbers.

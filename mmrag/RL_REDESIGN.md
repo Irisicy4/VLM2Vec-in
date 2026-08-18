@@ -643,3 +643,35 @@ lora_B 16037 not comparable across model sizes.)
 vlm2vec4b-zeroshot (Phi-3.5-V, VLM2Vec-Full): entR@5 0.1277, distinct 2925, acc 0.1553 —
 mid-signal ladder point established. vlm2vec4b-v3pure (MLX f1a4695950630a51) pending:
 tests whether drift follows the VLM2Vec RECIPE across backbones (Phi vs Qwen2-VL).
+
+### 2026-08-18: text-side return — RETRACTIONS BINDING, board recovery, protocol adopted
+AUTHORITATIVE text-side source: trl .../rag/HANDOFF_MM.md (supersedes all pre-Aug-17
+messages). RETRACTED there and marked in sec_mm_rag.tex here: (1) beats-Rel-SFT (both
+domains; 1-seed max-over-ck comparator; seeded SFT bar rose 46.4->47.76; ties at 0.97/
+1.15 SE — surviving claim: annotation-free PARITY from cheaper supervision, 3x tighter
+seed SD, no retrieval damage); (2) anchor-strength knob (cc2 3-seed 69.1+/-1.4 < base;
+slot in tex discharged DEAD with the approved replacement sentence).
+PROTOCOL ADOPTED (their sec 5): matched seed counts + same estimator before ANY margin is
+quoted; small evals conceal failures. APPLIED TO US: our +1.71-vs-SFT margin uses a
+1-seed SFT comparator — ESTIMATOR-RISK note added above the headline paragraph in tex;
+SFT seeds s1/s2 queued (sft_seed.sh, GPUs 5/6, 6 cks each, per-seed max then mean).
++3.91-vs-base is comparator-independent and unaffected.
+COS PRE-REGISTRATION (acb060a) SCORED: CONFIRMED both clauses from the dead partial's
+checkpoints (matched seed/LR/pool): cos ck500/1500/2500 = 7227/10365/10779 lora_B vs
+constant 500/1500/3000 = 7194/11915/15584 — equal at 500 (schedule barely decayed),
+-13% at 1500, ratio ladder 1.00/1.43/1.49 vs 1.00/1.66/2.17. Integral-of-schedule
+reading and per-LR boundary framing STAND. (Writer session gone; scoring recorded here.)
+BOARD RECOVERY: quota flap killed all in-flight Aug-13 work. Twins all TRAINED (500
+steps, adapters on disk) — only evals died; all five eval chains relaunched locally
+(GPUs 3-6). Dead runs resubmitted to MLX: vlm2vec4b-v3pure 885a9aad, v3-cos-s3000
+f35eb3d3, v3-b16cos-s3000 ad2f9608 (partials preserved as *.partial / *.old).
+CHECKPOINT LOSS (my Aug-13 cleanup, honest record): scale200k + v3-rows200k dense
+checkpoint dirs were deleted as "results-landed" — the v1-vs-v3 over-training test lost
+its arms; hypothesis stays SOFT unless a checkpointed v1 re-run (~2500 steps) is ordered.
+CODE: --beta was DEAD (parsed, never read; kl_beta is live) — same defect class as their
+PL-path KL; aliased with conflict guard. No landed cell affected (all intended KL=0).
+THEIR OTHER RESULTS FOR CROSS-REFERENCE: KL-to-base beats base 4/4 seeds and INVERTS the
+consumption decline (anchor recipe fell at 3x, KL rose); 4B chain inverts (base > RL >
+SFT — matches our raw-VLM damage findings); pool is not the constraint (oracle pool <=
+K=8); data scaling flat (novel ~= recycled); my saturation instrument arbitrated their
+plateau as CONVERSION-side (reward std RISES, degenerate frac 1.00->0.00).

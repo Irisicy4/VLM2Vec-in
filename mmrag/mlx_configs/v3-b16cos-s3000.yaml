@@ -32,5 +32,5 @@ jobRunParams:
   envsList:
     CELL_NAME: v3-b16cos-s3000
     CELL_PROFILE: gme2b
-    CELL_TRAIN_ARGS: --pool built/pool_train_big.jsonl --max_train_rows 200000 --no_force_gold --reward judge --algo plgrpo --pl_group 4 --pl_k 4 --pl_support 24 --contrastive_coef 0 --learning_rate 2e-5 --seed 0 --max_steps 3000 --batch_size 16 --reader_batch_size 8 --lr_schedule cosine
+    CELL_TRAIN_ARGS: --pool built/pool_train_big.jsonl --max_train_rows 200000 --max_steps 3000 --no_force_gold --reward judge --algo plgrpo --pl_group 4 --pl_k 4 --pl_support 24 --contrastive_coef 0 --seed 0 --learning_rate 2e-5 --lr_schedule cosine --batch_size 16
 namespace: /user/yliang.26

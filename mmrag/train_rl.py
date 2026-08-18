@@ -163,6 +163,13 @@ def main():
     ap.add_argument("--log_every", type=int, default=5)
     ap.add_argument("--seed", type=int, default=0)
     args = ap.parse_args()
+    # --beta was parsed but never read (the live KL flag is --kl_beta) — the same dead-flag
+    # defect class the text side found on their PL path. Alias it so a KL request can never
+    # silently no-op; conflicting nonzero values are a hard error.
+    if args.beta and not args.kl_beta:
+        args.kl_beta = args.beta
+    elif args.beta and args.kl_beta and args.beta != args.kl_beta:
+        ap.error(f"--beta {args.beta} conflicts with --kl_beta {args.kl_beta}; set only one")
     if args.reward == "ragacc":
         args.algo = "grpo"  # slate reward is per-query scalar; critic/value path not wired for it
     if args.algo == "grpo":

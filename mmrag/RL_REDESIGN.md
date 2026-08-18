@@ -695,3 +695,11 @@ Estimator upgrades in force: SFT seeds s1/s2 [GPU5/6 chained]; decisive cells to
 vqa n=3000 going forward. GPUs 3/4 finishing twin evals; MLX: 4b + 2 cos runs.
 Charter endpoint: 3+ working recipes OR the profile "gains require retrieval-finetuned
 base + in-window LR + (regularizer TBD); gains transfer OOD; SFT's do not".
+
+### Architecture page published (2026-08-18)
+"The VQA Retriever Loop" — https://claude.ai/code/artifact/e07889f2-a50d-4911-9051-ed2e77bf2f94
+MM twin of the text side's "The No-Gold Retriever Loop" (0bd9cda2). Same design system
+(teal=trainable, ochre=frozen env); MM-specific content: the image-enters-twice edge,
+win-by-subtraction recipe, diff tables vs standard GRPO AND vs the text twin, base-is-
+part-of-the-recipe scope block, acc-at-floor warning. All numbers carry seeds/SDs; the
+SFT margin carries the estimator-risk caveat inline; EVQA transfer marked 1-seed.

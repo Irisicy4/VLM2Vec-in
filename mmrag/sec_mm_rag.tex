@@ -280,6 +280,14 @@ different axis entirely.
 %       points land; then recompute the 2B gap against SFT's max WITH McNemar (per-question preds
 %       are stored for every eval). Projection if SFT max ~0.3227: gap +0.024 from +0.037,
 %       expected to stay significant on the discordant-pair arithmetic -- verify, do not assume.
+% ESTIMATOR RISK (2026-08-18, protocol from text-side HANDOFF_MM.md sec 5): our +1.71-vs-SFT
+%   margin below uses a ONE-SEED SFT comparator scored at its best checkpoint -- the exact
+%   estimator shape whose text-side twin was just retracted (their SFT bar rose +1.36 when
+%   seeded, collapsing wins of similar size to ties). Direction of each bias differs (max-over-
+%   checkpoints flatters SFT and makes our margin conservative; single-seed noise can cut either
+%   way), so the margin is AT RISK, not refuted. MM SFT seeds s1/s2 queued 2026-08-18; do not
+%   present +1.71 as final until the seeded SFT mean lands. The +3.91-vs-base headline does not
+%   depend on this comparator.
 \paragraph{A pure policy gradient is the best arm.} Table~\ref{tab:mm_main} gives the headline.
 v3-pure reaches $34.71 \pm 0.19$ VQA accuracy over three seeds, against $30.80$ for the
 zero-shot base --- $+3.91$, significant on every seed ($p \le 4.2\mathrm{e}{-}6$). Against
@@ -352,6 +360,16 @@ sweep exists. Bold marks the best trained arm per column: v3-pure on
 the three answer metrics, v2 on the three retrieval metrics.}
 \end{table}
 
+% [SUPERSEDED 2026-08-18 -- trl .../rag/HANDOFF_MM.md is now the authoritative text-side source
+%   and RETRACTS two co-registered claims: (1) "annotation-free RL beats data-matched Rel-SFT"
+%   is withdrawn on BOTH domains (their SFT comparator was 1 seed scored max-over-checkpoints;
+%   seeded, the bar rose 46.4 -> 47.76 and both wins became ties: NQ +0.24 = 0.97 SE, Trivia
+%   +0.55 = 1.15 SE, their Table 8j). What survives: annotation-free PARITY at ~+3.2-3.4 over
+%   base from strictly cheaper supervision, RL seed SD 3x tighter than SFT, no retrieval damage.
+%   (2) anchor-strength knob withdrawn -- see the DEAD slot below. Any sentence in this section
+%   comparing our beats-SFT result to "what the text side could not obtain" remains TRUE under
+%   the retraction (they could not and, it turns out, did not), but must cite Table 8j ties, not
+%   their earlier phantom wins.]
 % REPRO(cross-estimator citation): text-side composed recipe (PL + anchor(self) + fixed reader,
 %   0.6B, annotation-free) [NQ-transfer cEM] 47.6 = +3.0 over base = parity with their gold-seeded
 %   RL; in-domain within 2.5 R@5 of base. PL over enumeration also at 4B: 61.4/72.0 vs 57.5/70.8
@@ -413,6 +431,13 @@ the three answer metrics, v2 on the three retrieval metrics.}
 %   Outstanding gate: SEED MEAN ONLY. Every 8g strength cell is 1 seed; their cc2 3-seed
 %       replication is pre-registered and in flight, and they have committed that no above-base
 %       claim ships before it holds. Nothing is drafted here until it does.
+%   [SLOT DEAD -- 2026-08-18, HANDOFF_MM.md] The seed gate failed. cc2's 3-seed replication came
+%       back 70.6/68.8/67.8, mean 69.1 +/- 1.4, BELOW their base (69.8). The anchor-strength
+%       claim is withdrawn by the text side; this slot is discharged DEAD and must never be
+%       filled. The +2.4 was one seed. If a cross-modality anchor sentence is wanted, the
+%       text-side-approved honest form is: "the self-positive anchor rescues the early drop in
+%       both modalities; neither modality shows a seed-robust anchor-STRENGTH effect beyond
+%       that." Nothing else about the anchor is printable from their side.
 %   Our own side of this question is the v2/v3 contrastive_coef 0.3-vs-0 pair already in
 %   tab:mm_v3add; we have no intermediate-coef cell and are not planning one.
 %

@@ -703,3 +703,16 @@ MM twin of the text side's "The No-Gold Retriever Loop" (0bd9cda2). Same design 
 win-by-subtraction recipe, diff tables vs standard GRPO AND vs the text twin, base-is-
 part-of-the-recipe scope block, acc-at-floor warning. All numbers carry seeds/SDs; the
 SFT margin carries the estimator-risk caveat inline; EVQA transfer marked 1-seed.
+
+### 2026-08-18: 1M-draw scaling run launched (user authorization: "explore up to 1M data")
+Consumption plot REMOVED from the architecture page (3 points too few — user call).
+v3-b16-1M submitted (MLX fd14405895935cd3): v3-pure recipe, b16, lr 2e-5 CONSTANT
+(per-LR rule; no schedule), big pool 200k rows (~5 epochs at 1M draws — novel~=recycled
+is established on both sides), 62,500 steps = 1,000,000 reader-scored draws, checkpoint
+every 3,125 steps (50k-draw resolution, 20 ckpts). Eval plan when ckpts appear:
+log-spaced subset {50k, 100k, 200k, 400k, 700k, 1M} + lora_B per ckpt (movement law at
+scale: does displacement stay sublinear to 80x?). Risks accepted: no resume support —
+if the job dies at step N the curve to N survives via checkpoints; MLX walltime unknown
+at this length. Est. 3-3.5 days. Curve replaces the 3-point series everywhere when it
+lands; the b4 2k/6k/12k points stay as the separate low-batch lane (batch is a
+confound — never merge the lanes in one series).

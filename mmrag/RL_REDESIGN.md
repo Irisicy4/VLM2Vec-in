@@ -739,3 +739,37 @@ anchor (1s — REPLICATION CELLS NEEDED: 2 seeds + does it generalize to clip/cl
 EVQA transfer s1: +1.3 acc/+2.6 R@5 (s0: +3.8/+5.0) — margin real but varies; s2 pending
 before quoting a mean. Artifact updated: retrieval-first tables, 7B ordering table,
 siglip2 anchored row, base-row numbers.
+
+### 2026-08-18 21:xx: overnight harvest — two claims die, one big one survives seeding
+[all entR@5/acc, seeds noted]
+1. **SIGLIP2 ANCHOR RECIPE RETRACTED**: s1 1.10 (distinct 1118), s2 0.13 (77) vs s0's
+   17.47 — one-seed lottery, 3-seed mean below zs. Generalization agrees: clipb16-anchor
+   1.13, bgevl_b-anchor 3.77 (both still contract WITH anchor). "Anchor rescues
+   contraction" is DEAD; anchor-rescue was never real. Recipe count back to 2. The seed
+   protocol caught it pre-print, exactly as designed. Artifact corrected (row kept as a
+   warning exhibit).
+2. **BEATS-SFT SURVIVES SEEDING ON MM** (the claim text retracted): SFT per-seed maxes
+   33.00/33.67/31.87 -> 32.85 +/- 0.90 (3 seeds, same estimator both legs). RL 34.71
+   +/- 0.19 -> +1.86 = 3.5 SE. MM SFT bar did NOT rise with seeds (text's rose +1.36).
+   Estimator-risk fence in tex can now close with these numbers.
+3. **KL hurts on MM**: v3kl001 33.80/76.73 (acc -0.7, R@5 +1.5); v3kl01 32.73/74.50
+   (-1.7 acc). Regularizer axis closed: bare > KL on MM; KL essential on text — the
+   regularizer must match the failure mode the base actually has, and gme2b has none.
+4. **LR window is per-MODEL not per-family**: bgevl_b at bgevl_l's window rate 1e-5:
+   14.73 -> 8.90 (fails). BGE-VL-large's +5.5 does not extend to its smaller twin.
+5. **gme7b-zeroshot 30.67/69.37/53.59**: 7B chain complete — base 30.67 < SFT 33.20 <
+   RL 34.60/35.73; RL>SFT>base at both sizes. Artifact 7B row filled.
+6. **EVQA transfer 3 seeds complete**: v3 +2.6+/-1.3 acc / +3.9+/-1.2 R@5. TUNED SFT
+   ck750 transfers POSITIVELY (+1.4/+2.1, 1 seed) — "SFT anti-transfers" was an artifact
+   of the weaker released-config comparator; corrected everywhere. RL transfers ~2x SFT.
+7. **cos eval side**: v3-cos-s3000 34.33/77.13 ~= constant 34.07 at 13% less movement —
+   schedule-integral story consistent both halves now (movement + eval).
+### 30h scaling infrastructure (user charter: try harder on data scaling + art's curve)
+Node contended: user's own Qwen3-4B math-eval sweep (evaluate_math.py, vLLM x8) took all
+GPUs at 21:2x. Deployed scaling_fleet.sh: claims GPUs as they free, launches in priority
+order — sft-big-1M (SFT art curve, 42k steps = 1M pairs, ck/50.4k), v3-b16-local (RL
+consumption, 6250 steps = 100k draws, ck/10k, reader_batch 64), v3-rows1M + v3-rows1M-
+s3000 (dataset-SIZE axis: 25k->200k->1M rows at 2k and 12k draws), v3-b16-local-s1
+(low-end error bars), then eval daemons on remaining GPUs (auto-eval every checkpoint +
+lora_B). pool_train_1M building (full InfoSeek train, target ~1M rows). MLX v3-b16-1M
+kept as long-tail insurance (35s/step — reaches ~80-100k draws by window end).

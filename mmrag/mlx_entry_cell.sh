@@ -3,6 +3,9 @@
 # Env: CELL_NAME, CELL_PROFILE (default gme2b), CELL_TRAIN_ARGS (extra train_rl.py flags).
 # Idempotent: exits immediately if results/<name>.vqa_top5.json already exists.
 set -uo pipefail
+# The worker image may auto-start a keep_gpu daemon that inflates to hold idle VRAM and
+# then OOMs the training step. Clear it on the MLX worker only — never on the local box.
+pkill -f keep_gpu 2>/dev/null || true
 ROOT=/mnt/bn/tns-algo-video-public-my2/yijiangli/project/VLM2Vec-rl
 export MMRAG_DATA=/mnt/bn/tns-algo-video-public-my2/yijiangli/data/mmrag_data
 export HF_HOME=/mnt/bn/tns-algo-video-public-my2/yijiangli/hf_home

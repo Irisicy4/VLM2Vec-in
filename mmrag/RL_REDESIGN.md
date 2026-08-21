@@ -773,3 +773,15 @@ s3000 (dataset-SIZE axis: 25k->200k->1M rows at 2k and 12k draws), v3-b16-local-
 (low-end error bars), then eval daemons on remaining GPUs (auto-eval every checkpoint +
 lora_B). pool_train_1M building (full InfoSeek train, target ~1M rows). MLX v3-b16-1M
 kept as long-tail insurance (35s/step — reaches ~80-100k draws by window end).
+
+### 2026-08-21 ~07:00 INTERIM — pool-size x consumption interaction materializing
+At matched 3k draws (ck750, 1 seed each): 45k rows 33.20 vs 810k rows 35.13. Small pool
+has fallen below its own 2k-draw score (34.71); big pool has risen above its own (34.73).
+REGISTERED READING (falsifiable by ck1500-3000, in eval pipeline): pool size is null at
+2k draws and decisive beyond — small pools EXHAUST under continued consumption, large
+pools keep converting. If it holds to 12k draws, the "consumption plateau" was a small-
+pool artifact and the honest claim becomes "RL scales with draws GIVEN sufficient data
+diversity" — which would also reconcile the MM/text divergence (their pools were small).
+SFT rows-line complete & flat: 25k 32.85+/-0.90 | 200k ck600 32.73 | 810k ck600 32.47.
+1.1M mixed-source pool built (1,100,589 = InfoSeek 810k + EVQA-landmarks expanded 290k);
+v3-rows1p1M cell chained. Mixed-source + larger-index caveats logged for the chart.

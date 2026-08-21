@@ -159,6 +159,8 @@ def main():
     # misc
     ap.add_argument("--query_instruction", default=None)
     ap.add_argument("--device", default="cuda:0")
+    ap.add_argument("--mem_frac", type=float, default=0.0,
+                    help="hard per-process VRAM cap for GPU co-location (0 = uncapped)")
     ap.add_argument("--save_steps", type=int, default=100)
     ap.add_argument("--log_every", type=int, default=5)
     ap.add_argument("--seed", type=int, default=0)
@@ -193,6 +195,11 @@ def main():
     text2url = {p["text"]: p["url"] for p in corpus}   # for the goldrel benchmark reward
     print(f"RL corpus: {len(corpus)} passages", flush=True)
 
+    # Stacking convention (shared with the text session): a hard per-process VRAM cap so a
+    # co-located lane takes an allocator error instead of OOMing its neighbour. 0 = uncapped.
+    if args.mem_frac > 0:
+        dev = int(args.device.split(":")[1]) if ":" in args.device else 0
+        torch.cuda.set_per_process_memory_fraction(args.mem_frac, dev)
     enc = load_encoder(args.profile, device=args.device,
                                     max_len=args.max_len_doc, new_lora_r=args.lora_r,
                                     new_lora_alpha=args.lora_alpha,

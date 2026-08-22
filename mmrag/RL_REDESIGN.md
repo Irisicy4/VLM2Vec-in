@@ -803,3 +803,17 @@ SFT art: flat 31.5-33.3 acc / 73.4-76.2 R@5 across 50k-655k pairs AND 25k-810k r
 b16 lane consistent (35.07@10k -> 33.47@30k draws). CAVEATS: non-2k points 1 seed;
 810k-s1 + remaining interim cks still in eval queue (GPUs 5/6).
 GPU map: deepeyes exited; split with text side = they 0-3, we 4-7.
+
+### 2026-08-22 23:5x: dense checkpoints REVISE the scaling story — name the metric
+With ck2250s + b16-1M cks in, "rise-then-decline in acc" was an OVER-READ of sparse
+1-seed points. ACCURACY is NOISY-FLAT at every pool size (810k oscillates 33.8-35.1
+across 2k-12k draws — swings within the n=1500 seed/eval noise band; 45k similar;
+b16-200k drifts 34.4->33.9 over 50k->150k draws, slow, no cliff). The 35.13 "peak" is
+inside noise. RETRIEVAL is where the direction is real and consistent: 810k entR@5
+declines 78.70 -> 72.63 (monotone-ish, -6.1) while 45k stays flat 76.1-77.2 and
+b16-200k drifts down slowly. CORRECTED CLAIMS, metric-named: (1) acc: no data-scaling
+gain, no dramatic over-training loss — flat within noise everywhere above SFT+base;
+(2) retrieval: big-pool SHORT training reaches the best index quality on record (78.70
+@ 2k draws, 1 seed, s1 validation job running); continued training CONVERTS INDEX
+QUALITY DOWN while acc stays flat — the decoupling is the scaling story. b16-1M run
+alive at 150k+ draws (34/72.3 — 12x beyond old max, still > SFT band).

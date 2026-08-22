@@ -785,3 +785,21 @@ diversity" — which would also reconcile the MM/text divergence (their pools we
 SFT rows-line complete & flat: 25k 32.85+/-0.90 | 200k ck600 32.73 | 810k ck600 32.47.
 1.1M mixed-source pool built (1,100,589 = InfoSeek 810k + EVQA-landmarks expanded 290k);
 v3-rows1p1M cell chained. Mixed-source + larger-index caveats logged for the chart.
+
+### 2026-08-22 01:2x: SCALING CHART COMPLETE — both finals + full mixed line
+12k-draw finals [acc/entR@5, 1 seed]: 45k 33.13/76.17 | 810k 33.80/72.63.
+REGISTERED INTERIM READING SCORED: "big pools keep converting" = MISS (falsified by
+ck1500 on). Surviving shape, all pool sizes and batches: RISE-THEN-DECLINE in acc; more
+data RAISES THE PEAK slightly and SHIFTS it right (~2k->3k) but no pool escapes turnover.
+On RETRIEVAL the story inverts: 810k R@5 peaks at 2k draws (78.70, best on record) and
+decays 6.1 points by 12k; 45k R@5 ~flat (76.1-77.2); acc and R@5 peak at DIFFERENT draws
+(the anti-diagnostic decoupling inside the scaling curve). BEST RET RECIPE: biggest
+pool, shortest training.
+MIXED LINE @2k draws (composition-constant subsets): 69k 33.13/77.20 | 275k 34.67/76.53
+| 1.06M 34.33/76.77 — flat; diversity neither helps nor hurts at 2k; the same-source
+810k R@5 spike (78.70) does NOT reproduce under mixing (76.77) [1 seed both].
+EVERY RL config > entire SFT band > base on both metrics at every point measured.
+SFT art: flat 31.5-33.3 acc / 73.4-76.2 R@5 across 50k-655k pairs AND 25k-810k rows.
+b16 lane consistent (35.07@10k -> 33.47@30k draws). CAVEATS: non-2k points 1 seed;
+810k-s1 + remaining interim cks still in eval queue (GPUs 5/6).
+GPU map: deepeyes exited; split with text side = they 0-3, we 4-7.

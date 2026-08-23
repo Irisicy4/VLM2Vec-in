@@ -472,8 +472,8 @@ def main():
                 # Within-group reward discriminability: std=0 for a group forces its z-scored
                 # advantage (and hence its gradient contribution) to exactly zero.
                 grp_std = R.std(1)
-                extra_metrics = {"reward/group_std_mean": grp_std.mean().item(),
-                                 "reward/group_degenerate_frac": (grp_std == 0).float().mean().item()}
+                extra_metrics.update({"reward/group_std_mean": grp_std.mean().item(),
+                                 "reward/group_degenerate_frac": (grp_std == 0).float().mean().item()})
                 if args.baseline == "rloo":
                     advantages = rloo_advantages(R)
                 else:

@@ -2,7 +2,8 @@
 # Eval-only MLX worker: encode -> retrieval -> vqa for one checkpoint.
 # Env: CELL_NAME (result name), CELL_CKPT (checkpoint dir under $MMRAG_DATA), CELL_PROFILE.
 set -uo pipefail
-[ -n "${ARNOLD_ID:-}${ARNOLD_TRIAL_ID:-}" ] && pkill -f keep_gpu 2>/dev/null || true  # MLX workers only
+LH=$(cat /mnt/bn/tns-algo-video-public-my2/yijiangli/data/mmrag_data/local_hostname.txt 2>/dev/null)
+[ "$(hostname)" != "$LH" ] && pkill -x keep_gpu 2>/dev/null; true  # worker images only; exact name, never the dev box
 ROOT=/mnt/bn/tns-algo-video-public-my2/yijiangli/project/VLM2Vec-rl
 export MMRAG_DATA=/mnt/bn/tns-algo-video-public-my2/yijiangli/data/mmrag_data
 export HF_HOME=/mnt/bn/tns-algo-video-public-my2/yijiangli/hf_home

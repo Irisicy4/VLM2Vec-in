@@ -163,6 +163,14 @@ def main():
                          "O(pool+extra) per step instead of O(corpus) per refresh.")
     ap.add_argument("--index_refresh_extra", type=int, default=256,
                     help="EMA index: stalest docs re-encoded and written back per step")
+    ap.add_argument("--model_ema", type=float, default=0.0,
+                    help="mmrag-ema scheme 3 (MoCo-style momentum doc tower): 0 = off. m>0 keeps "
+                         "an EMA copy of the trainable LoRA params, updated after every optimizer "
+                         "step; ALL document encoding (index, pools, write-backs) runs under the "
+                         "EMA weights, and the policy gradient flows through the QUERY side only "
+                         "(the grad doc re-encode is skipped — docs enter the loss as the "
+                         "rollout's EMA embeddings). The index moves slowly and consistently even "
+                         "while the live policy moves fast.")
     ap.add_argument("--encode_bs", type=int, default=64)
     ap.add_argument("--max_len_doc", type=int, default=512)
     ap.add_argument("--max_train_rows", type=int, default=0)
@@ -266,6 +274,41 @@ def main():
     # EMA index state: per-doc last-refresh step (staleness drives the extra-refresh sample)
     doc_last_upd = None
 
+    # scheme 3: EMA copy of the trainable params; doc encodes run under these weights
+    ema_params = None
+    if args.model_ema > 0:
+        ema_params = {n: p.detach().clone() for n, p in enc.model.named_parameters()
+                      if p.requires_grad}
+        print(f"model-EMA tower: {len(ema_params)} tensors, m={args.model_ema}", flush=True)
+
+    @torch.no_grad()
+    def model_ema_update():
+        for n, p in enc.model.named_parameters():
+            if n in ema_params:
+                ema_params[n].mul_(args.model_ema).add_(p.detach(), alpha=1 - args.model_ema)
+
+    from contextlib import contextmanager
+
+    @contextmanager
+    def doc_tower():
+        """Doc encodes run under the EMA weights when scheme 3 is on; no-op otherwise."""
+        if ema_params is None:
+            yield
+            return
+        stash = {}
+        with torch.no_grad():
+            for n, p in enc.model.named_parameters():
+                if n in ema_params:
+                    stash[n] = p.detach().clone()
+                    p.copy_(ema_params[n])
+        try:
+            yield
+        finally:
+            with torch.no_grad():
+                for n, p in enc.model.named_parameters():
+                    if n in stash:
+                        p.copy_(stash[n])
+
     @torch.no_grad()
     def ema_write(idxs, new_emb, step, m):
         """index[p] <- l2norm(m*old + (1-m)*new) for corpus rows idxs; marks them fresh."""
@@ -296,13 +339,15 @@ def main():
     for step in range(args.max_steps):
         extra_metrics = {}  # per-step; only the plgrpo branch populates it
         if corpus_emb is None:
-            refresh_corpus()  # one full encode at init, both modes
+            with doc_tower():
+                refresh_corpus()  # one full encode at init, both modes
             if args.index_ema > 0:
                 assert args.no_force_gold, "EMA index write-back needs pure policy pools"
                 doc_last_upd = torch.zeros(len(corpus_texts), dtype=torch.long,
                                            device=corpus_emb.device)
         elif args.index_ema == 0 and args.refresh_steps and step % args.refresh_steps == 0:
-            refresh_corpus()
+            with doc_tower():
+                refresh_corpus()
 
         batch = rng.sample(rows, args.batch_size)
         imgs = [store.get(r["image_id"]) for r in batch]
@@ -346,16 +391,18 @@ def main():
                                for c in cands)
 
             flat = [c for pool in pools for c in pool]
-            c_emb = enc.encode_docs(flat, batch_size=args.encode_bs).float().view(args.batch_size, N, -1)
+            with doc_tower():
+                c_emb = enc.encode_docs(flat, batch_size=args.encode_bs).float().view(args.batch_size, N, -1)
             if args.index_ema > 0 and len(pool_ids) == args.batch_size * N:
                 # scheme 1+2: pool docs were just encoded fresh — EMA them into the index,
                 # re-encode the near-boundary docs (hard negatives) and the stalest tail.
                 ema_write(pool_ids, c_emb.view(-1, c_emb.shape[-1]), step, args.index_ema)
-                if boundary_ids:
-                    be = enc.encode_docs([corpus_texts[i] for i in boundary_ids],
-                                         batch_size=args.encode_bs).float()
-                    ema_write(boundary_ids, be, step, args.index_ema)
-                ema_refresh_stale(step)
+                with doc_tower():
+                    if boundary_ids:
+                        be = enc.encode_docs([corpus_texts[i] for i in boundary_ids],
+                                             batch_size=args.encode_bs).float()
+                        ema_write(boundary_ids, be, step, args.index_ema)
+                    ema_refresh_stale(step)
                 extra_metrics["index/stale_mean"] = float(
                     (step - doc_last_upd).float().mean())
             old_logps, _ = pool_logps(q_emb, c_emb, args.temperature)
@@ -526,7 +573,10 @@ def main():
         skip_step = False
         for _ep in range(max(1, args.inner_epochs)):
             q_emb_g = enc.encode_queries(questions, imgs, batch_size=args.batch_size, grad=True).float()
-            c_emb_g = enc.encode_docs(flat, batch_size=args.encode_bs, grad=True).float().view(args.batch_size, N, -1)
+            if args.model_ema > 0:
+                c_emb_g = c_emb.detach()   # momentum-tower doc embeddings; grad via queries only
+            else:
+                c_emb_g = enc.encode_docs(flat, batch_size=args.encode_bs, grad=True).float().view(args.batch_size, N, -1)
             if args.algo == "plgrpo":
                 _, scaled_g = pool_logps(q_emb_g, c_emb_g, args.temperature)
                 logps = pl_list_logps(scaled_g, pl_idx)                       # (B, G) list logps
@@ -570,6 +620,8 @@ def main():
             torch.nn.utils.clip_grad_norm_(params, 1.0)
             opt.step()
             opt.zero_grad()
+            if args.model_ema > 0:
+                model_ema_update()
         if sched is not None:
             sched.step()
             m["lr"] = sched.get_last_lr()[0]

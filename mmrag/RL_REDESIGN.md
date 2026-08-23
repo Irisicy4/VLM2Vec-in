@@ -915,3 +915,14 @@ queued MLX duplicate (patched code at run time) will save both towers for the tw
 eval (live vs EMA doc encoding — itself an informative comparison).
 Their scoring-vs-ranking answer: their _prepare_inputs also re-encodes scored candidates
 -> both sides vary RANKING-staleness only; shared knob confirmed.
+
+### Head-slice class-grep — harness IMMUNE; my own audit produced a FALSE ALARM (retracted)
+Class-grep outcome: eval_retrieval.load_jsonl AND eval_vqa both take seeded
+random.sample slices — never head-N — so grouped files (queries_evqa IS grouped: 2755/
+4749 adjacent same-entity) cannot bias any eval. Verified by reproducing the exact
+seed-0 samples: EVQA retrieval slice 52.7/47.3 iNat/landmarks vs full-file 52.6/47.4;
+vqa sub-slice 51.9/48.1. ALL EVQA numbers stand unchanged.
+PROCESS LESSON (mine, logged at my expense): I declared "confirmed bias" after measuring
+the FILE HEAD — the wrong stage; the sampler's output is the only thing that counts.
+Audit the quantity the code actually consumes, not the artifact it starts from. The
+phantom was caught before any code change, re-eval, or relabeling happened.

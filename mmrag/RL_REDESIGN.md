@@ -840,3 +840,12 @@ task6 text pool 676k (40M..) + v1 oven summaries remapped to 39M.. (a 40M pid co
 between v1 j-indexing and M-BEIR did-indexing was caught by the dup/dangling audit:
 0 duplicate pids, 0 dangling pos_pids after remap). M-BEIR non-QA tasks rejected for the
 RL pool (no answer strings -> judge reward vacuous); WebQA-with-answers still open.
+
+### 2026-08-23: query-diversity audit -> pool_div_1M_v3 (TIERED)
+User flagged template monoculture; audit confirmed: unique-question rates InfoSeek 0.2%
+(860 q / 564k rows), OVEN 0.4% (three generic templates = 83k rows), EVQA 22%, OKVQA 92%.
+v3 = per-question caps (InfoSeek 1500, OVEN 600, OVEN-generic 1000 total) + all sources'
+full diverse mass -> 702,271-row DIVERSE CORE; template surplus (371k) appended after as
+tier 2. Subsample convention unchanged (head-N) and now diversity-optimal by construction.
+WebQA (33k natural questions) blocked on answers: M-BEIR strips them, official release is
+Drive-only — open item. EVQA expanded set fully consumed (249,083 = all corpus-groundable).

@@ -926,3 +926,15 @@ PROCESS LESSON (mine, logged at my expense): I declared "confirmed bias" after m
 the FILE HEAD — the wrong stage; the sampler's output is the only thing that counts.
 Audit the quantity the code actually consumes, not the artifact it starts from. The
 phantom was caught before any code change, re-eval, or relabeling happened.
+
+### Conventions, final forms from the audit exchange
+(1) BIAS CLAIMS: a file-level observation is a HYPOTHESIS regardless of which way it
+points; no bias claim until measured through the code path (the consumed quantity). Their
+correct call was right only by coincidence of implementation; my phantom was the same
+error pointing the other way. One rule covers both.
+(2) RECORDED NON-FIX (pattern, 2nd independent occurrence): when a defect-class fix
+would break comparability for zero bias benefit, the fix IS the note — record why it
+stays so no future hand "fixes" it into an invalidation. (Their eval_rag_l2.py head-slice
+kept for table comparability; writer's gold-arm non-edit on the 13th.)
+Their sweep: Table 8m relabeled (first-500 was 100% sh_alias — single-hop mislabeled as
+mix; internal comparisons valid); published Tables 8a-8l clean.

@@ -830,3 +830,13 @@ Sources vetted and REJECTED: MMEB WebQA (no answer strings), ChartQA/DocVQA (ans
 image -> retrieval reward vacuous), KVQA (M2KR dropped answers), WIT (200GB, no QA),
 OVEN shard00 (76GB split-zip, deferred), EVQA-iNat (images only in 224GB monolith).
 EMA-index A/B (div45k-v3pure vs div45k-emaidx m=0.9 extra=256) auto-submits next.
+
+### 2026-08-23: pool_div_1M_v2 — M-BEIR gold upgrade (hybrid), 1,073,002 rows
+OVEN slice: 78,953 rows with M-BEIR train-qrels gold (multi-positive, up to 3 text golds,
+answer = gold's wikipedia_title) + 171,900 rows keeping M2KR coarse gold (distinct images;
+per-row gold_src tag). InfoSeek 564k / EVQA 249k / OKVQA 9k carried byte-identical.
+Corpus_div_v2 = 1,259,544 passages: prior articles + OKVQA google (50M..) + full M-BEIR
+task6 text pool 676k (40M..) + v1 oven summaries remapped to 39M.. (a 40M pid collision
+between v1 j-indexing and M-BEIR did-indexing was caught by the dup/dangling audit:
+0 duplicate pids, 0 dangling pos_pids after remap). M-BEIR non-QA tasks rejected for the
+RL pool (no answer strings -> judge reward vacuous); WebQA-with-answers still open.

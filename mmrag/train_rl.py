@@ -345,6 +345,12 @@ def main():
                 assert args.no_force_gold, "EMA index write-back needs pure policy pools"
                 doc_last_upd = torch.zeros(len(corpus_texts), dtype=torch.long,
                                            device=corpus_emb.device)
+                _per_step = args.index_refresh_extra + args.batch_size * (N + 4)
+                _cov = _per_step * args.max_steps / max(len(corpus_texts), 1)
+                print(f"EMA-index sweep coverage: ~{_per_step} docs/step x {args.max_steps} "
+                      f"steps / {len(corpus_texts)} passages = {_cov:.2f}x "
+                      f"({'FULL' if _cov >= 1 else 'PARTIAL — untouched rows keep init embeddings'})",
+                      flush=True)
         elif args.index_ema == 0 and args.refresh_steps and step % args.refresh_steps == 0:
             with doc_tower():
                 refresh_corpus()

@@ -58,7 +58,7 @@ def main():
     ap.add_argument("--pool", default="built/pool_train.jsonl", help="rows: qid,image_id,question,answer,pos")
     ap.add_argument("--corpus", default="built/corpus_small.jsonl")
     ap.add_argument("--image_tars", nargs="+", default=None)
-    ap.add_argument("--image_dataset", default="infoseek", choices=["infoseek", "evqa", "mix"])
+    ap.add_argument("--image_dataset", default="infoseek", choices=["infoseek", "evqa", "mix", "oven", "okvqa", "div"])
     ap.add_argument("--output_dir", required=True)
     # policy / optimization
     ap.add_argument("--algo", choices=["ppo", "grpo", "plgrpo"], default="grpo",

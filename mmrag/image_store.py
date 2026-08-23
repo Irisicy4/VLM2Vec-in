@@ -78,6 +78,19 @@ def open_stores(data_dir, dataset="infoseek"):
         return ChainStore(stores)
     if dataset == "mix":                             # InfoSeek + E-VQA (data-mix training)
         return ChainStore([open_stores(data_dir, "infoseek"), open_stores(data_dir, "evqa")])
+    if dataset == "oven":
+        # M2KR OVEN shards; keys = img_path as in OVEN_data parquet ("01/oven_00162311.jpg").
+        paths = [os.path.join(data_dir, "images/OVEN", f"shard{i:02d}.tar") for i in range(6)]
+        return ChainStore([TarImageStore(p, key_fn=lambda n: n.lstrip("./"))
+                           for p in paths if os.path.exists(p)])
+    if dataset == "okvqa":
+        # COCO train2014 zip; keys = bare file name ("COCO_train2014_%012d.jpg").
+        z = os.path.join(data_dir, "images/OKVQA/train2014.zip")
+        return ChainStore([ZipImageStore(z, key_fn=lambda n: n.split("/")[-1])]
+                          if os.path.exists(z) else [])
+    if dataset == "div":                             # the diverse-mix pool (pool_div_1M)
+        return ChainStore([open_stores(data_dir, "infoseek"), open_stores(data_dir, "evqa"),
+                           open_stores(data_dir, "oven"), open_stores(data_dir, "okvqa")])
     raise ValueError(dataset)
 
 

@@ -29,7 +29,7 @@ def main():
     ap.add_argument("--data_dir", default=os.environ.get("MMRAG_DATA", "/lus/lfs1aip2/scratch/u6ko/icywang.u6ko/mmrag_data"))
     ap.add_argument("--pool", default="built/pool_train.jsonl")
     ap.add_argument("--image_tars", nargs="+", default=None)
-    ap.add_argument("--image_dataset", default="infoseek", choices=["infoseek", "evqa", "mix"])
+    ap.add_argument("--image_dataset", default="infoseek", choices=["infoseek", "evqa", "mix", "oven", "okvqa", "div"])
     ap.add_argument("--output_dir", required=True)
     ap.add_argument("--batch_size", type=int, default=32)
     ap.add_argument("--num_hard_negs", type=int, default=0)

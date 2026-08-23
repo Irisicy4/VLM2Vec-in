@@ -860,3 +860,17 @@ within-run retrieval decline under continued training (s0 trajectory 78.7 -> ~73
 training in the one run instrumented"). Seed protocol's third single-seed spike kill
 (cc2-anchor, siglip2-anchor, now this). Data-scaling verdict is now fully null on BOTH
 metrics at matched budget: pool size buys neither accuracy nor retrieval.
+
+### 2026-08-23: text-side EMA convergence + audits answered pre-landing
+Text side independently implemented the same ladder (online_kl_ema = EMA-as-KL-reference
+bounding rate-of-change; online_dynamic_index + index EMA + stale-frac sweep). Their two
+audits, answered from code: (1) blend renormalization PRESENT (train_rl.py:318); (2) our
+extra-refresh is a GLOBAL stalest-first sweep, not retrieved-set-biased — no rich-get-
+richer. REGISTERED SUSPECT pre-landing: coverage — ~368 docs/step touched = ~53% of the
+~350k div index per 500 steps; untouched half stays at init embeddings (max staleness 500
+vs legacy <=100). If emaidx underperforms, coverage fraction first, --index_refresh_extra
+the knob. ADOPTED: mean-pairwise-cosine from checkpoints joins the standard harvest
+(their base bar 0.166 on their 1M corpus). PRE-REGISTERED for scheme 4: EMA-as-reference
+degenerate solution (shadow tracks policy, KL->0, geometry unconstrained) — sweep the
+EMA rate, measure cosine from checkpoints, never training metrics. GPU map: text takes
+GPU 3 (capped); my three arms on 0-2 evaluate on their own GPUs.

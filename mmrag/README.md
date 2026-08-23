@@ -31,8 +31,9 @@ success on knowledge-VQA (**InfoSeek**; OOD **Encyclopedic-VQA**), and compare a
 500 steps, batch 4. Headline on InfoSeek (GME-2B, frozen 7B eval reader): **34.71 ± 0.19 acc /
 76.09 entR@5 (3 seeds)** vs SFT 32.85 ± 0.90 (3 seeds, per-seed best ckpt — matched estimator)
 vs base 30.80/68.53. The beats-SFT margin (+1.86 ≈ 3.5 SE) survived the seeding audit that
-retracted its text-side twin. Same ordering holds at 7B. Best retrieval on record: 78.70 entR@5
-(810k-row pool, 2k draws, 1 seed — seed validation in flight).
+retracted its text-side twin. Same ordering holds at 7B. The 810k-pool retrieval spike
+(78.70) failed seed validation (seed 1: 74.37; 2-seed 76.54 ± 3.06 ≈ the 45k pool) — data
+scaling is null on both metrics at matched budget.
 
 **Scaling (metric-named):** accuracy is noisy-flat in pool size (45k→1.06M rows) and in draws
 (2k→150k); retrieval *declines* under continued training on large pools (78.70→72.63) while

@@ -849,3 +849,14 @@ full diverse mass -> 702,271-row DIVERSE CORE; template surplus (371k) appended 
 tier 2. Subsample convention unchanged (head-N) and now diversity-optimal by construction.
 WebQA (33k natural questions) blocked on answers: M-BEIR strips them, official release is
 Drive-only — open item. EVQA expanded set fully consumed (249,083 = all corpus-groundable).
+
+### 2026-08-23 11:20: 810k retrieval peak FAILS seed validation
+v3-rows1M-s1 (810k, 2k draws): acc 34.40 / entR@5 74.37 vs seed 0's 34.73 / 78.70.
+2-seed R@5 = 76.54 +/- 3.06 — indistinguishable from 45k's 76.09 (3s). RETRACT: "more
+data helps retrieval (+2.6)" and "best ret recipe: biggest pool shortest training" as a
+POOL-SIZE claim. Acc 34.57 +/- 0.23 (2s) — flat, consistent. What SURVIVES: the
+within-run retrieval decline under continued training (s0 trajectory 78.7 -> ~73 across
+2k->12k draws exceeds the wiggle; softened to "large-pool retrieval declines along
+training in the one run instrumented"). Seed protocol's third single-seed spike kill
+(cc2-anchor, siglip2-anchor, now this). Data-scaling verdict is now fully null on BOTH
+metrics at matched budget: pool size buys neither accuracy nor retrieval.

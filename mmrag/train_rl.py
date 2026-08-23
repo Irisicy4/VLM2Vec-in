@@ -153,6 +153,16 @@ def main():
     # corpus
     ap.add_argument("--n_distractor_articles", type=int, default=3000)
     ap.add_argument("--refresh_steps", type=int, default=100)
+    ap.add_argument("--index_ema", type=float, default=0.0,
+                    help="EMA index (mmrag-ema scheme 1+2): 0 = legacy full re-encode every "
+                         "refresh_steps. m>0 = NO periodic full refresh; instead every step the "
+                         "docs already encoded fresh for the pools (the policy's own top "
+                         "candidates + the near-boundary docs just past the support) plus "
+                         "--index_refresh_extra of the STALEST corpus docs are written back as "
+                         "index[p] <- normalize(m*old + (1-m)*new). Index maintenance becomes "
+                         "O(pool+extra) per step instead of O(corpus) per refresh.")
+    ap.add_argument("--index_refresh_extra", type=int, default=256,
+                    help="EMA index: stalest docs re-encoded and written back per step")
     ap.add_argument("--encode_bs", type=int, default=64)
     ap.add_argument("--max_len_doc", type=int, default=512)
     ap.add_argument("--max_train_rows", type=int, default=0)
@@ -253,6 +263,29 @@ def main():
         corpus_emb = torch.cat(embs)  # (C, d) on device fp32
         print(f"  corpus refreshed in {time.time()-t0:.0f}s", flush=True)
 
+    # EMA index state: per-doc last-refresh step (staleness drives the extra-refresh sample)
+    doc_last_upd = None
+
+    @torch.no_grad()
+    def ema_write(idxs, new_emb, step, m):
+        """index[p] <- l2norm(m*old + (1-m)*new) for corpus rows idxs; marks them fresh."""
+        nonlocal corpus_emb
+        idx_t = torch.as_tensor(idxs, device=corpus_emb.device, dtype=torch.long)
+        mixed = m * corpus_emb[idx_t] + (1.0 - m) * new_emb.to(corpus_emb.device).float()
+        corpus_emb[idx_t] = torch.nn.functional.normalize(mixed, dim=-1)
+        doc_last_upd[idx_t] = step
+
+    @torch.no_grad()
+    def ema_refresh_stale(step):
+        """Re-encode the stalest --index_refresh_extra docs with the CURRENT policy and
+        EMA-write them back — the deliberate less-frequent-sample refresh (scheme 2)."""
+        k = min(args.index_refresh_extra, len(corpus_texts))
+        if k <= 0:
+            return
+        idxs = torch.topk(-doc_last_upd, k).indices.tolist()
+        e = enc.encode_docs([corpus_texts[i] for i in idxs], batch_size=args.encode_bs).float()
+        ema_write(idxs, e, step, args.index_ema)
+
     os.makedirs(args.output_dir, exist_ok=True)
     json.dump(vars(args), open(os.path.join(args.output_dir, "args.json"), "w"), indent=2)
     N = args.pl_support if args.algo == "plgrpo" else args.num_candidates
@@ -262,7 +295,13 @@ def main():
 
     for step in range(args.max_steps):
         extra_metrics = {}  # per-step; only the plgrpo branch populates it
-        if corpus_emb is None or (args.refresh_steps and step % args.refresh_steps == 0):
+        if corpus_emb is None:
+            refresh_corpus()  # one full encode at init, both modes
+            if args.index_ema > 0:
+                assert args.no_force_gold, "EMA index write-back needs pure policy pools"
+                doc_last_upd = torch.zeros(len(corpus_texts), dtype=torch.long,
+                                           device=corpus_emb.device)
+        elif args.index_ema == 0 and args.refresh_steps and step % args.refresh_steps == 0:
             refresh_corpus()
 
         batch = rng.sample(rows, args.batch_size)
@@ -277,8 +316,9 @@ def main():
             topk = sims.topk(min(K, sims.shape[1]), dim=1).indices.tolist()
             pools, triples, gold_hit = [], [], 0
             gold_in_pool = []          # per-query, for the gate x pool-content contingency
+            pool_ids, boundary_ids = [], []   # corpus indices for EMA index write-back
             for b, r in enumerate(batch):
-                gold = r["pos"][0]
+                gold = (r.get("pos") or [""])[0]   # div-pool rows may carry no gold passage
                 retrieved = [corpus_texts[i] for i in topk[b]]
                 _hit = float(gold in retrieved[:N])
                 gold_in_pool.append(_hit)
@@ -295,6 +335,8 @@ def main():
                     cands = chosen if args.no_force_gold else [gold] + chosen
                 elif args.no_force_gold:
                     cands = retrieved[:N]
+                    pool_ids.extend(topk[b][:N])          # exact ids of the encoded pool docs
+                    boundary_ids.extend(topk[b][N:])      # near-boundary = free hard negatives
                 else:
                     cands = [gold] + [t for t in retrieved if t != gold][: N - 1]
                 pools.append(cands)
@@ -305,6 +347,17 @@ def main():
 
             flat = [c for pool in pools for c in pool]
             c_emb = enc.encode_docs(flat, batch_size=args.encode_bs).float().view(args.batch_size, N, -1)
+            if args.index_ema > 0 and len(pool_ids) == args.batch_size * N:
+                # scheme 1+2: pool docs were just encoded fresh — EMA them into the index,
+                # re-encode the near-boundary docs (hard negatives) and the stalest tail.
+                ema_write(pool_ids, c_emb.view(-1, c_emb.shape[-1]), step, args.index_ema)
+                if boundary_ids:
+                    be = enc.encode_docs([corpus_texts[i] for i in boundary_ids],
+                                         batch_size=args.encode_bs).float()
+                    ema_write(boundary_ids, be, step, args.index_ema)
+                ema_refresh_stale(step)
+                extra_metrics["index/stale_mean"] = float(
+                    (step - doc_last_upd).float().mean())
             old_logps, _ = pool_logps(q_emb, c_emb, args.temperature)
             old_values = value_head(q_emb)
             gate = None

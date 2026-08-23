@@ -665,6 +665,13 @@ def main():
 
     enc.save_adapters(args.output_dir)
     torch.save(value_head.state_dict(), os.path.join(args.output_dir, "value_head.pt"))
+    if args.model_ema > 0:
+        # The momentum tower is part of the trained artifact, not a cache: training scored
+        # queries against EMA-encoded docs, so doc-side eval should be able to use these
+        # weights (eval with the live adapter alone has a train/eval geometry mismatch).
+        with doc_tower():
+            enc.save_adapters(os.path.join(args.output_dir, "ema_tower"))
+        print("saved EMA doc tower -> ema_tower/", flush=True)
     print(f"saved -> {args.output_dir}", flush=True)
 
 

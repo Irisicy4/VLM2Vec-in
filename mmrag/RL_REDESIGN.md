@@ -817,3 +817,16 @@ gain, no dramatic over-training loss — flat within noise everywhere above SFT+
 @ 2k draws, 1 seed, s1 validation job running); continued training CONVERTS INDEX
 QUALITY DOWN while acc stays flat — the decoupling is the scaling story. b16-1M run
 alive at 150k+ draws (34/72.3 — 12x beyond old max, still > SFT band).
+
+### 2026-08-23: pool_div_1M CURATED (mmrag-ema step 1 data) — 998,918 rows, seed 0
+Composition (fixed, pre-shuffled; ALL runs subsample head-N): InfoSeek 564,000 |
+E-VQA-landmarks expanded 249,083 | OVEN train 176,826 (dirs 01-04; +162k more if shard00
+is ever added) | OKVQA 9,009. Corpus_div = corpus_mix + OVEN gold passages (3,629, pid
+40M+) + OKVQA google-search passages (114,809, pid 50M+). Images: OVEN shards 98GB +
+OKVQA COCO 13.5GB downloaded under quota guard; all keyed by bare img_id via tar/zip
+offset indexes (an img_path-vs-img_id keying bug cost one build round — caught by the
+rows-kept-0 signal, fixed, recovered exactly the predicted 176,826).
+Sources vetted and REJECTED: MMEB WebQA (no answer strings), ChartQA/DocVQA (answer from
+image -> retrieval reward vacuous), KVQA (M2KR dropped answers), WIT (200GB, no QA),
+OVEN shard00 (76GB split-zip, deferred), EVQA-iNat (images only in 224GB monolith).
+EMA-index A/B (div45k-v3pure vs div45k-emaidx m=0.9 extra=256) auto-submits next.

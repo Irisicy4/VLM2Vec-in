@@ -900,3 +900,18 @@ therefore indict ranking-staleness specifically. If it does: coverage>1x on our 
 --index_refresh_extra 700 (1x) / 2800 (4x), cost ~seconds/step.
 (Their latent-defect find from this exchange: single-forward refresh OOM at large
 budgets — ours already chunks via encode_docs batch_size.)
+
+### Eval-parity audit (prompted by text-side's two eval defects) — one clean, one fixed
+(1) HEAD-SLICE: our queries_test.jsonl is SHUFFLED — first-3000 split mix 75.0/25.0 vs
+full-file 74.6/25.4, adjacent same-entity 116/71k. No bias; all campaign numbers stand.
+(Their DMIX first-500 was 49% MuSiQue — R@5 understated 16 pts; their internal ladders
+stay valid, absolute numbers relabeled.)
+(2) BASE-INDEX: our eval re-encodes the corpus with the trained checkpoint — clean. BUT
+the emaenc arm had the MIRROR defect: training scores q(live)·d(EMA), eval encodes docs
+with live weights (EMA lags ~1/(1-m)=100 steps of movement). FIX: final save now writes
+the EMA tower as runs/<name>/ema_tower/ (artifact, not cache). TONIGHT'S emaenc cell
+predates the patch -> its eval is live-weights-only; result carries that caveat, and the
+queued MLX duplicate (patched code at run time) will save both towers for the two-way
+eval (live vs EMA doc encoding — itself an informative comparison).
+Their scoring-vs-ranking answer: their _prepare_inputs also re-encodes scored candidates
+-> both sides vary RANKING-staleness only; shared knob confirmed.

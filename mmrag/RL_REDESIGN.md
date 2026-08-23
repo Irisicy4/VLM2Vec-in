@@ -874,3 +874,14 @@ the knob. ADOPTED: mean-pairwise-cosine from checkpoints joins the standard harv
 degenerate solution (shadow tracks policy, KL->0, geometry unconstrained) — sweep the
 EMA rate, measure cosine from checkpoints, never training metrics. GPU map: text takes
 GPU 3 (capped); my three arms on 0-2 evaluate on their own GPUs.
+
+### Coverage becomes a cross-side ablation (text-side discovery via our registered suspect)
+Their computed coverage: 9.6% (64 sweep rows x 1500 steps / 1M corpus) — their dynamic-
+index arm was "a frozen index with a moving corner". They submitted dmixDynCov (668
+rows/step = exactly 1x coverage) making it an ablation: 9.6% / 53% (ours) / 100% bracket
+the coverage question; if low loses and full wins, coverage is CONFIRMED as mediator.
+ADOPTED their rule: sweep coverage now prints at startup (budgets must never be
+implicit). Geometry watch baselines: their DMIX corpus base pairwise-cos 0.166 (diverse
+corpus starts LOW; their old 0.41 was pool-shape-specific); 40-step smoke SPREAD 0.266->
+0.254. Our cc=0+beta=0 500-step stability on gme2b = negative control: collapse risk is
+BASE-dependent, not intrinsic to the anchorless objective.

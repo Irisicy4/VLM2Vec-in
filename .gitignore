@@ -26,3 +26,4 @@ exps/
 # OmniSET: notebooks + runtime outputs
 OmniSET/notebooks/
 OmniSET/outputs/
+eval_results/

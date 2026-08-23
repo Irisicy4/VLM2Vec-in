@@ -87,8 +87,12 @@ def open_stores(data_dir, dataset="infoseek"):
     if dataset == "okvqa":
         # COCO train2014 zip; keys = bare file name ("COCO_train2014_%012d.jpg").
         z = os.path.join(data_dir, "images/OKVQA/train2014.zip")
-        return ChainStore([ZipImageStore(z, key_fn=lambda n: n.split("/")[-1])]
-                          if os.path.exists(z) else [])
+        try:
+            return ChainStore([ZipImageStore(z, key_fn=lambda n: n.split("/")[-1])]
+                              if os.path.exists(z) else [])
+        except Exception as e:                       # damaged archive: degrade, don't die
+            print(f"[image_store] okvqa store unavailable ({e}) — rows will be resampled")
+            return ChainStore([])
     if dataset == "div":                             # the diverse-mix pool (pool_div_1M)
         return ChainStore([open_stores(data_dir, "infoseek"), open_stores(data_dir, "evqa"),
                            open_stores(data_dir, "oven"), open_stores(data_dir, "okvqa")])

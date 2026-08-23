@@ -349,8 +349,20 @@ def main():
             with doc_tower():
                 refresh_corpus()
 
-        batch = rng.sample(rows, args.batch_size)
-        imgs = [store.get(r["image_id"]) for r in batch]
+        # image-missing guard: a mixed pool can carry rows whose archive is absent or
+        # damaged — resample instead of crashing a long run over a bad slice.
+        batch, imgs, _tries = [], [], 0
+        while len(batch) < args.batch_size and _tries < 200:
+            r = rng.choice(rows)
+            _tries += 1
+            try:
+                imgs.append(store.get(r["image_id"]))
+                batch.append(r)
+            except Exception:
+                if _tries % 50 == 0:
+                    print(f"  [warn] {_tries} image fetch failures while sampling", flush=True)
+        if len(batch) < args.batch_size:
+            sys.exit("ABORT: cannot assemble a batch — image stores unhealthy")
         questions = [r["question"] for r in batch]
 
         # ---- rollout (no grad): retrieve pools, reward, old logps/values ----

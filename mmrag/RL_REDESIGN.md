@@ -885,3 +885,18 @@ implicit). Geometry watch baselines: their DMIX corpus base pairwise-cos 0.166 (
 corpus starts LOW; their old 0.41 was pool-shape-specific); 40-step smoke SPREAD 0.266->
 0.254. Our cc=0+beta=0 500-step stability on gme2b = negative control: collapse risk is
 BASE-dependent, not intrinsic to the anchorless objective.
+
+### Coverage ablation v2 — ordered by STALENESS, not reach (their correction, adopted)
+Mean staleness for undercovered sweeps = T*(1 - coverage/2). Joint ladder (steps stale):
+their dmixDyn 1428/1500 | their dmixDynCov 748/1500 | OUR emaidx ~368/500 | their new
+dmixDynFreq 187/1500 (4x coverage, ~0.5s/step — frequency is CHEAP). Reading rules
+REVISED: arms ordered by staleness; "all tie => relax" branch weakened (their low arms
+were never far apart in freshness); dmixDyn~dmixDynCov tie + dmixDynFreq win reads as
+"frequency matters, reach was the wrong knob".
+MECHANISTIC NOTE for reading our arms: pool+boundary docs are re-encoded fresh EVERY
+step, so the scored candidates are never stale — staleness lives only in RETRIEVAL
+RANKING (whether the right rows reach the pool at all). emaidx underperformance would
+therefore indict ranking-staleness specifically. If it does: coverage>1x on our side =
+--index_refresh_extra 700 (1x) / 2800 (4x), cost ~seconds/step.
+(Their latent-defect find from this exchange: single-forward refresh OOM at large
+budgets — ours already chunks via encode_docs batch_size.)

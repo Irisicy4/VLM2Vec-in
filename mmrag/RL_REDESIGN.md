@@ -938,3 +938,12 @@ stays so no future hand "fixes" it into an invalidation. (Their eval_rag_l2.py h
 kept for table comparability; writer's gold-arm non-edit on the 13th.)
 Their sweep: Table 8m relabeled (first-500 was 100% sh_alias — single-hop mislabeled as
 mix; internal comparisons valid); published Tables 8a-8l clean.
+
+### SFT comparator on the diverse pool — chained (user directive: "run SFT compare")
+sft-div45k: tuned config (lr 1e-4, b24, 1200 steps, ck/150) on pool_div45k_v3 (same 45k
+head-slice as the RL arms; train_sft auto-filters to gold-bearing image-valid rows), full
+per-seed best-ck estimator (evals ck450-1200). Launches on GPU 0 when the RL arms land.
+Seed 0 tonight; PROTOCOL REMINDER: no RL-vs-SFT margin quoted until seeds s1/s2 match
+the estimator on both legs. Note eval stays the InfoSeek benchmark — the div pool is a
+TRAINING-side change; both legs share it, so the comparison is recipe-vs-recipe on
+identical data.

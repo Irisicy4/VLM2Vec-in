@@ -81,8 +81,9 @@ def open_stores(data_dir, dataset="infoseek"):
     if dataset == "oven":
         # M2KR OVEN shards; keys = img_path as in OVEN_data parquet ("01/oven_00162311.jpg").
         paths = [os.path.join(data_dir, "images/OVEN", f"shard{i:02d}.tar") for i in range(6)]
-        return ChainStore([TarImageStore(p, key_fn=lambda n: n.lstrip("./"))
-                           for p in paths if os.path.exists(p)])
+        # default key_fn (basename w/o ext) -> keys are bare img_ids ("oven_01109018"),
+        # matching OVEN_data's img_id column
+        return ChainStore([TarImageStore(p) for p in paths if os.path.exists(p)])
     if dataset == "okvqa":
         # COCO train2014 zip; keys = bare file name ("COCO_train2014_%012d.jpg").
         z = os.path.join(data_dir, "images/OKVQA/train2014.zip")

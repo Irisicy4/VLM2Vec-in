@@ -51,7 +51,7 @@ def oven_rows(D, cap, rng):
     for i in range(6):
         t = os.path.join(D, "images/OVEN", f"shard{i:02d}.tar")
         if os.path.exists(t):
-            avail.update(k.lstrip("./") for k in build_tar_index(t))
+            avail.update(build_tar_index(t).keys())   # bare img_ids
     print(f"[oven] {len(avail)} images on disk", flush=True)
     # passages -> corpus (only those referenced by kept rows, resolved after row pick)
     dp = hf(M2KR, "OVEN_data/train-00000-of-00001.parquet")
@@ -61,7 +61,7 @@ def oven_rows(D, cap, rng):
     for r in rows:
         if len(kept) >= cap:
             break
-        if r["img_path"] not in avail:
+        if r["img_id"] not in avail:
             continue
         ent = (r["wiki_entity"] or "").strip()
         if not ent:
@@ -83,7 +83,7 @@ def oven_rows(D, cap, rng):
     for i, (r, ent, pids) in enumerate(kept):
         mapped = [id2new[p] for p in pids if p in id2new]
         pos_txt = next((x["text"] for x in passages if mapped and x["pid"] == mapped[0]), "")
-        out.append({"qid": f"oven_{i:06d}", "image_id": r["img_path"],
+        out.append({"qid": f"oven_{i:06d}", "image_id": r["img_id"],
                     "question": r["question"] or f"what is shown in this image?",
                     "answer": ent, "answer_aliases": [ent],
                     "entity_url": f"oven://{r.get('wiki_entity_id','')}",

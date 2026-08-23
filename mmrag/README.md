@@ -7,7 +7,11 @@ pools, reward the retriever's LoRA adapters with a frozen **Qwen2.5-VL-3B** read
 success on knowledge-VQA (**InfoSeek**; OOD **Encyclopedic-VQA**), and compare against
 (a) the zero-shot encoder and (b) a relevance-SFT contrastive baseline at equal trainable budget.
 
-> **STATUS: ALL NUMBERS PROVISIONAL** — under main-session review (see `RESULTS.md` header).
+> **STATUS (2026-08-23):** headline claims are seed-confirmed; `RL_REDESIGN.md` is the
+> authoritative running ledger (every claim, retraction, and convention, append-only).
+> The paper section lives in `VLM2Vec-in:mmrag/sec_mm_rag.tex`; the architecture page is the
+> "VQA Retriever Loop" artifact. Sections below marked *historical* describe the earlier
+> Isambard/sbatch campaign; current work runs on tth100 + the MLX cluster (next section).
 >
 > **Framing (per user directive):** the PRIMARY experimental question is the **[no-gold]**
 > (annotation-free) setting — pure top-N pools under the live policy, the only supervision being
@@ -20,7 +24,47 @@ success on knowledge-VQA (**InfoSeek**; OOD **Encyclopedic-VQA**), and compare a
 > logP(answer | image, question, passage); `judge` = sampled-answer accuracy (token-boundary
 > cover-EM vs official aliases), both z-scored per pool.
 
-## Setup (Isambard-AI, aarch64 GH200)
+## Current campaign (tth100 + MLX, Aug 2026)
+
+**Winning recipe (v3-pure = PL-GRPO, every regularizer off):** `--algo plgrpo --pl_group 4
+--pl_k 4 --pl_support 24 --contrastive_coef 0 --no_force_gold --reward judge --learning_rate 2e-5`,
+500 steps, batch 4. Headline on InfoSeek (GME-2B, frozen 7B eval reader): **34.71 ± 0.19 acc /
+76.09 entR@5 (3 seeds)** vs SFT 32.85 ± 0.90 (3 seeds, per-seed best ckpt — matched estimator)
+vs base 30.80/68.53. The beats-SFT margin (+1.86 ≈ 3.5 SE) survived the seeding audit that
+retracted its text-side twin. Same ordering holds at 7B. Best retrieval on record: 78.70 entR@5
+(810k-row pool, 2k draws, 1 seed — seed validation in flight).
+
+**Scaling (metric-named):** accuracy is noisy-flat in pool size (45k→1.06M rows) and in draws
+(2k→150k); retrieval *declines* under continued training on large pools (78.70→72.63) while
+staying flat on small ones — index quality and accuracy decouple along training. Mixed-source
+pools (InfoSeek + expanded E-VQA landmarks, `pool_mix_1M1`) are flat at 2k draws.
+
+**Base-model taxonomy:** only retrieval-finetuned bases learn (GME-2B/7B; BGE-VL-L inside a
+one-decade LR window). Raw VLMs drift (LR- and capacity-robust), CLIP-class contracts; full
+table in the artifact page and `RL_REDESIGN.md`. Accuracy alone cannot diagnose failure —
+full contraction drives acc *up* to the no-context floor. Always read retrieval metrics.
+
+**Current tooling** (all in this dir):
+- `mlx_submit_cell.sh NAME PROFILE "ARGS"` → 1-GPU MLX train+eval cell (`mlx_entry_cell.sh`);
+  idempotent on `results/NAME.vqa_top5.json`. `mlx_submit_eval.sh NAME PROFILE CKPT_RELPATH`
+  → eval-only cell (`mlx_entry_eval.sh`) for checkpoints; both clear the image's keep_gpu
+  daemon on the worker (never locally).
+- `adapter_stats.py RUN_DIR...` — lora_B/lora_A abs-sums, no GPU. Separates "didn't train"
+  from "trained and didn't help"; part of the standard harvest. lora_B is ~linear in LR,
+  sublinear in steps; movement does **not** predict outcome.
+- `train_rl.py --mem_frac F` — hard per-process VRAM cap for GPU co-location (stacking
+  convention shared with the text session; 0 = uncapped).
+- `$MMRAG_DATA/eval_daemon.sh GPU` / `eval_priority.sh GPU` — local checkpoint→result workers
+  (lock dirs under `$MMRAG_DATA/locks/`, failure releases the lock).
+
+**Operational conventions (learned the hard way):** kill by explicit PID after listing, never
+by pattern (pattern-kills matched our own command line three times); name the metric in every
+claim (acc and R@5 routinely move in opposite directions); matched seed counts + same estimator
+on both legs before quoting any margin; new indexes get a zero-shot recall check against a
+known-good number before anything trains on them; bit-identical eval metrics to zero-shot =
+adapter-not-loaded fingerprint (cost us one false "inert" verdict).
+
+## Setup (Isambard-AI, aarch64 GH200) — *historical*
 
 ```bash
 source $SCRATCH/tis_env.sh          # torch 2.9 cu126, transformers 4.57.6, peft, flash-attn 2.8.3
@@ -33,7 +77,7 @@ Models (pre-downloaded; profiles in `encoder.py:ENCODER_PROFILES`): retrievers
 `openai/clip-vit-large-patch14-336`, `google/siglip2-so400m-patch16-384` (weak rungs);
 readers `Qwen/Qwen2.5-VL-3B-Instruct` (reward) / `7B` (eval).
 
-## Data build (login node, ~10 min + downloads)
+## Data build (login node, ~10 min + downloads) — *historical*
 
 ```bash
 # raw: EchoSight filtered InfoSeek CSVs + 100K wiki KB (Dropbox), official infoseek_val.jsonl
@@ -72,7 +116,7 @@ python3 mmrag/eval_vqa.py --retrieval $MMRAG_DATA/results/NAME.retrieval.json --
 python3 mmrag/collect_results.py --data_dir $MMRAG_DATA --repo_out mmrag
 ```
 
-## Experiment zoo (row → driver → config → checkpoint)
+## Experiment zoo (row → driver → config → checkpoint) — *historical*
 
 Numbers live in [`RESULTS.md`](RESULTS.md) / [`results_summary.json`](results_summary.json)
 (regenerate with `collect_results.py`; per-run config in `$MMRAG_DATA/runs/<name>/args.json`).

@@ -1,0 +1,36 @@
+caption: '[mm-RAG] v3-b16-1M-ck3125'
+notifyRequest:
+  silent: true
+jobDefVersion:
+  entrypointMode: FULL_SCRIPT
+  imageMeta:
+    imageVid: d6lj4vjc77u7t7t31hp0
+  lazyDownloadCode: true
+  name: 'mmrag-v3-b16-1M-ck3125'
+  resource:
+    arnoldConfig:
+      clusterId: 11
+      groupIds:
+        - 665
+      quotaPool: default
+      preemptible: false
+      bytenasVolumes:
+        - name: tns-algo-video-public-my2
+          accessMode: RW
+      roles:
+        - cpu: 24
+          gpu: 1
+          gpuv: 19
+          memory: 220160
+          name: worker
+          num: 1
+          queueName: compute-543-my2-cloudnative-aigcp-tns.algo.public.pool.minipod.gcpsd.c-guarantee
+    backend: ARNOLD
+jobRunParams:
+  entrypointFullScript: |
+    bash /mnt/bn/tns-algo-video-public-my2/yijiangli/project/VLM2Vec-rl/mmrag/mlx_entry_eval.sh
+  envsList:
+    CELL_NAME: v3-b16-1M-ck3125
+    CELL_PROFILE: gme2b
+    CELL_CKPT: runs/v3-b16-1M/checkpoint-3125
+namespace: /user/yliang.26

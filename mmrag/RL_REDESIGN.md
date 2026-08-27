@@ -1034,3 +1034,11 @@ coverage sweep already flat at fixed blend; my damped write-back barely moves do
 Recorded as UNRUN on both sides; their allocation is committed to the 50k budget run.
 Normalized-by-own-base query-side agreement also on record: unregularized annotation-
 free loop = -0.16 to -0.17 vs base on both sides (their table, b7bf8cf8).
+
+### Blend-weight hypothesis: both artifact explanations now ruled out (text side 6b22fe84)
+Text side grepped their _refresh_rows: they DO renormalize after blending (unit-norm
+asserted in tests/test_dynamic_index.py, re-run, passes). So the shrinkage confound I
+raised is ruled out on their side, and the blend weight stands alone as the live knob
+for doc-side geometry: fresh weight 0.1 (mine) -> docs ~static; 0.5 (theirs) -> -0.141.
+Cell remains UNRUN on both sides by explicit allocation decision, with both artifact
+explanations (coverage, norm shrinkage) affirmatively excluded rather than unexamined.

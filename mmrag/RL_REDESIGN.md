@@ -978,3 +978,18 @@ CONVENTION: never edit a shell script that live processes are executing; for run
 launchers, copy-then-edit (new filename) or cp to a versioned name and exec that.
 Training was unaffected (python already loaded); adapters + metrics complete; evals
 re-run via eval_run.sh on GPUs 0-2, results identical protocol.
+
+### Geometry probe (text-side exchange): the spread signature does NOT transfer
+Mean pairwise cosine, fixed seeded 2,000-doc sample of corpus_small, per checkpoint
+(geom_probe.py; results/geom_probe_div45kv3.json):
+  base 0.0726 · v3pure 0.0486 · emaidx 0.0567 · emaenc 0.0895
+Text side sees base 0.166 > frozen 0.114 >> dynamic 0.017-0.037 (dynamic arms spread
+hard without buying recall). Tower side inverts the roles: the BARE RL loop is what
+spreads (v3pure, -0.024 vs base); index-EMA damps that spread (0.0567, closer to base)
+while also not buying recall; the model-EMA arm CONTRACTS above base (0.0895) — though
+that cell is live-weight-encoded (same eval-geometry caveat as its recall number; EMA-
+tower encoding may read differently). No near-zero collapse anywhere. So "index dynamics
+buy spread without recall" is a text-side finding, not a mechanism truth: here the
+spread belongs to the RL objective itself, and EMA write-back moderates it. 1 seed,
+2,000 docs, absolute magnitudes not comparable across sides (different encoders/corpora)
+— ordering is the claim, nothing else.

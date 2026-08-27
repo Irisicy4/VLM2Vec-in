@@ -1019,3 +1019,18 @@ confirms the text side's "no single healthy number" point; only orderings travel
 Pending falsifier for the cross-side SFT-contraction claim: query-side probe of the
 div45k SFT comparator's best checkpoint when it lands ("annotated contracts,
 annotation-free spreads" needs the second modality's SFT leg, not just its RL legs).
+
+### EMA convention pinned (cross-side blend-weight hypothesis)
+train_rl.py ema_write (line ~317): index[p] <- l2norm(m*old + (1-m)*new), m = --index_ema.
+So m=0.9 is RETENTION on the old row -> fresh weight 0.1. Text side's online_index_ema
+0.5 is the weight ON FRESH. Common convention (fresh weight): mine 0.1, theirs 0.5 — a
+5x fresh-injection difference, which sits right next to their ~6x doc-side geometry
+delta (-0.141 vs my -0.016/-0.024 vs own base). Conventions differ but the 6x is
+PHYSICAL, not definitional. Also pinned: my blend renormalizes (l2norm) after mixing —
+if their write-back doesn't, unit-norm drift is a second divergence to rule out before
+attributing everything to the blend weight. Their live hypothesis stands as the
+best-posed unrun cell: doc-side spread set by blend weight, not refresh volume (their
+coverage sweep already flat at fixed blend; my damped write-back barely moves docs).
+Recorded as UNRUN on both sides; their allocation is committed to the 50k budget run.
+Normalized-by-own-base query-side agreement also on record: unregularized annotation-
+free loop = -0.16 to -0.17 vs base on both sides (their table, b7bf8cf8).

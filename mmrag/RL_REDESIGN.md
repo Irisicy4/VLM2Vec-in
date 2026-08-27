@@ -993,3 +993,29 @@ buy spread without recall" is a text-side finding, not a mechanism truth: here t
 spread belongs to the RL objective itself, and EMA write-back moderates it. 1 seed,
 2,000 docs, absolute magnitudes not comparable across sides (different encoders/corpora)
 — ordering is the claim, nothing else.
+
+### Query-side geometry probe: the objective acts on the query tower
+Same checkpoints, fixed seeded 1,000 image+question queries (geom_probe_q.py;
+results/geom_probe_q_div45kv3.json). Query-side vs doc-side mean pairwise cosine:
+  base    0.2212 | 0.0726
+  v3pure  0.0594 | 0.0486
+  emaidx  0.0612 | 0.0567
+  emaenc  0.0976 | 0.0895
+Four readings, scoped to 1 seed each:
+(1) The RL spread lives on the QUERY side: v3pure moves queries -0.162 vs base against
+-0.024 doc-side — consistent with the gradient structure (queries get direct gradient
+every step; docs only via refresh/write-back). Matches the text side's corrected
+query-side result: every annotation-free cell spreads queries below base, both
+modalities. This is now a cross-side agreement on the comparable axis.
+(2) The doc-side emaidx "damping" is a doc-tower-local effect: query-side emaidx is
+indistinguishable from v3pure (0.0612 vs 0.0594) — as expected, index-EMA never touches
+the query path.
+(3) emaenc is systematically the most geometry-conservative arm on BOTH sides (queries
+0.0976, docs 0.0895-above-base). NOTE the asymmetric caveat: emaenc's QUERY tower is
+live in training (only docs use the EMA tower), so its query-side number is CLEAN —
+unlike its doc-side and recall numbers, which carry the live-weight eval confound.
+(4) Same encoder, healthy bar differs by side (base 0.2212 query vs 0.0726 doc) —
+confirms the text side's "no single healthy number" point; only orderings travel.
+Pending falsifier for the cross-side SFT-contraction claim: query-side probe of the
+div45k SFT comparator's best checkpoint when it lands ("annotated contracts,
+annotation-free spreads" needs the second modality's SFT leg, not just its RL legs).

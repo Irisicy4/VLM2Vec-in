@@ -947,3 +947,34 @@ Seed 0 tonight; PROTOCOL REMINDER: no RL-vs-SFT margin quoted until seeds s1/s2 
 the estimator on both legs. Note eval stays the InfoSeek benchmark — the div pool is a
 TRAINING-side change; both legs share it, so the comparison is recipe-vs-recipe on
 identical data.
+
+### EMA three-arm verdict, seed 0 (div45k_v3 pool, corpus_div_v2, InfoSeek eval, 500 steps @ 2e-5)
+All three arms trained healthily (reward/raw_mean ~0.20-0.22 and degenerate-group frac
+~0.57 flat first-50 vs last-50 in every arm — the near-zero final-line snapshot was one
+noisy step, not collapse). Eval chains re-run locally after the entry-script self-edit
+crash (see recovery note below).
+  div45kv3-v3pure  entR@5 76.83  ansR@5 64.57  acc 33.00   (baseline, fresh /100-step refresh)
+  div45kv3-emaidx  entR@5 75.77  ansR@5 63.14  acc 32.93   (schemes 1+2: index-EMA m=0.9 write-back + boundary negs + 256/step stalest sweep)
+  div45kv3-emaenc  entR@5 72.47  ansR@5 60.49  acc 32.20   (+ scheme 3: model-EMA doc tower m=0.99)
+Reading, scoped: (a) index-EMA is parity-to-slightly-negative (-1.06 entR@5, -0.07 acc,
+1 seed — inside the seed band; no evidence it helps at 45k-pool scale where full refresh
+is still affordable; its case must come from BIG pools where fresh refresh is the thing
+you can't pay for). (b) The model-EMA arm's -4.36 entR@5 is CONFOUNDED: these local
+weights predate the ema_tower save fix, so training scored q(live)·d(EMA) but eval
+encoded docs with LIVE weights — a train/eval geometry mismatch. The MLX duplicate
+carries the fix; its two-way eval (live-doc vs EMA-doc encoding) is the clean read. No
+scheme-3 verdict until it lands. (c) Diverse-pool v3pure vs original InfoSeek-pool
+v3-pure: retrieval matches (76.83 vs 76.09), acc 33.00 vs 34.71±0.19 — plausibly the
+diverse-training-distribution cost on an InfoSeek-only benchmark; 1 seed, not a claim.
+final index/stale_mean ~205 in both EMA arms (T=500), consistent with the designed
+coverage regime; scored candidates always fresh in all arms.
+
+### Recovery note + CONVENTION (3rd shell-discipline entry)
+The three local arms' eval stages all died at "mlx_entry_cell.sh: line 4" while training
+survived: mlx_entry_cell.sh was edited in place (keep_gpu guard v2, ~15:30) while three
+bash processes launched at ~15:05 were still executing it — bash reads scripts
+incrementally, so an in-place edit corrupts the read offset of every running instance.
+CONVENTION: never edit a shell script that live processes are executing; for running
+launchers, copy-then-edit (new filename) or cp to a versioned name and exec that.
+Training was unaffected (python already loaded); adapters + metrics complete; evals
+re-run via eval_run.sh on GPUs 0-2, results identical protocol.

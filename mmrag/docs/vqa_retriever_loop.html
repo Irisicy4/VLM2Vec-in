@@ -1,0 +1,791 @@
+<title>The VQA Retriever Loop</title>
+<style>
+  :root {
+    --paper: #f7f8fa;
+    --panel: #ffffff;
+    --ink: #16191f;
+    --muted: #5d6673;
+    --rule: #d8dde4;
+    --policy: #1f6f68;
+    --env: #a8620f;
+    --flag: #a3374f;
+    --code-bg: #eef1f5;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #101319;
+      --panel: #171b23;
+      --ink: #e4e8ef;
+      --muted: #9aa4b2;
+      --rule: #2b323d;
+      --policy: #5cc4b8;
+      --env: #e0a052;
+      --flag: #e8829a;
+      --code-bg: #1d222b;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #101319;
+    --panel: #171b23;
+    --ink: #e4e8ef;
+    --muted: #9aa4b2;
+    --rule: #2b323d;
+    --policy: #5cc4b8;
+    --env: #e0a052;
+    --flag: #e8829a;
+    --code-bg: #1d222b;
+  }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: ui-sans-serif, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+    font-size: 16px;
+    line-height: 1.62;
+    margin: 0;
+    padding: 56px 24px 96px;
+  }
+  main { max-width: 78ch; margin: 0 auto; display: flex; flex-direction: column; gap: 34px; }
+  h1, h2, h3 {
+    font-family: ui-serif, "Iowan Old Style", "Source Serif 4", Palatino, Georgia, serif;
+    text-wrap: balance;
+    margin: 0;
+    font-weight: 600;
+  }
+  h1 { font-size: 2.1rem; line-height: 1.2; letter-spacing: -0.01em; }
+  h2 { font-size: 1.35rem; padding-bottom: 8px; border-bottom: 1px solid var(--rule); }
+  h3 { font-size: 1.05rem; }
+  p { margin: 0; }
+  section { display: flex; flex-direction: column; gap: 14px; }
+  .lede { font-size: 1.08rem; color: var(--muted); }
+  .eyebrow {
+    font-family: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
+    font-size: 0.74rem;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  code, .spec dt, .spec dd {
+    font-family: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
+    font-size: 0.86em;
+  }
+  code { background: var(--code-bg); padding: 1px 5px; border-radius: 3px; }
+
+  figure { margin: 0; display: flex; flex-direction: column; gap: 12px; }
+  .figwrap { overflow-x: auto; background: var(--panel); border: 1px solid var(--rule); border-radius: 6px; padding: 18px; }
+  svg { max-width: 100%; height: auto; display: block; min-width: 620px; }
+  figcaption { color: var(--muted); font-size: 0.9rem; }
+
+  .spec { display: grid; grid-template-columns: max-content 1fr; gap: 6px 20px; margin: 0;
+          background: var(--panel); border: 1px solid var(--rule); border-radius: 6px; padding: 18px 20px; }
+  .spec dt { color: var(--muted); }
+  .spec dd { margin: 0; font-variant-numeric: tabular-nums; }
+
+  .tablewrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 0.94rem; }
+  th, td { text-align: left; vertical-align: top; padding: 9px 12px; border-bottom: 1px solid var(--rule); }
+  th { font-size: 0.78rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+  tbody tr td:first-child { font-family: ui-monospace, Menlo, monospace; font-size: 0.84rem; white-space: nowrap; }
+  td { font-variant-numeric: tabular-nums; }
+  .same { color: var(--muted); }
+  .diff { color: var(--flag); font-weight: 600; }
+
+  .verdict { display: flex; flex-direction: column; gap: 18px; }
+  .claim { background: var(--panel); border: 1px solid var(--rule); border-left: 3px solid var(--rule); border-radius: 5px; padding: 16px 18px; display: flex; flex-direction: column; gap: 7px; }
+  .claim.yes { border-left-color: var(--policy); }
+  .claim.no { border-left-color: var(--flag); }
+  .claim.care { border-left-color: var(--env); }
+  .claim .tag { font-size: 0.74rem; letter-spacing: 0.1em; text-transform: uppercase; font-family: ui-monospace, Menlo, monospace; }
+  .claim.yes .tag { color: var(--policy); }
+  .claim.no .tag { color: var(--flag); }
+  .claim.care .tag { color: var(--env); }
+  .claim p { font-size: 0.96rem; }
+
+  .bottomline { background: var(--panel); border: 1px solid var(--rule); border-radius: 6px; padding: 20px 22px; }
+  .bottomline p { font-size: 1.02rem; }
+  ul { margin: 0; padding-left: 1.2em; display: flex; flex-direction: column; gap: 8px; }
+  a { color: var(--policy); }
+
+  .repro { display: flex; flex-direction: column; gap: 10px; }
+  .repro h3 { margin-top: 14px; }
+  .repro p { font-size: 0.93rem; color: var(--muted); }
+  pre.cmd { background: var(--code-bg); border: 1px solid var(--rule); border-radius: 6px;
+            padding: 14px 16px; margin: 0; overflow-x: auto;
+            font-family: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
+            font-size: 0.78rem; line-height: 1.65; color: var(--ink); }
+  pre.cmd .c { color: var(--muted); }
+  pre.cmd .k { color: var(--policy); }
+  tr.cmdrow td { padding: 0 12px 10px; }
+  tr.cmdrow details, details.rowcmd { font-size: 0.8rem; }
+  tr.cmdrow summary, details.rowcmd summary { cursor: pointer; color: var(--muted); font-family: ui-monospace, Menlo, monospace;
+    font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; }
+  tr.cmdrow pre.cmd, details.rowcmd pre.cmd { margin: 6px 0 0; font-size: 0.74rem; }
+  details.rowcmd { margin-top: 4px; }
+  dd details.rowcmd { margin-top: 2px; }
+</style>
+
+<main>
+  <header style="display:flex; flex-direction:column; gap:12px;">
+    <p class="eyebrow">Method · annotation-free retrieval RL · multimodal twin</p>
+    <h1>The VQA Retriever Loop</h1>
+    <p class="lede">The multimodal encoder is the policy, a frozen vision-language reader is the environment,
+      and the reward is whether that reader answers a visual question correctly from the passages the retriever
+      chose — while looking at the same image the retriever embedded. No relevance label is used anywhere; the
+      image is never annotated at all.</p>
+  </header>
+
+  <figure>
+    <div class="figwrap">
+      <svg viewBox="0 0 900 430" role="img"
+           aria-label="Flow diagram: an image-question pair is encoded by the LoRA multimodal retriever, retrieved against a Wikipedia passage index into a top-24 support, four ordered four-document lists are Plackett-Luce sampled, each list plus the same image is read by a frozen vision-language reader whose answer correctness is the reward, rewards are z-scored within the group as advantages, and the Plackett-Luce policy gradient updates only the LoRA weights; there is no KL term and no contrastive anchor in the winning recipe.">
+        <defs>
+          <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/>
+          </marker>
+        </defs>
+        <g font-family="ui-monospace, Menlo, monospace" font-size="12.5" fill="currentColor">
+
+          <!-- row 1 -->
+          <rect x="20"  y="56" width="180" height="56" rx="4" fill="none" stroke="currentColor" stroke-width="1.2"/>
+          <text x="110" y="80" text-anchor="middle">image + question</text>
+          <text x="110" y="98" text-anchor="middle" font-size="11" opacity="0.65">+ answer aliases</text>
+
+          <rect x="240" y="56" width="180" height="56" rx="4" fill="none" stroke="var(--policy)" stroke-width="2"/>
+          <text x="330" y="80" text-anchor="middle" fill="var(--policy)">encoder E&#952;</text>
+          <text x="330" y="98" text-anchor="middle" font-size="11" fill="var(--policy)">GME-2B · LoRA r=32</text>
+
+          <rect x="470" y="56" width="180" height="56" rx="4" fill="none" stroke="currentColor" stroke-width="1.2"/>
+          <text x="560" y="80" text-anchor="middle">passage index</text>
+          <text x="560" y="98" text-anchor="middle" font-size="11" opacity="0.65">re-encoded /100 steps</text>
+
+          <rect x="700" y="56" width="180" height="56" rx="4" fill="none" stroke="currentColor" stroke-width="1.2"/>
+          <text x="790" y="80" text-anchor="middle">support: top-24</text>
+          <text x="790" y="98" text-anchor="middle" font-size="11" opacity="0.65">the whole action space</text>
+
+          <line x1="200" y1="84" x2="234" y2="84" stroke="currentColor" stroke-width="1.2" marker-end="url(#ah)"/>
+          <line x1="420" y1="84" x2="464" y2="84" stroke="currentColor" stroke-width="1.2" marker-end="url(#ah)"/>
+          <line x1="650" y1="84" x2="694" y2="84" stroke="currentColor" stroke-width="1.2" marker-end="url(#ah)"/>
+          <text x="437" y="46" text-anchor="middle" font-size="11" opacity="0.7">joint embed</text>
+          <text x="672" y="46" text-anchor="middle" font-size="11" opacity="0.7">ANN</text>
+
+          <text x="790" y="133" text-anchor="middle" font-size="11" fill="var(--flag)">gold passage never inserted</text>
+
+          <!-- down into row 2 -->
+          <line x1="790" y1="146" x2="790" y2="180" stroke="currentColor" stroke-width="1.2" marker-end="url(#ah)"/>
+
+          <!-- image path to the reader: the MM-specific edge -->
+          <polyline points="110,112 110,155 470,155 470,196" fill="none" stroke="var(--env)"
+                    stroke-width="1.6" stroke-dasharray="5 3" marker-end="url(#ah)" color="var(--env)"/>
+          <text x="255" y="148" font-size="11" fill="var(--env)">the same image, unannotated</text>
+
+          <!-- row 2 -->
+          <rect x="700" y="186" width="180" height="56" rx="4" fill="none" stroke="currentColor" stroke-width="1.2"/>
+          <text x="790" y="210" text-anchor="middle">PL sampling</text>
+          <text x="790" y="228" text-anchor="middle" font-size="11" opacity="0.65">G=4 lists × k=4 docs</text>
+
+          <rect x="470" y="196" width="180" height="56" rx="4" fill="none" stroke="var(--env)" stroke-width="2"/>
+          <text x="560" y="220" text-anchor="middle" fill="var(--env)">frozen VLM reader 3B</text>
+          <text x="560" y="238" text-anchor="middle" font-size="11" fill="var(--env)">image + docs · 4 rollouts</text>
+
+          <rect x="240" y="196" width="180" height="56" rx="4" fill="none" stroke="currentColor" stroke-width="1.2"/>
+          <text x="330" y="220" text-anchor="middle">reward r per doc</text>
+          <text x="330" y="238" text-anchor="middle" font-size="11" opacity="0.65">frac. correct ∈ {0…1}</text>
+
+          <rect x="20"  y="196" width="180" height="56" rx="4" fill="none" stroke="currentColor" stroke-width="1.2"/>
+          <text x="110" y="220" text-anchor="middle">advantage A</text>
+          <text x="110" y="238" text-anchor="middle" font-size="11" opacity="0.65">(r−μ)/σ · no critic</text>
+
+          <line x1="700" y1="224" x2="656" y2="224" stroke="currentColor" stroke-width="1.2" marker-end="url(#ah)"/>
+          <line x1="470" y1="224" x2="426" y2="224" stroke="currentColor" stroke-width="1.2" marker-end="url(#ah)"/>
+          <line x1="240" y1="224" x2="206" y2="224" stroke="currentColor" stroke-width="1.2" marker-end="url(#ah)"/>
+          <text x="678" y="186" text-anchor="middle" font-size="11" opacity="0.7">each unique doc, once</text>
+          <text x="448" y="186" text-anchor="middle" font-size="11" opacity="0.7">alias match</text>
+          <text x="223" y="186" text-anchor="middle" font-size="11" opacity="0.7">within group</text>
+
+          <!-- down into row 3 -->
+          <line x1="110" y1="252" x2="110" y2="330" stroke="currentColor" stroke-width="1.2" marker-end="url(#ah)"/>
+
+          <!-- row 3 -->
+          <rect x="20" y="336" width="520" height="56" rx="4" fill="none" stroke="currentColor" stroke-width="1.2"/>
+          <text x="280" y="360" text-anchor="middle">loss = −A · log π_PL(list | image, q) · list reward = mean over docs</text>
+          <text x="280" y="378" text-anchor="middle" font-size="11" opacity="0.65">exact Plackett-Luce log-prob of the sampled list</text>
+
+          <rect x="580" y="336" width="300" height="56" rx="4" fill="none" stroke="var(--flag)"
+                stroke-width="1.2" stroke-dasharray="4 3"/>
+          <text x="730" y="360" text-anchor="middle" fill="var(--flag)">no KL · no anchor</text>
+          <text x="730" y="378" text-anchor="middle" font-size="11" fill="var(--flag)">both terms OFF in the winning recipe</text>
+
+          <!-- gradient return path -->
+          <polyline points="450,336 450,160 330,160 330,118" fill="none" stroke="var(--policy)"
+                    stroke-width="1.6" marker-end="url(#ah)" color="var(--policy)"/>
+          <text x="462" y="182" font-size="11" fill="var(--policy)">∇θ · LoRA only</text>
+        </g>
+      </svg>
+    </div>
+    <figcaption>One training step. The teal path is the only thing that learns; the ochre reader is the
+      environment and is never differentiated through. The dashed ochre edge is what makes the reward
+      image-conditioned: the reader judges the retrieved passages <em>against the same pixels the policy
+      embedded</em> — the image enters the loop twice, labeled zero times.</figcaption>
+  </figure>
+
+  <section>
+    <h2>The working recipe</h2>
+    <p>Of everything tried, the arm that reliably clears the frozen base is the loop above with
+      <strong>every regularizer removed</strong> — no contrastive anchor, no KL, a critic-free group baseline
+      and nothing else. The MM twin wins by subtraction where the text twin wins by substitution:</p>
+    <dl class="spec">
+      <dt>estimator</dt><dd>PL-GRPO — G=4 sampled lists of k=4 over a top-24 support, group-relative advantage, no critic</dd>
+      <dt>anchor</dt><dd><code>contrastive_coef: 0.0</code> — the InfoNCE term is <em>off</em> (v2 kept it at 0.3: more recall, less accuracy)</dd>
+      <dt>regularizer</dt><dd><code>kl_beta: 0.0</code> — none. The stability the text side buys with KL, this side gets from the base</dd>
+      <dt>credit</dt><dd>per-document — each unique sampled doc is read once; a list's reward is the mean over its docs. The joint-context scalar variant collapsed</dd>
+      <dt>learning rate</dt><dd>2e-5 constant, 500 steps ≈ 2k query draws; consumption beyond that plateaus (34.00 ± 0.47 → 34.80 → 34.07 at 2k/6k/12k draws)<details class="rowcmd"><summary>reproduce</summary><pre class="cmd"><span class="c"># v3-rows200k{,-s1,-s2} (500 steps) · v3-rows200k-s1500 · v3-rows200k-s3000 — the “consumption” row of the text-twin table below carries the full command</span></pre></details></dd>
+      <dt>labels used</dt><dd>none — answer strings only, <code>--no_force_gold</code>; the image is never annotated</dd>
+    </dl>
+    <p>What it delivers on InfoSeek — all arms are <strong>GME-Qwen2-VL-2B</strong> (VQA accuracy, top-5
+      passages to a frozen Qwen2.5-VL-7B reader):</p>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>arm</th><th>entity R@5</th><th>answer R@5</th><th>VQA acc</th></tr></thead>
+        <tbody>
+          <tr><td>v3-pure (this loop)</td><td><strong>76.09</strong></td><td><strong>63.46</strong></td><td><strong>34.71 ± 0.19</strong> <span class="same">(3 seeds)</span></td></tr>
+          <tr class="cmdrow"><td colspan="4"><details><summary>reproduce</summary><pre class="cmd"><span class="c"># seeds 0 / 1 / 2 → runs v3-pure, v3-pure-s1, v3-pure-s2  (mmrag/mlx_configs/v3-pure{,-s1,-s2}.yaml)</span>
+CELL_NAME=<span class="k">v3-pure</span> CELL_PROFILE=gme2b \
+CELL_TRAIN_ARGS='--pool built/pool_train.jsonl --max_train_rows 0 --max_steps 500 --no_force_gold --reward judge --algo plgrpo --pl_group 4 --pl_k 4 --pl_support 24 --contrastive_coef 0 --learning_rate 2e-5 --seed 0' \
+bash mmrag/mlx_entry_cell.sh     <span class="c"># mmrag/mlx_configs/v3-pure.yaml</span>
+<span class="c"># → $D/results/v3-pure.retrieval.metrics.json (entity_recall.5 / answer_recall.5) · $D/results/v3-pure.vqa_top5.json (acc)</span>
+<span class="c"># --seed 1 → CELL_NAME=v3-pure-s1 ; --seed 2 → CELL_NAME=v3-pure-s2</span>
+<span class="c"># per seed  entR@5 / ansR@5 / acc :  75.27/63.59/34.47 · 75.77/62.45/34.73 · 77.23/64.33/34.93</span>
+<span class="c"># table row = mean of the three (acc ± sample SD)</span></pre></details></td></tr>
+          <tr><td>v2 = v3 + anchor</td><td>80.13</td><td>65.46</td><td>33.82 ± 0.60 <span class="same">(3 seeds)</span></td></tr>
+          <tr class="cmdrow"><td colspan="4"><details><summary>reproduce</summary><pre class="cmd"><span class="c"># the v3 command plus the InfoNCE self-anchor (--contrastive_coef 0.3, contrastive_temperature 0.03 default)</span>
+<span class="c"># seeds 0 / 2 / 3 → runs plgrpo-gme2b-nogold, plgrpo-s2, plgrpo-s3</span>
+CELL_NAME=<span class="k">plgrpo-gme2b-nogold</span> CELL_PROFILE=gme2b \
+CELL_TRAIN_ARGS='--pool built/pool_train.jsonl --max_train_rows 0 --max_steps 500 --no_force_gold --reward judge --algo plgrpo --pl_group 4 --pl_k 4 --pl_support 24 --contrastive_coef 0.3 --learning_rate 2e-5 --seed 0' \
+bash mmrag/mlx_entry_cell.sh     <span class="c"># no yaml — run locally via mmrag/scripts/local_cell_worker.sh</span>
+<span class="c"># → $D/results/plgrpo-gme2b-nogold.retrieval.metrics.json (entity_recall.5 / answer_recall.5) · $D/results/plgrpo-gme2b-nogold.vqa_top5.json (acc)</span>
+<span class="c"># --seed 2 → CELL_NAME=plgrpo-s2 ; --seed 3 → CELL_NAME=plgrpo-s3</span>
+<span class="c"># per seed  entR@5 / ansR@5 / acc :  80.03/65.71/34.27 · 80.57/65.31/33.07 · 79.80/65.35/34.13  →  80.13 / 65.46 / 33.82 ± 0.60</span>
+<span class="c"># also on disk and NOT in this mean: seed 1 (plgrpo-gme2b-nogold-s1) 78.73/61.55/32.93 — the 4-seed acc would read 33.60 ± 0.70</span></pre></details></td></tr>
+          <tr><td>Rel-SFT (annotated)</td><td>73.63</td><td>59.67</td><td>32.85 ± 0.90 <span class="same">(3 seeds, per-seed best ckpt)</span></td></tr>
+          <tr class="cmdrow"><td colspan="4"><details><summary>reproduce</summary><pre class="cmd"><span class="c"># VQA acc: three seeded 1200-step curves, each seed&#x27;s BEST checkpoint (the estimator that favors SFT)</span>
+python3 -u mmrag/train_sft.py --profile gme2b --pool built/pool_train.jsonl --output_dir $D/runs/<span class="k">sft-curve-lr1e4</span> \
+    --learning_rate 1e-4 --num_hard_negs 0 --batch_size 24 --max_steps 1200 --save_steps 150 \
+    --lora_r 32 --lora_alpha 64 --temperature 0.03 --max_len_doc 512 --seed 0 --device cuda:0
+bash mmrag/scripts/sft_curve.sh     <span class="c"># = the command above + eval chain on every checkpoint-{150..1200} → $D/results/sft-curve-ck&lt;N&gt;.*</span>
+<span class="c"># --seed 1 / 2 → runs sft-curve-lr1e4-s1 / -s2 → $D/results/sft-curve-lr1e4-s{1,2}-ck&lt;N&gt;.*</span>
+<span class="c"># per-seed best acc: seed0 ck750 33.00 · seed1 ck1050 33.67 · seed2 ck1050 31.87  →  32.85 ± 0.90</span>
+<span class="c"># entity / answer R@5 (73.63 / 59.67): the released 600-step tuned config, re-evaluated as $D/results/sft-lr1e4-h0-repro.* (acc 31.00):</span>
+python3 -u mmrag/train_sft.py --profile gme2b --pool built/pool_train.jsonl --learning_rate 1e-4 --num_hard_negs 0 \
+    --batch_size 24 --max_steps 600 --seed 0 --output_dir $D/runs/sft-lr1e4-h0-repro     <span class="c"># pre-args.json run; its run dir was not retained</span></pre></details></td></tr>
+          <tr><td>frozen base (GME-2B zero-shot)</td><td>68.53</td><td>54.94</td><td>30.80</td></tr>
+          <tr class="cmdrow"><td colspan="4"><details><summary>reproduce</summary><pre class="cmd">bash mmrag/scripts/run_repro.sh zs     <span class="c"># eval chain, --checkpoint __profile__ (released GME-Qwen2-VL-2B) → $D/results/gme2b-zeroshot-3k-repro.*</span></pre></details></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>The same ordering holds one size up — GME-Qwen2-VL-7B, same recipe, untouched hyperparameters:</p>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>arm (GME-7B)</th><th>entity R@5</th><th>answer R@5</th><th>VQA acc</th></tr></thead>
+        <tbody>
+          <tr><td>v3-pure</td><td><strong>80.97 / 80.30</strong></td><td><strong>69.02 / 68.41</strong></td><td><strong>34.60 / 35.73</strong> <span class="same">(2 seeds)</span></td></tr>
+          <tr class="cmdrow"><td colspan="4"><details><summary>reproduce</summary><pre class="cmd"><span class="c"># seeds 0 / 1 → gme7b-v3pure, gme7b-v3pure-s1  (mmrag/mlx_configs/gme7b-v3pure{,-s1}.yaml); only LR + memory flags change</span>
+CELL_NAME=<span class="k">gme7b-v3pure</span> CELL_PROFILE=gme7b \
+CELL_TRAIN_ARGS='--pool built/pool_train.jsonl --max_train_rows 0 --max_steps 500 --no_force_gold --reward judge --algo plgrpo --pl_group 4 --pl_k 4 --pl_support 24 --contrastive_coef 0 --learning_rate 1e-5 --seed 0 --encode_bs 32 --reader_batch_size 8' \
+bash mmrag/mlx_entry_cell.sh     <span class="c"># mmrag/mlx_configs/gme7b-v3pure.yaml</span>
+<span class="c"># → $D/results/gme7b-v3pure.retrieval.metrics.json (entity_recall.5 / answer_recall.5) · $D/results/gme7b-v3pure.vqa_top5.json (acc)</span>
+<span class="c"># per seed  entR@5 / ansR@5 / acc :  80.97/69.02/34.60 · 80.30/68.41/35.73  (quoted per seed, not averaged)</span></pre></details></td></tr>
+          <tr><td>Rel-SFT (annotated)</td><td>77.67</td><td>63.02</td><td>33.20 <span class="same">(1 seed)</span></td></tr>
+          <tr class="cmdrow"><td colspan="4"><details><summary>reproduce</summary><pre class="cmd">bash mmrag/mlx_entry_sft7b.sh     <span class="c"># mmrag/mlx_configs/gme7b-sft.yaml — runs exactly:</span>
+python3 -u mmrag/train_sft.py --profile gme7b --pool built/pool_train.jsonl --output_dir $D/runs/<span class="k">gme7b-sft</span> --learning_rate 1e-4 \
+    --num_hard_negs 0 --batch_size 16 --max_steps 600 --save_steps 150 --lora_r 32 --lora_alpha 64 --temperature 0.03 --max_len_doc 512 --seed 0
+<span class="c"># then the eval chain with PROF=gme7b (encode --bs 96) on the final adapter (no per-checkpoint max here) → $D/results/gme7b-sft.*</span></pre></details></td></tr>
+          <tr><td>frozen base</td><td>69.37</td><td>53.59</td><td>30.67</td></tr>
+          <tr class="cmdrow"><td colspan="4"><details><summary>reproduce</summary><pre class="cmd">bash mmrag/scripts/ladder_zs.sh gme7b <span class="k">gme7b-zeroshot</span> 0     <span class="c"># eval chain with --checkpoint __profile__ (released weights) → $D/results/gme7b-zeroshot.*</span></pre></details></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>And it is not strictly GME-only — one other architecture clears its zero-shot, though on a single
+      seed and only at its own window rate:</p>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>base · condition</th><th>entity R@5</th><th>answer R@5</th><th>VQA acc</th></tr></thead>
+        <tbody>
+          <tr><td>BGE-VL-large · bare, LR in-window (1e-5)</td><td><strong>21.23</strong> <span class="same">(zs 15.73)</span></td><td><strong>10.24</strong> <span class="same">(zs 7.10)</span></td><td>16.93 <span class="same">(zs 15.87)</span></td></tr>
+          <tr class="cmdrow"><td colspan="4"><details><summary>reproduce</summary><pre class="cmd">CELL_NAME=<span class="k">bgevl_l-v3pure-lr1e5</span> CELL_PROFILE=bgevl_l \
+CELL_TRAIN_ARGS='--pool built/pool_train.jsonl --max_train_rows 0 --max_steps 500 --no_force_gold --reward judge --algo plgrpo --pl_group 4 --pl_k 4 --pl_support 24 --contrastive_coef 0 --learning_rate 1e-5 --seed 0' \
+bash mmrag/mlx_entry_cell.sh     <span class="c"># mmrag/mlx_configs/bgevl_l-v3pure-lr1e5.yaml</span>
+<span class="c"># → $D/results/bgevl_l-v3pure-lr1e5.retrieval.metrics.json (entity_recall.5 / answer_recall.5) · $D/results/bgevl_l-v3pure-lr1e5.vqa_top5.json (acc)</span>
+bash mmrag/scripts/ladder_zs.sh bgevl_l <span class="k">bgevl_l-zeroshot</span> 0     <span class="c"># eval chain with --checkpoint __profile__ (released weights) → $D/results/bgevl_l-zeroshot.*</span>
+<span class="c"># the LR window, same command: 3e-6 → 15.23 (bgevl_l-v3pure-lr3e6) · 3e-5 → 14.77 (-lr3e5) · 1e-4 → 0.70 (bgevl_l-v3pure); zero-shot 15.73</span></pre></details></td></tr>
+          <tr><td class="diff">SigLIP2 + self-anchor — RETRACTED on seeds</td><td class="diff" colspan="3">seed 0 hit 17.47 R@5 (+9.2); seeds 1–2 contracted to 1.10 / 0.13. A one-seed lottery, mean below zero-shot — kept here as the campaign's clearest warning against single-seed recipes</td></tr>
+          <tr class="cmdrow"><td colspan="4"><details><summary>reproduce</summary><pre class="cmd"><span class="c"># seed 0 = siglip2-nogold (mmrag/mlx_configs/siglip2-nogold.yaml): GRPO over 8 candidates + anchor, entR@5 17.47</span>
+CELL_NAME=<span class="k">siglip2-nogold</span> CELL_PROFILE=siglip2 \
+CELL_TRAIN_ARGS='--pool built/pool_train.jsonl --max_train_rows 0 --max_steps 500 --no_force_gold --reward judge --algo grpo --learning_rate 1e-4 --seed 0' \
+bash mmrag/mlx_entry_cell.sh     <span class="c"># mmrag/mlx_configs/siglip2-nogold.yaml</span>
+<span class="c"># → $D/results/siglip2-nogold.retrieval.metrics.json (entity_recall.5 / answer_recall.5) · $D/results/siglip2-nogold.vqa_top5.json (acc)</span>
+<span class="c">#   (mlx_entry_cell.sh defaults supply --num_candidates 8 --contrastive_coef 0.3 --contrastive_temperature 0.03)</span>
+<span class="c"># seeds 1 / 2 = siglip2-anchor-s1 / -s2: the PL-GRPO command + anchor at 1e-4 → 1.10 / 0.13</span>
+CELL_NAME=<span class="k">siglip2-anchor-s1</span> CELL_PROFILE=siglip2 \
+CELL_TRAIN_ARGS='--pool built/pool_train.jsonl --max_train_rows 0 --max_steps 500 --no_force_gold --reward judge --algo plgrpo --pl_group 4 --pl_k 4 --pl_support 24 --contrastive_coef 0.3 --learning_rate 1e-4 --seed 1' \
+bash mmrag/mlx_entry_cell.sh     <span class="c"># no yaml — run locally via mmrag/scripts/local_cell_worker.sh</span>
+<span class="c"># → $D/results/siglip2-anchor-s1.retrieval.metrics.json (entity_recall.5 / answer_recall.5) · $D/results/siglip2-anchor-s1.vqa_top5.json (acc)</span>
+<span class="c"># NOTE: seed 0 and seeds 1–2 differ in estimator (GRPO-8 vs PL-GRPO), so the three are not estimator-matched replicates;</span>
+<span class="c">#   the retraction stands either way — both PL-GRPO+anchor seeds contract far below zero-shot (8.23, siglip2-zs-fresh).</span>
+bash mmrag/scripts/ladder_zs.sh siglip2 <span class="k">siglip2-zs-fresh</span> 0     <span class="c"># eval chain with --checkpoint __profile__ (released weights) → $D/results/siglip2-zs-fresh.*</span></pre></details></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>Retrieval is the primary result: <strong>+7.56 entity R@5</strong> and <strong>+8.52 answer R@5</strong>
+      over the frozen base, beating the annotated-SFT arm on every retrieval column (the anchored v2 retrieves better still — 80.13 / 65.46 — and answers worse). Accuracy follows —
+      +3.91 over base, significant on every seed (p ≤ 4.2e-6, McNemar on stored per-question predictions).
+      The margin over SFT is quoted at SFT's <em>best</em> checkpoint — the comparison that favors SFT.</p>
+    <details class="rowcmd"><summary>reproduce</summary><pre class="cmd">python3 mmrag/significance.py --pairs v3-pure:gme2b-zeroshot-3k-repro v3-pure-s1:gme2b-zeroshot-3k-repro v3-pure-s2:gme2b-zeroshot-3k-repro
+<span class="c"># exact-binomial McNemar on discordant pairs + paired bootstrap 95% CI, over the `predictions` stored in $D/results/&lt;name&gt;.vqa_top5.json (same fixed 1,500 questions)</span>
+<span class="c"># deltas vs base: entR@5 76.09 − 68.53 = +7.56 · ansR@5 63.46 − 54.94 = +8.52 · acc 34.71 − 30.80 = +3.91</span></pre></details>
+    <p class="same" style="font-size:0.94rem"><strong>Estimator check, resolved:</strong> the SFT bar was
+      initially one seed scored max-over-checkpoints — the estimator shape that manufactured two phantom wins on
+      the text side. Seeding it (per-seed maxes 33.00 / 33.67 / 31.87) moved the bar to 32.85 ± 0.90, and the RL
+      margin <em>survived</em>: +1.86 ≈ 3.5 SE with matched seed counts and the same estimator on both legs.
+      This is the claim the text side had to retract; on the multimodal side it holds.</p>
+    <details class="rowcmd"><summary>reproduce</summary><pre class="cmd"><span class="c"># SFT per-seed maxes over checkpoints: $D/results/sft-curve-ck750 (33.00) · sft-curve-lr1e4-s1-ck1050 (33.67) · sft-curve-lr1e4-s2-ck1050 (31.87) — table 1, Rel-SFT row carries the commands</span>
+<span class="c"># RL leg: v3-pure{,-s1,-s2} final checkpoints (34.47 / 34.73 / 34.93); margin 34.71 − 32.85 = +1.86; SE from the two sample SDs</span></pre></details>
+    <p class="same" style="font-size:0.94rem">Out of domain, the gains travel: on E-VQA, never seen in training,
+      v3-pure gains +2.6 ± 1.3 acc / +3.9 ± 1.2 entity R@5 over zero-shot (3 seeds). The tuned SFT checkpoint also
+      transfers, but less (+1.4 acc / +2.1 R@5, 1 seed) — an earlier "SFT anti-transfers" reading came from comparing
+      against a weaker released SFT config and is corrected here.</p>
+    <details class="rowcmd"><summary>reproduce</summary><pre class="cmd"><span class="c"># same eval chain with --dataset evqa (corpus/queries switch); n = 2,701 retrieval queries, 1,500 VQA</span>
+python3 -u mmrag/eval_retrieval.py --profile gme2b --checkpoint $D/runs/v3-pure --name <span class="k">evqa-v3pure</span> <span class="k">--dataset evqa</span> --max-q 3000 --device cuda:0 --corpus_bs 128 --cache_corpus $D/cache/evqa-v3pure.pt
+python3 -u mmrag/eval_vqa.py --retrieval $D/results/evqa-v3pure.retrieval.json <span class="k">--dataset evqa</span> --reader Qwen/Qwen2.5-VL-7B-Instruct --k 5 --max-q 1500 --device cuda:0 --batch_size 8
+<span class="c"># RL: evqa-v3pure / -s1 / -s2 (checkpoints v3-pure{,-s1,-s2}): acc 45.87 / 43.33 / 44.80, entR@5 81.34 / 78.93 / 80.41</span>
+<span class="c"># zero-shot: evqa-zs (--checkpoint __profile__): 42.07 / 76.31 · SFT best ckpt: evqa-sft-ck750 (--checkpoint $D/runs/sft-curve-lr1e4/checkpoint-750): 43.47 / 78.38</span>
+<span class="c"># older released-SFT comparison (the corrected reading): evqa-sft 39.33 / 71.05</span></pre></details>
+  </section>
+
+  <section>
+    <h2>The pieces, concretely</h2>
+    <dl class="spec">
+      <dt>policy</dt><dd>GME-Qwen2-VL-2B, joint image+text embedder, LoRA r=32 α=64 on attention + MLP projections</dd>
+      <dt>state</dt><dd>one (image, question) pair from InfoSeek — no history, single hop</dd>
+      <dt>action</dt><dd>an <em>ordered</em> 4-passage list drawn from the policy's own top-24</dd>
+      <dt>sampling</dt><dd>Plackett-Luce over q·d/τ at τ=0.02 — sampling without replacement, exact list log-prob</dd>
+      <dt>environment</dt><dd>Qwen2.5-VL-3B-Instruct, frozen, sees the image + each retrieved passage, generates 4 answers at T=0.7</dd>
+      <dt>reward</dt><dd>fraction of the 4 rollouts that cover-match the alias set → r ∈ {0, ¼, ½, ¾, 1}, per unique document</dd>
+      <dt>baseline</dt><dd>mean/std over the G=4 lists of the same query. No value head (<code>vf_coef: 0</code>)</dd>
+      <dt>batch</dt><dd>4 queries × 4 lists; ~16 unique docs × 4 rollouts ≈ 64 reader generations per gradient step</dd>
+      <dt>index drift</dt><dd>the 3,000-distractor passage index is re-encoded with current weights every 100 steps</dd>
+      <dt>benchmark</dt><dd>held-out InfoSeek: retrieval over the full corpus, top-5 passages to a frozen Qwen2.5-VL-<em>7B</em> reader (train and eval readers deliberately differ)</dd>
+    </dl>
+  </section>
+
+  <section>
+    <h2>Where it diverges from standard GRPO</h2>
+    <div class="tablewrap">
+      <table>
+        <thead>
+          <tr><th>component</th><th>standard GRPO (LLM RLHF)</th><th>this loop</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>action</td>
+            <td class="same">token sequence, autoregressive</td>
+            <td class="diff">ordered passage list; log-prob is a Plackett-Luce product over 4 picks, not a token chain</td>
+          </tr>
+          <tr>
+            <td>action space</td>
+            <td class="same">the whole vocabulary at every step</td>
+            <td class="diff">24 candidates the policy itself retrieved — the policy defines its own action set, and no gradient flows through that selection</td>
+          </tr>
+          <tr>
+            <td>reward</td>
+            <td class="same">learned reward model or verifier on the policy's own output</td>
+            <td class="diff">a second frozen model's task accuracy, <em>conditioned on the same image the policy embedded</em> — the retriever is never scored directly, only through the reader's eyes</td>
+          </tr>
+          <tr><td>group baseline</td><td class="same">z-score over G samples, no critic</td><td class="same">identical (G=4)</td></tr>
+          <tr>
+            <td>KL to reference</td>
+            <td class="same">β·KL to the frozen SFT policy — usually essential</td>
+            <td class="diff">absent. The winning arm carries no KL and no anchor; a strong retrieval-finetuned base is the de-facto trust region</td>
+          </tr>
+          <tr>
+            <td>PPO clip</td>
+            <td class="same">binds when the policy drifts across inner epochs</td>
+            <td class="diff">present in code but inert — one gradient step per sampled batch means the ratio is 1 by construction</td>
+          </tr>
+          <tr>
+            <td>episode</td>
+            <td class="same">multi-token, credit assigned along the sequence</td>
+            <td class="diff">single action, single reward — a contextual bandit; the only credit assignment is list-to-document, done by per-document reads</td>
+          </tr>
+          <tr>
+            <td>environment drift</td>
+            <td class="same">none; the environment is the reward model</td>
+            <td class="diff">the passage index lags the policy by up to 100 steps of weight updates</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>Where it diverges from its text twin</h2>
+    <p>The same loop runs on text-only QA (0.6B embedder, text reader, NQ/TriviaQA). Four measured divergences,
+      one convergence — same estimator, opposite stability economics:</p>
+    <div class="tablewrap">
+      <table>
+        <thead>
+          <tr><th>axis</th><th>text twin</th><th>this loop (MM)</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>regularizer</td><td class="same">KL-to-base is <em>the enabler</em> — beats base 4/4 seeds where every anchor cell sat at parity</td><td class="diff">nothing needed — bare estimator clears base on all 3 seeds; KL now tested and it doesn't help (β=0.01: −0.7 acc; β=0.1: −1.7 acc, 1 seed each)</td></tr>
+          <tr class="cmdrow"><td colspan="3"><details><summary>reproduce</summary><pre class="cmd"><span class="c"># KL cells: the v3 command + --kl_beta β (local runs, no yaml); compared with v3-pure seed 0 (acc 34.47)</span>
+CELL_NAME=<span class="k">v3kl001</span> CELL_PROFILE=gme2b \
+CELL_TRAIN_ARGS='--pool built/pool_train.jsonl --max_train_rows 0 --max_steps 500 --no_force_gold --reward judge --algo plgrpo --pl_group 4 --pl_k 4 --pl_support 24 --contrastive_coef 0 --learning_rate 2e-5 --seed 0 --kl_beta 0.01' \
+bash mmrag/mlx_entry_cell.sh     <span class="c"># no yaml — run locally via mmrag/scripts/local_cell_worker.sh</span>
+<span class="c"># → $D/results/v3kl001.retrieval.metrics.json (entity_recall.5 / answer_recall.5) · $D/results/v3kl001.vqa_top5.json (acc)</span>
+<span class="c"># v3kl001 (β=0.01): 76.73 / 63.39 / 33.80 (−0.67 acc) · v3kl01 (--kl_beta 0.1): 74.50 / 61.35 / 32.73 (−1.74) · v3-kl (--kl_beta 0.05, yaml): 74.73 / 61.22 / 32.93</span></pre></details></td></tr>
+          <tr><td>consumption</td><td class="same">flat-to-declining past ~4k queries; anchor recipe decays 67.4 → 63.8 at 3×</td><td class="diff">rises 2k → 6k then plateaus 34-35; nothing decays</td></tr>
+          <tr class="cmdrow"><td colspan="3"><details><summary>reproduce</summary><pre class="cmd"><span class="c"># draws = batch 4 × steps, fixed 200k-row pool. 2k draws = v3-rows200k{,-s1,-s2} (500 steps, seeds 0/1/2): acc 33.47 / 34.33 / 34.20 → 34.00 ± 0.47</span>
+CELL_NAME=<span class="k">v3-rows200k</span> CELL_PROFILE=gme2b \
+CELL_TRAIN_ARGS='--pool built/pool_train_big.jsonl --max_train_rows 200000 --max_steps 500 --no_force_gold --reward judge --algo plgrpo --pl_group 4 --pl_k 4 --pl_support 24 --contrastive_coef 0 --learning_rate 2e-5 --seed 0' \
+bash mmrag/mlx_entry_cell.sh     <span class="c"># mmrag/mlx_configs/v3-rows200k.yaml</span>
+<span class="c"># → $D/results/v3-rows200k.retrieval.metrics.json (entity_recall.5 / answer_recall.5) · $D/results/v3-rows200k.vqa_top5.json (acc)</span>
+<span class="c"># 6k draws = v3-rows200k-s1500 (--max_steps 1500): 34.80 · 12k draws = v3-rows200k-s3000 (--max_steps 3000): 34.07</span>
+<span class="c"># 12k draws at batch 16 = v3-b16-s750 (--batch_size 16 --max_steps 750 --reader_batch_size 8): 34.87 · 1M draws = v3-b16-1M (--batch_size 16 --max_steps 62500, ck 3125…12500): 34.40 → 33.60</span></pre></details></td></tr>
+          <tr><td>input scaling</td><td class="same">null — 4-8× pool, oracle gold seeding, 129k fresh questions all flat</td><td class="diff">draws pay (+0.8 from 2k → 6k); pool size at matched draws is null on both sides</td></tr>
+          <tr class="cmdrow"><td colspan="3"><details><summary>reproduce</summary><pre class="cmd"><span class="c"># pool size at matched 2k draws (500 steps): v3-pure 45k rows 34.47 · v3-rows25k 34.00 · v3-rows200k 34.00 ± 0.47 (3 seeds) · v3-rows1M{,-s1} 810k rows 34.73 / 34.40</span>
+CELL_NAME=<span class="k">v3-rows1M</span> CELL_PROFILE=gme2b \
+CELL_TRAIN_ARGS='--pool built/pool_train_1M.jsonl --max_train_rows 0 --max_steps 500 --no_force_gold --reward judge --algo plgrpo --pl_group 4 --pl_k 4 --pl_support 24 --contrastive_coef 0 --learning_rate 2e-5 --seed 0' \
+bash mmrag/mlx_entry_cell.sh     <span class="c"># mmrag/mlx_configs/v3-rows1M.yaml</span>
+<span class="c"># → $D/results/v3-rows1M.retrieval.metrics.json (entity_recall.5 / answer_recall.5) · $D/results/v3-rows1M.vqa_top5.json (acc)</span>
+<span class="c"># --max_train_rows N on built/pool_train_big.jsonl: 25000 → v3-rows25k · 200000 → v3-rows200k; the anchored (GRPO-8 + 0.3) series is scale-rows{12k,25k,50k,100k,200k} (yaml)</span>
+<span class="c"># retrieval on the 810k pool: 78.70 (s0) vs 74.37 (s1) — the spike that failed seeding</span></pre></details></td></tr>
+          <tr><td>base dependence</td><td class="same">headroom-governed: weak 0.6B base gains, strong 4B base inverts</td><td class="diff">recipe-governed: only retrieval-finetuned bases learn at any size; raw VLMs and CLIP-class bases destroy their retrieval at every tested LR</td></tr>
+          <tr><td>movement law</td><td class="same" colspan="2" style="text-align:center">identical in both: adapter displacement ~linear in LR, sublinear in steps (3× steps → ~1.7× movement), and the best-scoring cell moved <em>least</em> in-domain</td></tr>
+          <tr class="cmdrow"><td colspan="3"><details><summary>reproduce</summary><pre class="cmd">python3 mmrag/adapter_stats.py $D/runs     <span class="c"># lora_B abs-sum per run = adapter displacement; LR pairs: plgrpo-lr1e5 / v3-pure / plgrpo-lr5e5 · steps: v3-rows200k / -s1500 / -s3000</span></pre></details></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>Across base models</h2>
+    <p>The same loop, pointed at ten encoders. Whether it works is decided almost entirely by whether the
+      base was already finetuned for retrieval — not by size, family, or zero-shot strength. Entity R@5 on
+      the 3,000-query eval; "after RL" is the best outcome across tested learning rates:</p>
+    <div class="tablewrap">
+      <table>
+        <thead>
+          <tr><th>base</th><th>retrieval-finetuned?</th><th>zero-shot R@5</th><th>after RL (best LR)</th><th>verdict</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>GME-Qwen2-VL-2B</td><td>yes</td><td>68.53</td><td><strong>76.09</strong> · acc 34.71 ± 0.19 <span class="same">(3 seeds)</span></td><td class="same">learns — the headline</td></tr>
+          <tr class="cmdrow"><td colspan="5"><details><summary>reproduce</summary><pre class="cmd"><span class="c"># = table 1, row 1 (v3-pure, v3-pure-s1, v3-pure-s2) and its zero-shot row (gme2b-zeroshot-3k-repro)</span></pre></details></td></tr>
+          <tr><td>GME-Qwen2-VL-7B</td><td>yes</td><td>69.37</td><td><strong>80.97 / 80.30</strong> · acc 34.60 / 35.73 <span class="same">(2 seeds)</span></td><td class="same">learns</td></tr>
+          <tr class="cmdrow"><td colspan="5"><details><summary>reproduce</summary><pre class="cmd"><span class="c"># = table 2 (gme7b-v3pure, gme7b-v3pure-s1, gme7b-zeroshot)</span></pre></details></td></tr>
+          <tr><td>BGE-VL-large</td><td>yes</td><td>15.73</td><td><strong>21.23</strong> @ 1e-5 <span class="same">(1 seed)</span></td><td class="same">learns in a one-decade LR window; contracts at 1e-4</td></tr>
+          <tr class="cmdrow"><td colspan="5"><details><summary>reproduce</summary><pre class="cmd"><span class="c"># = table 3, row 1: bgevl_l-v3pure-lr1e5 (21.23) · window 3e-6 / 3e-5 / 1e-4 → 15.23 / 14.77 / 0.70 · zero-shot bgevl_l-zeroshot 15.73</span></pre></details></td></tr>
+          <tr><td>BGE-VL-base</td><td>yes</td><td>14.73</td><td class="diff">8.90 @ 1e-5 · 0.07 @ 1e-4 · 3.77 anchored</td><td class="diff">fails at the large twin's window rate — the LR window is per-model, not per-family</td></tr>
+          <tr class="cmdrow"><td colspan="5"><details><summary>reproduce</summary><pre class="cmd">CELL_NAME=<span class="k">bgevl_b-v3pure-lr1e5</span> CELL_PROFILE=bgevl_b \
+CELL_TRAIN_ARGS='--pool built/pool_train.jsonl --max_train_rows 0 --max_steps 500 --no_force_gold --reward judge --algo plgrpo --pl_group 4 --pl_k 4 --pl_support 24 --contrastive_coef 0 --learning_rate 1e-5 --seed 0' \
+bash mmrag/mlx_entry_cell.sh     <span class="c"># no yaml — run locally via mmrag/scripts/local_cell_worker.sh</span>
+<span class="c"># → $D/results/bgevl_b-v3pure-lr1e5.retrieval.metrics.json (entity_recall.5 / answer_recall.5) · $D/results/bgevl_b-v3pure-lr1e5.vqa_top5.json (acc)</span>
+<span class="c"># 1e-4 → 0.07: CELL_NAME=bgevl_b-v3pure with --learning_rate 1e-4 (mmrag/mlx_configs/bgevl_b-v3pure.yaml)</span>
+<span class="c"># anchored 3.77: CELL_NAME=bgevl_b-anchor, --learning_rate 1e-4 --contrastive_coef 0.3 (PL-GRPO + anchor)</span>
+bash mmrag/scripts/ladder_zs.sh bgevl_b <span class="k">bgevl_b-zeroshot</span> 0     <span class="c"># eval chain with --checkpoint __profile__ (released weights) → $D/results/bgevl_b-zeroshot.*</span></pre></details></td></tr>
+          <tr><td>VLM2Vec-2B <span class="same">(Qwen2-VL)</span></td><td class="diff">no — embedding-trained, not retrieval</td><td>15.67</td><td class="diff">0.17–0.70 at every rate tried</td><td class="diff">drift: full-diversity retrieval death, robust across 4× LR</td></tr>
+          <tr class="cmdrow"><td colspan="5"><details><summary>reproduce</summary><pre class="cmd">CELL_NAME=<span class="k">vlm2vec2b-v3pure</span> CELL_PROFILE=vlm2vec2b \
+CELL_TRAIN_ARGS='--pool built/pool_train.jsonl --max_train_rows 0 --max_steps 500 --no_force_gold --reward judge --algo plgrpo --pl_group 4 --pl_k 4 --pl_support 24 --contrastive_coef 0 --learning_rate 2e-5 --seed 0' \
+bash mmrag/mlx_entry_cell.sh     <span class="c"># mmrag/mlx_configs/vlm2vec2b-v3pure.yaml</span>
+<span class="c"># → $D/results/vlm2vec2b-v3pure.retrieval.metrics.json (entity_recall.5 / answer_recall.5) · $D/results/vlm2vec2b-v3pure.vqa_top5.json (acc)</span>
+<span class="c"># 0.70 @ 2e-5 (above) · 0.17 @ 5e-6: CELL_NAME=vlm2vec2b-v3pure-lr5e6 --learning_rate 5e-6 · 1.30 anchored GRPO-8 @ 2e-5: vlm2vec2b-nogold (--algo grpo, yaml)</span>
+bash mmrag/scripts/ladder_zs.sh vlm2vec2b <span class="k">vlm2vec2b-zs-fresh</span> 0     <span class="c"># eval chain with --checkpoint __profile__ (released weights) → $D/results/vlm2vec2b-zs-fresh.*</span></pre></details></td></tr>
+          <tr><td>VLM2Vec-7B</td><td class="diff">no</td><td>14.37</td><td class="diff">2.90 @ 2e-5</td><td class="diff">drift — capacity does not rescue</td></tr>
+          <tr class="cmdrow"><td colspan="5"><details><summary>reproduce</summary><pre class="cmd">CELL_NAME=<span class="k">vlm2vec7b-v3pure</span> CELL_PROFILE=vlm2vec7b \
+CELL_TRAIN_ARGS='--pool built/pool_train.jsonl --max_train_rows 0 --max_steps 500 --no_force_gold --reward judge --algo plgrpo --pl_group 4 --pl_k 4 --pl_support 24 --contrastive_coef 0 --learning_rate 2e-5 --seed 0' \
+bash mmrag/mlx_entry_cell.sh     <span class="c"># mmrag/mlx_configs/vlm2vec7b-v3pure.yaml</span>
+<span class="c"># → $D/results/vlm2vec7b-v3pure.retrieval.metrics.json (entity_recall.5 / answer_recall.5) · $D/results/vlm2vec7b-v3pure.vqa_top5.json (acc)</span>
+<span class="c"># 2.90 @ 2e-5 (above) · 1.90 anchored GRPO-8 @ 1e-5: vlm2vec7b-nogold (--algo grpo --learning_rate 1e-5 --encode_bs 32 --reader_batch_size 8)</span>
+bash mmrag/scripts/ladder_zs.sh vlm2vec7b <span class="k">vlm2vec7b-zeroshot</span> 0     <span class="c"># eval chain with --checkpoint __profile__ (released weights) → $D/results/vlm2vec7b-zeroshot.*</span></pre></details></td></tr>
+          <tr><td>VLM2Vec-4B <span class="same">(Phi-3.5-V)</span></td><td class="diff">no</td><td>12.77</td><td class="same">unfinished — no result</td><td class="same">two MLX attempts both stopped at step 250 (reward degenerate: group_std 0 on every batch at step 249); never evaluated. Recipe-vs-backbone test still open</td></tr>
+          <tr class="cmdrow"><td colspan="5"><details><summary>reproduce</summary><pre class="cmd">CELL_NAME=<span class="k">vlm2vec4b-v3pure</span> CELL_PROFILE=vlm2vec4b \
+CELL_TRAIN_ARGS='--pool built/pool_train.jsonl --max_train_rows 0 --max_steps 500 --no_force_gold --reward judge --algo plgrpo --pl_group 4 --pl_k 4 --pl_support 24 --contrastive_coef 0 --learning_rate 2e-5 --seed 0' \
+bash mmrag/mlx_entry_cell.sh     <span class="c"># mmrag/mlx_configs/vlm2vec4b-v3pure.yaml</span>
+<span class="c"># → $D/results/vlm2vec4b-v3pure.retrieval.metrics.json (entity_recall.5 / answer_recall.5) · $D/results/vlm2vec4b-v3pure.vqa_top5.json (acc)</span>
+<span class="c"># MLX jobs f1a4695950630a51 (2026-08-13) and 885a9aadfb7b8fe6 (2026-08-18): $D/runs/vlm2vec4b-v3pure has checkpoint-250 + metrics.jsonl only; no adapter_model.safetensors, no results</span>
+bash mmrag/scripts/ladder_zs.sh vlm2vec4b <span class="k">vlm2vec4b-zeroshot</span> 0     <span class="c"># eval chain with --checkpoint __profile__ (released weights) → $D/results/vlm2vec4b-zeroshot.*</span></pre></details></td></tr>
+          <tr><td>Qwen2.5-VL-3B <span class="same">(raw)</span></td><td class="diff">no</td><td>3.73</td><td class="diff">0.00–0.60 at all three rates</td><td class="diff">dead everywhere; LR slides the failure mode, drift → contraction</td></tr>
+          <tr class="cmdrow"><td colspan="5"><details><summary>reproduce</summary><pre class="cmd">CELL_NAME=<span class="k">qwen25_3b-v3pure</span> CELL_PROFILE=qwen25_3b \
+CELL_TRAIN_ARGS='--pool built/pool_train.jsonl --max_train_rows 0 --max_steps 500 --no_force_gold --reward judge --algo plgrpo --pl_group 4 --pl_k 4 --pl_support 24 --contrastive_coef 0 --learning_rate 1e-4 --seed 0' \
+bash mmrag/mlx_entry_cell.sh     <span class="c"># mmrag/mlx_configs/qwen25_3b-v3pure.yaml</span>
+<span class="c"># → $D/results/qwen25_3b-v3pure.retrieval.metrics.json (entity_recall.5 / answer_recall.5) · $D/results/qwen25_3b-v3pure.vqa_top5.json (acc)</span>
+<span class="c"># 0.00 @ 1e-4 (above) · 0.03 @ 2e-5: CELL_NAME=qwen25_3b-v3pure-lr2e5 · 0.60 @ 3e-5: CELL_NAME=qwen25_3b-v3pure-lr3e5 (--learning_rate as named)</span>
+bash mmrag/scripts/ladder_zs.sh qwen25_3b <span class="k">qwen25_3b-zeroshot</span> 0     <span class="c"># eval chain with --checkpoint __profile__ (released weights) → $D/results/qwen25_3b-zeroshot.*</span></pre></details></td></tr>
+          <tr><td>Qwen2-VL-2B <span class="same">(raw)</span></td><td class="diff">no</td><td>0.03</td><td class="same">0.00 @ 5e-6 · 0.00 @ 2e-5 · 0.00 anchored</td><td class="same">no zero-shot signal to train on; uninformative</td></tr>
+          <tr class="cmdrow"><td colspan="5"><details><summary>reproduce</summary><pre class="cmd">CELL_NAME=<span class="k">qwen2b-v3pure</span> CELL_PROFILE=qwen2b \
+CELL_TRAIN_ARGS='--pool built/pool_train.jsonl --max_train_rows 0 --max_steps 500 --no_force_gold --reward judge --algo plgrpo --pl_group 4 --pl_k 4 --pl_support 24 --contrastive_coef 0 --learning_rate 2e-5 --seed 0' \
+bash mmrag/mlx_entry_cell.sh     <span class="c"># mmrag/mlx_configs/qwen2b-v3pure.yaml</span>
+<span class="c"># → $D/results/qwen2b-v3pure.retrieval.metrics.json (entity_recall.5 / answer_recall.5) · $D/results/qwen2b-v3pure.vqa_top5.json (acc)</span>
+<span class="c"># 5e-6: CELL_NAME=qwen2b-v3pure-lr5e6 --learning_rate 5e-6 · anchored GRPO-8: qwen2b-nogold (--algo grpo, yaml)</span>
+bash mmrag/scripts/ladder_zs.sh qwen2b <span class="k">qwen2b-zeroshot</span> 0     <span class="c"># eval chain with --checkpoint __profile__ (released weights) → $D/results/qwen2b-zeroshot.*</span></pre></details></td></tr>
+          <tr><td>SigLIP2-so400m</td><td class="diff">no — contrastive pretraining only</td><td>8.23</td><td class="diff">6.60 @ 1e-5 · 0.40 @ 1e-4 bare · anchored: 17.47 / 1.10 / 0.13 across 3 seeds (seed 0 GRPO-8, seeds 1–2 PL-GRPO — see cmd)</td><td class="diff">loses ground bare; the anchor "rescue" failed replication — seed-lottery, mean below zero-shot</td></tr>
+          <tr class="cmdrow"><td colspan="5"><details><summary>reproduce</summary><pre class="cmd">CELL_NAME=<span class="k">siglip2-v3pure-lr1e5</span> CELL_PROFILE=siglip2 \
+CELL_TRAIN_ARGS='--pool built/pool_train.jsonl --max_train_rows 0 --max_steps 500 --no_force_gold --reward judge --algo plgrpo --pl_group 4 --pl_k 4 --pl_support 24 --contrastive_coef 0 --learning_rate 1e-5 --seed 0' \
+bash mmrag/mlx_entry_cell.sh     <span class="c"># no yaml — run locally via mmrag/scripts/local_cell_worker.sh</span>
+<span class="c"># → $D/results/siglip2-v3pure-lr1e5.retrieval.metrics.json (entity_recall.5 / answer_recall.5) · $D/results/siglip2-v3pure-lr1e5.vqa_top5.json (acc)</span>
+<span class="c"># 0.40 @ 1e-4: CELL_NAME=siglip2-v3pure --learning_rate 1e-4 (yaml) · anchored seeds: table 3, row 2 · zero-shot: siglip2-zs-fresh 8.23</span></pre></details></td></tr>
+          <tr><td>CLIP-L/14</td><td class="diff">no</td><td>5.37</td><td class="diff">4.10 @ 1e-5 · 1.70 @ 3e-5 · 0.43 @ 1e-4 <span class="same">(anchored GRPO-8 @ 1e-4: 29.13, 1 seed, never replicated)</span></td><td class="diff">loses ground bare at every rate; the one-seed anchored 29.13 is the same shape as the SigLIP2 lottery and is not claimed</td></tr>
+          <tr class="cmdrow"><td colspan="5"><details><summary>reproduce</summary><pre class="cmd">CELL_NAME=<span class="k">clip-v3pure-lr1e5</span> CELL_PROFILE=clip \
+CELL_TRAIN_ARGS='--pool built/pool_train.jsonl --max_train_rows 0 --max_steps 500 --no_force_gold --reward judge --algo plgrpo --pl_group 4 --pl_k 4 --pl_support 24 --contrastive_coef 0 --learning_rate 1e-5 --seed 0' \
+bash mmrag/mlx_entry_cell.sh     <span class="c"># mmrag/mlx_configs/clip-v3pure-lr1e5.yaml</span>
+<span class="c"># → $D/results/clip-v3pure-lr1e5.retrieval.metrics.json (entity_recall.5 / answer_recall.5) · $D/results/clip-v3pure-lr1e5.vqa_top5.json (acc)</span>
+<span class="c"># 3e-5: CELL_NAME=clip-v3pure-lr3e5 · 1e-4: CELL_NAME=clip-v3pure (yaml) · anchored 29.13: clip-nogold-base (--algo grpo --learning_rate 1e-4, yaml; + --reward_gate_noctx → clip-nogold-gate 3.80)</span>
+bash mmrag/scripts/ladder_zs.sh clip <span class="k">clip-zeroshot</span> 0     <span class="c"># eval chain with --checkpoint __profile__ (released weights) → $D/results/clip-zeroshot.*</span></pre></details></td></tr>
+          <tr><td>CLIP-B/16</td><td class="diff">no</td><td>3.10</td><td class="diff">0.03 @ 1e-4</td><td class="diff">deepest contraction on record — 96 distinct top-5 lists across 3,000 queries, accuracy <em>rises</em> to the no-context floor</td></tr>
+          <tr class="cmdrow"><td colspan="5"><details><summary>reproduce</summary><pre class="cmd">CELL_NAME=<span class="k">clipb16-v3pure</span> CELL_PROFILE=clipb16 \
+CELL_TRAIN_ARGS='--pool built/pool_train.jsonl --max_train_rows 0 --max_steps 500 --no_force_gold --reward judge --algo plgrpo --pl_group 4 --pl_k 4 --pl_support 24 --contrastive_coef 0 --learning_rate 1e-4 --seed 0' \
+bash mmrag/mlx_entry_cell.sh     <span class="c"># no yaml — run locally via mmrag/scripts/local_cell_worker.sh</span>
+<span class="c"># → $D/results/clipb16-v3pure.retrieval.metrics.json (entity_recall.5 / answer_recall.5) · $D/results/clipb16-v3pure.vqa_top5.json (acc)</span>
+<span class="c"># anchored 1.13: CELL_NAME=clipb16-anchor + --contrastive_coef 0.3 · distinct-top-5 count: python3 mmrag/collect_results.py</span>
+bash mmrag/scripts/ladder_zs.sh clipb16 <span class="k">clipb16-zeroshot</span> 0     <span class="c"># eval chain with --checkpoint __profile__ (released weights) → $D/results/clipb16-zeroshot.*</span></pre></details></td></tr>
+          <tr><td>CLIP-B/32</td><td class="diff">no</td><td>2.60</td><td class="diff">2.57 @ 1e-4</td><td class="diff">inert — large adapter movement, nothing changes; the single member of its phenotype</td></tr>
+          <tr class="cmdrow"><td colspan="5"><details><summary>reproduce</summary><pre class="cmd">CELL_NAME=<span class="k">clipb32-v3pure</span> CELL_PROFILE=clipb32 \
+CELL_TRAIN_ARGS='--pool built/pool_train.jsonl --max_train_rows 0 --max_steps 500 --no_force_gold --reward judge --algo plgrpo --pl_group 4 --pl_k 4 --pl_support 24 --contrastive_coef 0 --learning_rate 1e-4 --seed 0' \
+bash mmrag/mlx_entry_cell.sh     <span class="c"># no yaml — run locally via mmrag/scripts/local_cell_worker.sh</span>
+<span class="c"># → $D/results/clipb32-v3pure.retrieval.metrics.json (entity_recall.5 / answer_recall.5) · $D/results/clipb32-v3pure.vqa_top5.json (acc)</span>
+python3 mmrag/adapter_stats.py $D/runs/clipb32-v3pure     <span class="c"># lora_B abs-sum = adapter movement (large here)</span>
+bash mmrag/scripts/ladder_zs.sh clipb32 <span class="k">clipb32-zeroshot</span> 0     <span class="c"># eval chain with --checkpoint __profile__ (released weights) → $D/results/clipb32-zeroshot.*</span></pre></details></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="same" style="font-size:0.94rem">All rows 1 seed unless marked. Two regularities the table
+      carries: the inert/contraction boundary sits in a five-thousandths-wide zero-shot band (2.60, 3.10)
+      within the CLIP family, and every failing base <em>moves</em> — the failure is never "didn't train,"
+      always "trained and destroyed retrieval," which is why accuracy alone (which the contraction endpoint
+      <em>improves</em>) can never diagnose it.</p>
+  </section>
+
+
+  <section>
+    <h2>The diverse pool — index dynamics and the annotated comparator</h2>
+    <p>The campaign's current cell replaces the InfoSeek-only training pool with a tiered, query-diverse
+      mix (InfoSeek + OVEN + E-VQA + OK-VQA; head-45k of the diverse core) over a 1.26M-passage corpus,
+      and tests two ways of slowing the index the policy trains against: an EMA on the re-encoded index
+      rows (<code>--index_ema 0.9</code>, retention on the old row, plus a stalest-first extra sweep) and an
+      EMA document tower (<code>--model_ema 0.99</code>). All single seed; per the seeding protocol no
+      margin below ~1 point is claimed here.</p>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>arm (GME-2B, diverse 45k pool)</th><th>entity R@5</th><th>answer R@5</th><th>VQA acc</th></tr></thead>
+        <tbody>
+          <tr><td>v3-pure</td><td><strong>76.83</strong></td><td><strong>64.57</strong></td><td><strong>33.00</strong> <span class="same">(1 seed)</span></td></tr>
+          <tr class="cmdrow"><td colspan="4"><details><summary>reproduce</summary><pre class="cmd"><span class="c"># pool: head-45k of the tiered diverse pool; corpus_div_v2 from mmrag/build_div_mix_v2.py</span>
+python3 mmrag/build_div_mix_v2.py --data_dir $MMRAG_DATA --oven_cap 400000     <span class="c"># → built/corpus_div_v2.jsonl, built/pool_div_1M_v2.jsonl</span>
+<span class="c"># pool_div_1M_v3 = v2 re-tiered by per-question caps (InfoSeek 1500 / OVEN 600 / OVEN-generic 1000): 702,271-row diverse core first, 345,646 template rows after;</span>
+<span class="c">#   recorded in $D/built/pool_div_1M_v3.composition.json — the one-off tiering script was not retained (ledger 2026-08-23)</span>
+head -n 45000 $D/built/pool_div_1M_v3.jsonl > $D/built/pool_div45k_v3.jsonl     <span class="c"># mmrag/scripts/resubmit_ema.sh</span>
+CELL_NAME=<span class="k">div45kv3-v3pure</span> CELL_PROFILE=gme2b \
+CELL_TRAIN_ARGS='--pool built/pool_div45k_v3.jsonl --corpus built/corpus_div_v2.jsonl --image_dataset div --max_train_rows 0 --max_steps 500 --no_force_gold --reward judge --algo plgrpo --pl_group 4 --pl_k 4 --pl_support 24 --contrastive_coef 0 --seed 0 --learning_rate 2e-5' \
+bash mmrag/mlx_entry_cell.sh     <span class="c"># mmrag/mlx_configs/div45kv3-v3pure.yaml</span>
+<span class="c"># → $D/results/div45kv3-v3pure.retrieval.metrics.json (entity_recall.5 / answer_recall.5) · $D/results/div45kv3-v3pure.vqa_top5.json (acc)</span></pre></details></td></tr>
+          <tr><td>+ index EMA (m=0.9, extra sweep 256)</td><td>75.77</td><td>63.14</td><td>32.93 <span class="same">(1 seed)</span></td></tr>
+          <tr class="cmdrow"><td colspan="4"><details><summary>reproduce</summary><pre class="cmd">CELL_NAME=<span class="k">div45kv3-emaidx</span> CELL_PROFILE=gme2b \
+CELL_TRAIN_ARGS='--pool built/pool_div45k_v3.jsonl --corpus built/corpus_div_v2.jsonl --image_dataset div --max_train_rows 0 --max_steps 500 --no_force_gold --reward judge --algo plgrpo --pl_group 4 --pl_k 4 --pl_support 24 --contrastive_coef 0 --seed 0 --learning_rate 2e-5 --index_ema 0.9 --index_refresh_extra 256' \
+bash mmrag/mlx_entry_cell.sh     <span class="c"># mmrag/mlx_configs/div45kv3-emaidx.yaml</span>
+<span class="c"># → $D/results/div45kv3-emaidx.retrieval.metrics.json (entity_recall.5 / answer_recall.5) · $D/results/div45kv3-emaidx.vqa_top5.json (acc)</span>
+<span class="c"># index[p] ← l2norm(0.9·old + 0.1·new) on every re-encoded row (mmrag/train_rl.py ema_write); parity with v3-pure at 45k</span></pre></details></td></tr>
+          <tr><td>+ EMA doc tower (0.99)</td><td class="diff">72.47</td><td class="diff">60.49</td><td>32.20 <span class="same">(1 seed; eval confounded — see cmd)</span></td></tr>
+          <tr class="cmdrow"><td colspan="4"><details><summary>reproduce</summary><pre class="cmd">CELL_NAME=<span class="k">div45kv3-emaenc</span> CELL_PROFILE=gme2b \
+CELL_TRAIN_ARGS='--pool built/pool_div45k_v3.jsonl --corpus built/corpus_div_v2.jsonl --image_dataset div --max_train_rows 0 --max_steps 500 --no_force_gold --reward judge --algo plgrpo --pl_group 4 --pl_k 4 --pl_support 24 --contrastive_coef 0 --seed 0 --learning_rate 2e-5 --index_ema 0.9 --index_refresh_extra 256 --model_ema 0.99' \
+bash mmrag/mlx_entry_cell.sh     <span class="c"># mmrag/mlx_configs/div45kv3-emaenc.yaml</span>
+<span class="c"># → $D/results/div45kv3-emaenc.retrieval.metrics.json (entity_recall.5 / answer_recall.5) · $D/results/div45kv3-emaenc.vqa_top5.json (acc)</span>
+<span class="c"># CONFOUND: this local run&#x27;s adapter predates the ema_tower save fix, so the eval chain encoded documents with the LIVE weights, not the EMA tower the policy trained against.</span>
+<span class="c">#   The clean read is the MLX duplicate of the same yaml (mmrag/mlx_configs/div45kv3-emaenc.yaml), not yet resubmitted (on hold).</span></pre></details></td></tr>
+          <tr><td>Rel-SFT (annotated), best ckpt 750</td><td>75.87</td><td>60.41</td><td>32.07 <span class="same">(1 seed, max over ckpts)</span></td></tr>
+          <tr class="cmdrow"><td colspan="4"><details><summary>reproduce</summary><pre class="cmd">bash mmrag/scripts/launch_sft_div.sh     <span class="c"># waits for div45kv3-v3pure, then runs exactly:</span>
+python3 -u mmrag/train_sft.py --profile gme2b --pool built/pool_div45k_v3.jsonl --image_dataset div --batch_size 24 --learning_rate 1e-4 \
+    --max_steps 1200 --save_steps 150 --seed 0 --output_dir $D/runs/<span class="k">sft-div45k</span> --device cuda:0
+<span class="c"># then eval chain on checkpoint-{450,600,750,900,1050} → $D/results/sft-div45k-ck&lt;N&gt;.*  (entR@5 / ansR@5 / acc):</span>
+<span class="c">#   ck450 73.67/59.02/31.67 · ck600 74.43/58.00/30.87 · ck750 75.87/60.41/32.07 · ck900 72.77/59.80/31.93 · ck1050 71.57/54.53/30.73</span>
+<span class="c">#   ck1200 (= the final adapter at the run root) was not evaluated: the launcher looked for checkpoint-1200, which train_sft.py does not write</span>
+<span class="c"># RL − SFT-best on this pool: +0.96 entR@5 / +4.16 ansR@5 / +0.93 acc — single seed each side, so recorded, not claimed</span></pre></details></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>Geometry of the same four encoders — mean pairwise cosine over a fixed seeded sample (2,000 passages of
+      <code>corpus_small</code>; 1,000 image+question queries of the InfoSeek test split). Annotation-free RL
+      spreads the <em>query</em> space (0.221 → 0.059, −0.16 vs base; the text twin sees −0.17) while the
+      document space barely moves; index EMA damps only the document side; the EMA-tower arm is the most
+      geometry-conservative on both sides (its query number is clean — the query tower trains live).</p>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>mean pairwise cos</th><th>base</th><th>v3-pure</th><th>+ index EMA</th><th>+ EMA doc tower</th></tr></thead>
+        <tbody>
+          <tr><td>documents (2,000)</td><td>0.0726</td><td>0.0486</td><td>0.0567</td><td>0.0895</td></tr>
+          <tr class="cmdrow"><td colspan="5"><details><summary>reproduce</summary><pre class="cmd">MMRAG_DATA=$D python3 mmrag/geom_probe.py cuda:0     <span class="c"># → $D/results/geom_probe_div45kv3.json ; encodes with mmrag/encoder.py load_encoder(gme2b, checkpoint=$D/runs/div45kv3-&lt;arm&gt;)</span></pre></details></td></tr>
+          <tr><td>queries (1,000)</td><td>0.2212</td><td>0.0594</td><td>0.0612</td><td>0.0976</td></tr>
+          <tr class="cmdrow"><td colspan="5"><details><summary>reproduce</summary><pre class="cmd">MMRAG_DATA=$D python3 mmrag/geom_probe_q.py cuda:0     <span class="c"># → $D/results/geom_probe_q_div45kv3.json ; image+question via encode_queries</span></pre></details></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="verdict">
+    <h2>Is it proper RL?</h2>
+
+    <div class="claim yes">
+      <span class="tag">genuinely RL</span>
+      <p>The objective is not differentiable and never becomes so: the reward exists on the far side of a frozen
+        VLM's sampled generations and a string match. Actions are sampled, their exact log-probability is known,
+        the baseline is a proper within-group variance reduction, and the gradient reaches only the adapter.
+        The full policy-gradient contract, on an environment you genuinely cannot backprop through.</p>
+    </div>
+
+    <div class="claim no">
+      <span class="tag">not PPO, and the clip is decoration</span>
+      <p>One gradient step per sampled batch means <code>old_logps</code> come from the very weights being
+        updated — the importance ratio is 1 and the clip never binds. The honest name is REINFORCE with a
+        group baseline over Plackett-Luce list actions. Same degeneracy as the text twin; neither side's
+        trust region does any work.</p>
+    </div>
+
+    <div class="claim no">
+      <span class="tag">not sequential RL</span>
+      <p>One state, one action, one reward — a contextual bandit. No bootstrapping, no discounting, no
+        transitions. "RL" here means policy-gradient optimization of a black-box objective.</p>
+    </div>
+
+    <div class="claim care">
+      <span class="tag">the caveat that actually bites</span>
+      <p>Exploration is bounded by the thing being trained: the policy ranks inside its own top-24, so a passage
+        the base never surfaces can never be rewarded. The method is a reranking correction, not a retrieval-capability
+        gain — and it predicts the scope we measured: gains on retrieval-finetuned bases that are nearly right,
+        catastrophe elsewhere.</p>
+    </div>
+
+    <div class="claim care">
+      <span class="tag">the base model is part of the recipe</span>
+      <p>This is the sharpest MM-specific scope condition, measured across ten bases: only encoders already
+        finetuned for retrieval can learn from this reward (GME-2B/7B; BGE-VL at 1e-5, +5.5 R@5, 1 seed). Every
+        raw VLM tested destroys its retrieval while training — full-diversity drift (VLM2Vec 2B and 7B, robust
+        across a 4× LR range) or top-5 contraction to as few as 32 distinct lists in 3,000 queries (CLIP family,
+        raw Qwen2.5-VL at every rate). The learning rate slides the failure mode; it does not change the verdict.
+        And accuracy alone cannot see any of this: full contraction drives VQA accuracy <em>up</em>, to exactly the
+        no-context floor — three cells "improved" while their retrieval died. Retrieval metrics or nothing.</p>
+    </div>
+
+    <div class="claim care">
+      <span class="tag">"annotation-free" has a precise boundary</span>
+      <p>No relevance label, no gold passage, and — the MM-specific part — no image annotation: no region, no
+        caption, no visual grounding of any kind. The image is supervision-free on both of its two entries into
+        the loop. What the reward does need is the question's answer string with aliases. Free of retrieval and
+        visual supervision, not free of supervision.</p>
+    </div>
+  </section>
+
+  <section class="bottomline">
+    <p>Short answer: yes — the same policy-gradient contract as the text twin, with the image entering twice
+      (embedded by the policy, judged against by the environment) and labeled never. It is not PPO, it is not
+      sequential, and its action space is small and self-defined. The accurate one-liner is
+      <strong>“Plackett-Luce GRPO over passage lists with an image-conditioned frozen-reader reward, no
+      regularizer”</strong> — and the scientific content is in what the reward can and cannot teach: it
+      upgrades retrievers that already retrieve, transfers out of domain where supervised finetuning
+      anti-transfers, and destroys everything else while the accuracy metric applauds.</p>
+  </section>
+
+  <section class="repro">
+    <h2>Appendix — the exact command behind every number</h2>
+    <p>Every result row above carries a <em>reproduce</em> toggle with the exact invocation. All paths are
+      relative to the <code>VLM2Vec-rl</code> repo (branch <code>mmrag-ema</code>, which contains this page at
+      <code>mmrag/docs/vqa_retriever_loop.html</code>; the pre-EMA results were produced on <code>v23-base</code>,
+      whose training code <code>mmrag-ema</code> extends without changing defaults). A cell is
+      <code>CELL_NAME=… CELL_PROFILE=… CELL_TRAIN_ARGS='…' bash mmrag/mlx_entry_cell.sh</code>: it supplies the
+      fixed flags listed under “headline” below, appends <code>CELL_TRAIN_ARGS</code>, trains, then runs the eval
+      chain. Cells submitted to MLX have their exact env committed in <code>mmrag/mlx_configs/&lt;cell&gt;.yaml</code>
+      (<code>bash mmrag/mlx_submit_cell.sh &lt;name&gt; &lt;profile&gt; "&lt;args&gt;"</code> writes and submits one);
+      cells run on the local box used the same entry script through <code>mmrag/scripts/local_cell_worker.sh</code>.
+      Helper scripts referenced by the rows live in <code>mmrag/scripts/</code>; the geometry probes are
+      <code>mmrag/geom_probe.py</code> / <code>mmrag/geom_probe_q.py</code>. One GPU per cell throughout.</p>
+
+    <h3>Environment (common to everything)</h3>
+    <pre class="cmd">cd VLM2Vec-rl
+export MMRAG_DATA=/mnt/bn/tns-algo-video-public-my2/yijiangli/data/mmrag_data   <span class="c"># "$D" below: pools, images, runs/, results/</span>
+export PYTHONPATH=$PWD  PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+D=$MMRAG_DATA
+pip install torch==2.8.0 transformers==4.57.0 peft==0.17.1 accelerate==1.13.0 \
+    huggingface_hub==0.36.2 qwen-vl-utils pillow
+pip install flash-attn==2.8.1 --no-build-isolation   <span class="c"># required — sdpa fallback breaks comparability</span></pre>
+
+    <h3>The eval chain — every entity R@5 / answer R@5 / VQA-acc cell comes from this</h3>
+    <pre class="cmd">NAME=v3-pure; RUN=$D/runs/$NAME; PROF=gme2b        <span class="c"># any run name / profile from the tables</span>
+python3 -u mmrag/encode_corpus.py  --profile $PROF --checkpoint "$RUN" \
+    --cache $D/cache/$NAME.pt --device cuda:0 --bs 192
+python3 -u mmrag/eval_retrieval.py --profile $PROF --checkpoint "$RUN" --name $NAME \
+    --max-q 3000 --device cuda:0 --corpus_bs 192 --cache_corpus $D/cache/$NAME.pt
+python3 -u mmrag/eval_vqa.py --retrieval $D/results/$NAME.retrieval.json \
+    --reader Qwen/Qwen2.5-VL-7B-Instruct --k 5 --max-q 1500 --device cuda:0 --batch_size 8
+<span class="c"># R@5 → results/$NAME.retrieval.metrics.json · acc → results/$NAME.vqa_top5.json
+# zero-shot rows: --checkpoint __profile__ (the profile's released weights) — bash mmrag/scripts/ladder_zs.sh &lt;profile&gt; &lt;name&gt; &lt;gpu&gt;
+# one-shot local form of the whole chain: bash mmrag/scripts/eval_run.sh &lt;run_name&gt; &lt;profile&gt; &lt;gpu&gt;</span></pre>
+
+    <h3>Headline: v3-pure on GME-2B <span class="c">(table 1, row 1 — 76.09 / 63.46 / 34.71 ± 0.19)</span></h3>
+    <pre class="cmd">python3 -u mmrag/train_rl.py --profile gme2b --output_dir $D/runs/v3-pure \
+    --pool built/pool_train.jsonl --corpus built/corpus_small.jsonl \
+    <span class="k">--algo plgrpo --pl_group 4 --pl_k 4 --pl_support 24 --temperature 0.02</span> \
+    --no_force_gold --reward judge --reader_model Qwen/Qwen2.5-VL-3B-Instruct \
+    --reader_rollouts 4 --reader_temperature 0.7 --reader_batch_size 16 \
+    --learning_rate 2e-5 --contrastive_coef 0 --beta 0.0 --vf_coef 0.0 --epsilon 0.2 \
+    --batch_size 4 --max_steps 500 --max_train_rows 0 --lora_r 32 --lora_alpha 64 \
+    --n_distractor_articles 3000 --refresh_steps 100 --encode_bs 64 --max_len_doc 512 \
+    --save_steps 250 --log_every 25 --seed 0 --device cuda:0
+<span class="c"># seeds 0 / 1 / 2 → acc 34.71 ± 0.19; then the eval chain above.
+# v2 (+anchor) row: same PL-GRPO command with --contrastive_coef 0.3 (seeds 0/2/3 → plgrpo-gme2b-nogold, plgrpo-s2, plgrpo-s3)
+# the GRPO-8 + anchor form (--algo grpo --num_candidates 8 --contrastive_coef 0.3) is the older v1/"nogold" family: rl-j2e5-nogold-det-repro, scale-rows*, *-nogold
+# KL cells (divergence table): add --kl_beta 0.01  (−0.7 acc)  or  --kl_beta 0.1  (−1.7 acc)</span></pre>
+
+    <h3>Rel-SFT comparator, GME-2B <span class="c">(table 1 — 73.63 / 59.67 / 32.85 ± 0.90)</span></h3>
+    <pre class="cmd">python3 -u mmrag/train_sft.py --profile gme2b --pool built/pool_train.jsonl \
+    --output_dir $D/runs/sft-curve-lr1e4 --learning_rate 1e-4 --num_hard_negs 0 \
+    --batch_size 24 --max_steps 1200 --save_steps 150 --lora_r 32 --lora_alpha 64 \
+    --temperature 0.03 --max_len_doc 512 --seed 0 --device cuda:0
+<span class="c"># eval every checkpoint-{150…1200} with the eval chain; the table quotes each seed's BEST
+# checkpoint (seeds 0/1/2 → 33.00 / 33.67 / 31.87), the estimator that favors SFT.</span></pre>
+
+    <h3>GME-7B, both arms <span class="c">(table 2)</span></h3>
+    <pre class="cmd"><span class="c"># RL: same train_rl.py command with</span>
+    --profile gme7b --learning_rate 1e-5 --encode_bs 32 --reader_batch_size 8   <span class="c"># seeds 0 / 1</span>
+<span class="c"># SFT: same train_sft.py command with</span>
+    --profile gme7b --batch_size 16 --max_steps 600 --save_steps 150 --learning_rate 1e-4
+<span class="c"># eval chain with PROF=gme7b (encode bs 96)</span></pre>
+
+    <h3>The ten-base ladder <span class="c">("Across base models" table)</span></h3>
+    <pre class="cmd"><span class="c"># one command family — only --profile and --learning_rate move (train_rl.py as in the headline):</span>
+    --profile {gme2b,gme7b,bgevl_l,bgevl_b,vlm2vec2b,vlm2vec4b,vlm2vec7b,qwen25_3b,qwen2b,clip,clipb16,clipb32,siglip2}
+<span class="c"># LRs behind each cell: GME-2B 2e-5 · GME-7B 1e-5 · BGE-VL-large/base 1e-5 and 1e-4
+#   VLM2Vec-2B/4B/7B 2e-5 (2B also 5e-6…2e-5, the 4× robustness range) · Qwen2.5-VL-3B 1e-4 (and lower)
+#   SigLIP2 / CLIP-L / CLIP-B16 / CLIP-B32 1e-4, retried at 1e-5
+# SigLIP2 "anchored" cells: seed 0 = siglip2-nogold (--algo grpo @ 1e-4, anchor 0.3 by default); seeds 1/2 = plgrpo + --contrastive_coef 0.3 @ 1e-4
+# zero-shot column: eval chain, no --checkpoint, --name &lt;profile&gt;-zeroshot
+# exact per-cell flags: mmrag/mlx_configs/{bgevl_l-v3pure-lr1e5,vlm2vec2b-v3pure,siglip2-v3pure,clip-v3pure,…}.yaml</span></pre>
+
+    <h3>Data scaling — both axes <span class="c">(consumption plateau + pool-size null)</span></h3>
+    <pre class="cmd"><span class="c"># rows axis (fixed 500 steps, same command, bigger pool):</span>
+    --pool built/pool_train_big.jsonl --max_train_rows {12500,25000,50000,100000,200000}
+    --pool built/pool_train_1M.jsonl  --max_train_rows 0        <span class="c"># the 810k point; seeds 0/1</span>
+<span class="c"># draws axis (fixed pool, more consumption): extend --max_steps 3000 and eval checkpoint-1500
+#   (= 6k query draws) or 3000 (= 12k, the 34.07 point); --batch_size 16 --max_steps 750 (= 12k, 34.87) / 62500 (the 1M-draws run)
+# SFT scaling comparator: train_sft.py --pool built/pool_train_big.jsonl --max_train_rows 200000
+#   (and pool_train_1M for 810k), --batch_size 24 --learning_rate 1e-4 --max_steps 1200</span></pre>
+
+    <h3>E-VQA out-of-domain transfer</h3>
+    <pre class="cmd">python3 -u mmrag/eval_retrieval.py --profile gme2b --checkpoint $D/runs/v3-pure --name v3-pure-evqa \
+    <span class="k">--dataset evqa</span> --max-q 3000 --device cuda:0 --corpus_bs 128 --cache_corpus $D/cache/v3-pure-evqa.pt
+python3 -u mmrag/eval_vqa.py --retrieval $D/results/v3-pure-evqa.retrieval.json <span class="k">--dataset evqa</span> \
+    --reader Qwen/Qwen2.5-VL-7B-Instruct --k 5 --max-q 1500 --device cuda:0 --batch_size 8</pre>
+
+    <h3>Significance <span class="c">(p ≤ 4.2e-6, McNemar)</span></h3>
+    <pre class="cmd">python3 mmrag/significance.py --pairs v3-pure:gme2b-zeroshot-3k-repro v3-pure-s1:gme2b-zeroshot-3k-repro v3-pure-s2:gme2b-zeroshot-3k-repro
+<span class="c"># exact-binomial McNemar + paired bootstrap 95% CI over the stored per-question predictions</span></pre>
+  </section>
+</main>
+
+

@@ -10,7 +10,9 @@ success on knowledge-VQA (**InfoSeek**; OOD **Encyclopedic-VQA**), and compare a
 > **STATUS (2026-08-23):** headline claims are seed-confirmed; `RL_REDESIGN.md` is the
 > authoritative running ledger (every claim, retraction, and convention, append-only).
 > The paper section lives in `VLM2Vec-in:mmrag/sec_mm_rag.tex`; the architecture page is the
-> "VQA Retriever Loop" artifact. Sections below marked *historical* describe the earlier
+> "VQA Retriever Loop" artifact, committed as `mmrag/docs/vqa_retriever_loop.html` — every result
+> row there carries a "reproduce" toggle with the exact repo command behind it (helper scripts in
+> `mmrag/scripts/`, geometry probes `mmrag/geom_probe{,_q}.py`). Sections below marked *historical* describe the earlier
 > Isambard/sbatch campaign; current work runs on tth100 + the MLX cluster (next section).
 >
 > **Framing (per user directive):** the PRIMARY experimental question is the **[no-gold]**

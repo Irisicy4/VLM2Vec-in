@@ -1042,3 +1042,37 @@ raised is ruled out on their side, and the blend weight stands alone as the live
 for doc-side geometry: fresh weight 0.1 (mine) -> docs ~static; 0.5 (theirs) -> -0.141.
 Cell remains UNRUN on both sides by explicit allocation decision, with both artifact
 explanations (coverage, norm shrinkage) affirmatively excluded rather than unexamined.
+
+### 2026-08-28: div45k SFT comparator landed; loop page committed with per-row reproduce commands
+[all entR@5 / ansR@5 / acc, InfoSeek, 7B eval reader, 1 seed each unless noted]
+sft-div45k (tuned config, pool_div45k_v3, ck/150, 1200 steps; evaluated ck450..1050):
+  ck450 73.67/59.02/31.67 · ck600 74.43/58.00/30.87 · ck750 75.87/60.41/32.07 (best) ·
+  ck900 72.77/59.80/31.93 · ck1050 71.57/54.53/30.73. ck1200 NOT evaluated: launcher looked
+  for checkpoint-1200, train_sft.py writes the final adapter at the run root (gap, not a loss).
+  Curve shape: peaks at 750 then declines on both retrieval columns — same shape as the
+  InfoSeek-only curves (seed 0 peaked at 750 too).
+RL v3-pure on the same pool 76.83/64.57/33.00 → RL − SFT-best = +0.96 / +4.16 / +0.93.
+  Recorded, NOT claimed as a margin: one seed per leg (protocol: matched seeds first).
+  The answer-recall gap (+4.16) is the largest of the three and the one worth seeding.
+Doc: mmrag/docs/vqa_retriever_loop.html now carries a "reproduce" toggle under every
+  result row (exact CELL_TRAIN_ARGS / script path / result file). Corrections made while
+  reconciling each row against args.json + results/:
+  - v2 (+anchor) entity R@5 filled in: 80.13 (was "—" in the page; the tex already had it).
+    v2 retrieves better than v3-pure on both recall columns and answers worse; the
+    "retrieval is the primary result" sentence now says so. v2 mean = seeds 0/2/3; seed 1
+    (plgrpo-gme2b-nogold-s1, 32.93 acc) is on disk and outside the mean — 4-seed 33.60 ± 0.70.
+  - SigLIP2 anchored "3 seeds": seed 0 = siglip2-nogold (GRPO-8 + anchor), seeds 1-2 =
+    PL-GRPO + anchor. Not estimator-matched replicates; retraction stands regardless.
+  - CLIP-L anchored GRPO-8 @1e-4 (clip-nogold-base) 29.13 entR@5 now shown in the ladder
+    cell, flagged 1-seed/unreplicated (same shape as the SigLIP2 lottery; not claimed).
+  - GME-7B zero-shot 69.37 was on disk (gme7b-zeroshot); ladder said "not on disk".
+  - VLM2Vec-4B: both MLX attempts stopped at step 250 (group_std 0 at 249); no result.
+    Page says "unfinished" instead of "in flight".
+  - Qwen2-VL-2B trained cells filled (0.00 at 5e-6 / 2e-5 / anchored).
+  - The page's old appendix line "v2 = --algo grpo --num_candidates 8 + anchor" was wrong;
+    v2 is the PL-GRPO command + --contrastive_coef 0.3. GRPO-8 + anchor is the v1/"nogold"
+    family (rl-j2e5-nogold-det-repro, scale-rows*, *-nogold).
+Scripts moved into the repo so the commands resolve: mmrag/scripts/{eval_run,launch_sft_div,
+  sft_curve,run_repro,ladder_zs,local_cell_worker,resubmit_ema}.sh, mmrag/geom_probe{,_q}.py.
+On hold per user ("Don't submit new job now"): SFT-best query-geometry probe, emaenc MLX
+  duplicate, scheme 4, blend-weight cell.

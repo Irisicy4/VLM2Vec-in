@@ -8,18 +8,117 @@ git clone -b mmrag-ema https://github.com/Irisicy4/VLM2Vec-in.git VLM2Vec-rl
 cd VLM2Vec-rl
 ```
 
-## Environment you must have
+## Environment
 
-- The bytenas volume `tns-algo-video-public-my2` mounted (all data lives there, not in git):
-  `D=/mnt/bn/tns-algo-video-public-my2/yijiangli/data/mmrag_data` — pools/corpora in `$D/built/`,
-  runs in `$D/runs/`, results in `$D/results/`. `HF_HOME=/mnt/bn/tns-algo-video-public-my2/yijiangli/hf_home`.
-- MLX CLI at `/opt/tiger/mlx_deploy/bin/mlx` (submit: `mlx job submitv2 --path <yaml>`; status:
-  `mlx job get <id>` and grep `arnold_trial_status`; there is NO `mlx job stop` — web UI only).
-- **Path caveat**: `mmrag/mlx_entry_cell.sh` and `mmrag/mlx_submit_cell.sh` hardcode
-  `ROOT=/mnt/bn/tns-algo-video-public-my2/yijiangli/project/VLM2Vec-rl`. Either work from that
-  existing checkout, or after cloning elsewhere edit `ROOT=` in both scripts (and the
-  `namespace:` in the submit script if you are not `yliang.26`). The MLX worker executes the
-  entry script *from the bytenas path baked into the yaml*, so your clone must be on the mount.
+Nothing but code is in git. Every script resolves data through one env var:
+`MMRAG_DATA=<your data dir>` (call it `$D`). Layout: `$D/built/` pools/corpora/queries,
+`$D/images/` image archives, `$D/runs/` training output, `$D/results/` eval output,
+`$D/cache/` corpus-embedding caches. Set `HF_HOME` somewhere with ~50 GB free.
+
+On the original cluster `$D=/mnt/bn/tns-algo-video-public-my2/yijiangli/data/mmrag_data`
+(bytenas volume `tns-algo-video-public-my2`) and jobs go through the MLX CLI
+(`/opt/tiger/mlx_deploy/bin/mlx`; submit `mlx job submitv2 --path <yaml>`, status
+`mlx job get <id>` grep `arnold_trial_status`, NO stop subcommand — web UI only).
+**On any other cluster: skip MLX entirely and run the entry script directly** (below);
+the yaml resource block (bytenas volume, queue, namespace `/user/yliang.26`) is site-specific.
+
+Hardware per cell: one ~80 GB GPU (GME-2B LoRA train + Qwen2.5-VL-7B eval reader).
+Deps are checked/installed by the entry script: torch 2.8.0, transformers 4.57.0, peft 0.17.1,
+accelerate 1.13.0, qwen-vl-utils, flash-attn 2.8.1 (`--no-build-isolation`).
+
+## Staging the data (fresh site — nothing pre-mounted)
+
+Two classes of data. **Class 1 must be copied** from the original cluster — these are
+locally-built artifacts; rebuilding them (build_div_mix*.py) would give a *different* pool and
+your numbers would not be comparable to the baselines below. **Class 2 can be re-downloaded**
+from public sources if a direct copy is impossible.
+
+### Class 1 — copy verbatim from `SRC=/mnt/bn/tns-algo-video-public-my2/yijiangli/data/mmrag_data` (~2.2 GB)
+
+```bash
+mkdir -p $D/built $D/results $D/runs $D/cache $D/images/{Infoseek,EVQA,OKVQA,OVEN}
+rsync -avP $SRC/built/pool_train_1M.jsonl   $D/built/   # 962M  cell 1 train pool
+rsync -avP $SRC/built/corpus_small.jsonl    $D/built/   # 277M  cell 1 corpus + eval corpus
+rsync -avP $SRC/built/pool_div45k_v3.jsonl  $D/built/   #  48M  cells 2-3 train pool
+rsync -avP $SRC/built/corpus_div_v2.jsonl   $D/built/   # 797M  cells 2-3 corpus
+rsync -avP $SRC/built/queries_test.jsonl    $D/built/   #  52M  eval queries (all cells)
+rsync -avP $SRC/results/*.json              $D/results/ # small: baseline rows for comparison
+```
+
+Do NOT copy `$D/results/<your-new-cell-name>.*` patterns you plan to create — the entry
+script is idempotent and will skip a cell whose `results/<name>.vqa_top5.json` already exists.
+
+### Class 2 — image archives (copy if you can, re-download if you can't)
+
+`images/Infoseek/` and `images/EVQA/` on the source are **symlinks** into `$SRC/images_dl/` —
+copy with `rsync -avLP` (follow links) or you get dangling links. The `*.tar.index.json`
+files regenerate automatically on first use; don't worry if they're missing.
+
+| archive | size | needed by | public source |
+|---|---|---|---|
+| `images/Infoseek/infoseek_train_images.tar` | 45G | ALL cells | HF dataset `BByrneLab/M2KR_Images` |
+| `images/Infoseek/infoseek_val_images.tar` | 8.4G | ALL cells (eval queries) | HF `BByrneLab/M2KR_Images` |
+| `images/EVQA/inat.zip` | 8.4G | cells 2-3 (div pool) | HF `BByrneLab/M2KR_Images` |
+| `images/EVQA/inat_val.tar` | 8.6G | cells 2-3 | iNat-2021: `ml-inat-competition-datasets.s3.amazonaws.com/2021/val.tar.gz` (retar) |
+| `images/EVQA/google-landmark.tar` | 2.7G | cells 2-3 | HF `BByrneLab/M2KR_Images` |
+| `images/OKVQA/train2014.zip` | 13G | cells 2-3 | COCO `images.cocodataset.org/zips/train2014.zip` |
+| `images/OVEN/shard01..04.tar` | 94G | cells 2-3 | HF `BByrneLab/M2KR_Images` (OVEN dirs 01–04) |
+
+Re-download route: `python -c "from huggingface_hub import hf_hub_download; hf_hub_download('BByrneLab/M2KR_Images', '<file>', repo_type='dataset', local_dir='$D/images_dl')"`,
+then place/symlink into the `images/<Dataset>/` names above (`mmrag/image_store.py:59` is the
+authority on expected paths). **Cell 1 only needs the two Infoseek tars (~53 GB)** — if you
+stage nothing else, you can still run the highest-priority experiment.
+
+### Class 3 — models (plain HF downloads, ~25 GB into `$HF_HOME`)
+
+```bash
+huggingface-cli download Alibaba-NLP/gme-Qwen2-VL-2B-Instruct   # retriever base
+huggingface-cli download Qwen/Qwen2.5-VL-3B-Instruct            # reward reader (train)
+huggingface-cli download Qwen/Qwen2.5-VL-7B-Instruct            # eval reader
+```
+
+### Wire it up
+
+```bash
+export MMRAG_DATA=$D  HF_HOME=<your hf cache>  PYTHONPATH=<clone root>
+hostname > $D/local_hostname.txt   # guard: entry script pkills keep_gpu ONLY on hosts != this
+# mlx_entry_cell.sh + mlx_submit_cell.sh hardcode the original ROOT/D paths in their headers —
+# fix both after cloning:
+sed -i "s#/mnt/bn/tns-algo-video-public-my2/yijiangli/project/VLM2Vec-rl#$(pwd)#; \
+        s#/mnt/bn/tns-algo-video-public-my2/yijiangli/data/mmrag_data#$D#; \
+        s#/mnt/bn/tns-algo-video-public-my2/yijiangli/hf_home#$HF_HOME#" \
+        mmrag/mlx_entry_cell.sh mmrag/mlx_submit_cell.sh
+```
+
+Smoke-test the staging before burning GPU-days (each should print, not throw):
+
+```bash
+python3 - <<'PY'
+import os, json
+from mmrag.image_store import open_stores
+D = os.environ["MMRAG_DATA"]
+q = [json.loads(l) for _, l in zip(range(5), open(f"{D}/built/queries_test.jsonl"))]
+s = open_stores(D, "infoseek")               # add open_stores(D, "div") if staging cells 2-3
+print([s.get(r["image_id"]).size for r in q])
+PY
+```
+
+### Running a cell without MLX (any 1-GPU box)
+
+```bash
+CELL_NAME=emaidx-1M-s3000 CELL_PROFILE=gme2b \
+CELL_TRAIN_ARGS="--pool built/pool_train_1M.jsonl --image_dataset infoseek --max_train_rows 0 \
+ --max_steps 3000 --lr_schedule constant --no_force_gold --reward judge --algo plgrpo \
+ --pl_group 4 --pl_k 4 --pl_support 24 --contrastive_coef 0 --seed 0 --learning_rate 2e-5 \
+ --index_ema 0.9 --index_refresh_extra 256" \
+nohup bash mmrag/mlx_entry_cell.sh > $D/local_emaidx-1M-s3000.log 2>&1 &
+```
+
+Same env-triple with your cell name/args for any other cell; the script does
+train → corpus encode → retrieval eval → VQA eval and drops
+`$D/results/<name>.{retrieval.metrics,vqa_top5}.json`. It is safe to rerun after a crash
+(skips completed stages). On the *original* cluster keep using
+`bash mmrag/mlx_submit_cell.sh "<name>" gme2b "<args>"` instead.
 
 ## Recipe (fixed — do not vary alongside the EMA knob)
 

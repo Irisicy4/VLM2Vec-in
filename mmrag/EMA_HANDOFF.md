@@ -165,8 +165,12 @@ bash mmrag/mlx_submit_cell.sh "emaidx-1M-s3000" gme2b \
 
 (That is exactly `$D/runs/v3-rows1M-s3000/args.json` + the two EMA flags; corpus defaults to
 `built/corpus_small.jsonl` in the entry script.) Read it against v3-rows1M-s3000 AND its interim
-checkpoints (ck2250 acc 35.0 exists) — evaluate interim checkpoints of the new run the same way
-(`CELL_CKPT`-style configs, see `mmrag/mlx_configs/v3-rows1M-s3000-ck2250.yaml`).
+checkpoints (ck2250 = entR@5 74.67 / ansR@5 62.82 / acc 35.0 exists) — evaluate interim
+checkpoints of the new run through `mmrag/mlx_entry_eval.sh` (env: `CELL_NAME`, `CELL_CKPT`
+relative to `$D`, `CELL_PROFILE=gme2b`; same estimator as the in-cell eval — retrieval
+`--max-q 3000`, 7B top-5 VQA `--max-q 1500`). It hardcodes the original paths like the other
+two scripts — apply the same sed. MLX users: `mmrag/mlx_configs/v3-rows1M-s3000-ck2250.yaml`
+is the submit-side template.
 
 ### 2. Clean emaenc duplicate
 

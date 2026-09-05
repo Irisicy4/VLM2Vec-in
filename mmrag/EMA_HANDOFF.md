@@ -82,12 +82,21 @@ huggingface-cli download Qwen/Qwen2.5-VL-7B-Instruct            # eval reader
 ```bash
 export MMRAG_DATA=$D  HF_HOME=<your hf cache>  PYTHONPATH=<clone root>
 hostname > $D/local_hostname.txt   # guard: entry script pkills keep_gpu ONLY on hosts != this
-# mlx_entry_cell.sh + mlx_submit_cell.sh hardcode the original ROOT/D paths in their headers —
-# fix both after cloning:
-sed -i "s#/mnt/bn/tns-algo-video-public-my2/yijiangli/project/VLM2Vec-rl#$(pwd)#; \
+# 14 shell scripts under mmrag/ hardcode original-cluster paths, in FIVE patterns: the repo
+# path appears both as project/VLM2Vec-rl (checkout name) AND project/VLM2Vec-in (remote name —
+# mlx_entry_scale.sh, mlx_submit_scale.sh, scripts/run_repro.sh), plus the data dir, the
+# hf_home, and a data/tmp TMPDIR fallback the data-dir pattern does NOT match. Sweep them all:
+grep -rl "/mnt/bn" mmrag --include="*.sh" | xargs sed -i "\
+        s#/mnt/bn/tns-algo-video-public-my2/yijiangli/project/VLM2Vec-rl#$(pwd)#; \
+        s#/mnt/bn/tns-algo-video-public-my2/yijiangli/project/VLM2Vec-in#$(pwd)#; \
         s#/mnt/bn/tns-algo-video-public-my2/yijiangli/data/mmrag_data#$D#; \
+        s#/mnt/bn/tns-algo-video-public-my2/yijiangli/data/tmp#$D/tmp#; \
         s#/mnt/bn/tns-algo-video-public-my2/yijiangli/hf_home#$HF_HOME#" \
-        mmrag/mlx_entry_cell.sh mmrag/mlx_submit_cell.sh
+  && grep -rn "/mnt/bn" mmrag --include="*.sh" && echo "REMNANTS ABOVE — fix by hand" \
+  || echo "clean: 0 remnants"
+# Leave mmrag/mlx_configs/*.yaml and results manifests untouched — they are the provenance
+# record of prior runs, and a non-MLX site never executes them. python defaults
+# (push_ckpts.py, mmeb_subset.py) are overridden by the exported MMRAG_DATA.
 ```
 
 Smoke-test the staging before burning GPU-days (each should print, not throw):

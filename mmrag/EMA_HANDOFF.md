@@ -229,9 +229,15 @@ the incremental-vs-discrete refresh schedule — so a win or a null belongs to t
 still takes the `> 0` branch (incremental schedule) but write-back becomes a pure fresh
 overwrite, isolating schedule from blending.
 
-Two practical consequences. **Cost**: an EMA arm is *cheaper* than its baseline, so don't
-budget walltime off the baseline's rate — at 3000 steps the baseline pays 30 full re-encodes
-(~5.2M doc-encodes on a 173k-passage index) versus ~1.28M here, ~4x less. **Coverage**: the
+Two practical consequences. **Cost**: an EMA arm is cheaper, but budget **~1.67x faster wall
+clock (≈40% saving), not the 4x you get by counting doc-encodes.** Measured decomposition of
+`v3-rows1M-s3000` (11.77 h end-to-end): a full refresh of the 173,755-passage RL index takes
+749 s at `encode_bs 64` (232 passages/s — `train_rl.py:272` logs this; see
+`local_plgrpo-lr5e5.log`), and 30 of them (init + every 100 steps) account for **53% of wall
+time**, leaving 6.63 s/step of training compute. The EMA arm replaces that with one init
+encode plus 368 docs/step ≈ 1.59 s/step, projecting 7.06 h. Note the saving is bounded by how
+much of the baseline *was* refresh, so it shrinks on a smaller index or a longer
+`refresh_steps` — this is not a general "EMA is faster" claim. **Coverage**: the
 run prints an `EMA-index sweep coverage: ...x (FULL|PARTIAL)` line at init. `PARTIAL` means
 some passages keep their init embeddings for the entire run — that is a stale-index confound,
 not an EMA result. Stop and rethink rather than spending the walltime.

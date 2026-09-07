@@ -1,0 +1,42 @@
+caption: 'sft-1M-sweep: matched SFT checkpoint sweep on the 810k pool'
+jobType: RLTraining
+isContainTiktokData: 'false'
+notifyRequest:
+  silent: true
+jobDefVersion:
+  entrypointMode: FULL_SCRIPT
+  imageMeta:
+    imageVid: d6lj4vjc77u7t7t31hp0
+  lazyDownloadCode: true
+  name: 'mmrag-sft-1M-sweep'
+  resource:
+    arnoldConfig:
+      clusterId: 11
+      groupIds:
+        - 665
+      quotaPool: default
+      preemptible: false
+      bytenasVolumes:
+        - name: tns-algo-video-public-my2
+          accessMode: RW
+      roles:
+        - cpu: 24
+          gpu: 1
+          gpuv: 19
+          memory: 220160
+          name: worker
+          num: 1
+          queueName: compute-543-my2-cloudnative-aigcp-tns.algo.public.pool.minipod.gcpsd.c-guarantee
+    backend: ARNOLD
+jobRunParams:
+  entrypointFullScript: |
+    export HAS_TT_DATA='False'
+    bash /mnt/bn/tns-algo-video-public-my2/yijiangli/project/VLM2Vec-rl/mmrag/mlx_entry_sft_sweep.sh
+  envsList:
+    SWEEP_NAME: sft-1M-sweep
+    SWEEP_POOL: built/pool_train_1M.jsonl
+    SWEEP_IMAGE_DATASET: infoseek
+    SWEEP_STEPS: '1500'
+    SWEEP_SAVE: '250'
+    SWEEP_CKPTS: 250 500 750 1000 1250 1500
+namespace: /user/yliang.26

@@ -1406,3 +1406,30 @@ assertion is worth LESS than no test, because it launders a hunch into a documen
 Independence is not about who ran the check but about whether it could have come out the other way.
 **And a false safety rule is not free**: it tells a future site to skip a safe operation — here,
 the eval-timing instrumentation, exactly the kind of improvement that would then be declined.
+
+### 2026-09-07: MEASURED throughput for emaidx-1M-s3000 on the contended H200
+First clean window (no benchmarks of ours running; an earlier window was discarded because our
+own reader/encoder benchmarks were competing for CPU during it):
+
+| quantity | value |
+|---|---|
+| window | 24 steps in 900 s (steps 28 -> 52) |
+| rate | **37.5 s/step** |
+| vs baseline 6.64 s/step | **5.6x slower** |
+| projected full 3000 steps | 31.2 h |
+| ck750 reached at | ~7.3 h from step 52 |
+| ck1500 reached at | ~15.1 h |
+| one-time init corpus encode | 2145 s for 173,755 passages = 81 passages/s (vs 232/s clean = 2.9x) |
+
+**CAVEATS, and they matter more than the point estimate.** (i) ONE window of 24 steps — a single
+observation, no variance. A second window is running before this is quoted anywhere as the site's
+rate. (ii) The neighbour verl job cycles between ~19 GB (vLLM asleep) and ~82 GB (rollout) on a
+12-15 min period, so a 15-min window covers roughly ONE cycle and may not average it; the phase
+transition is visible in gpu_watch.log at 18:32:21, where every card drops ~62 GB at once.
+(iii) There is NO uncontended GPU on this box — all 8 cards host the neighbour — so no clean
+control can be produced here and every number carries the contention caveat.
+
+Note the measured 37.5 s/step is well BELOW the 45-60 s/step I was informally reading off coarse
+row counts earlier, which is why that estimate was never quoted. The 5.6x aggregate also sits
+between the ~2.9x measured on encoding and the ~7-8x inferred for generation, consistent with a
+step that mixes both — and is a further reason not to collapse them into one site factor.

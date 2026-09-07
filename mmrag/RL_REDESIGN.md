@@ -1496,3 +1496,32 @@ Python's `open(p,"w")` truncated the file IN PLACE while bash was executing it a
 at byte offset 1275. That is precisely the hazard this ledger recorded as FALSE for git — because
 git renames (new inode) while a truncating writer does not. Proving one writer safe does not make
 writers-in-general safe. The watcher was restarted; it had done no work.
+
+### 2026-09-07: plgrpo per-step cost model — MEASURED (partial; killed before the reader trials)
+From `mmrag/../bench_uniq.py` on GPU 3, zero-shot gme2b geometry, real queries/passages.
+The 120k-passage encode finished; the reader trials were lost to the takeover above.
+
+| quantity | measured |
+|---|---|
+| corpus encode, 120k passages | 1211 s = **99.1 passages/s** contended (232/s clean = 2.3x here) |
+| real passage length | **560 chars** mean (our earlier filler was ~1440, i.e. 2.6x too long) |
+| doc encode 96 (pl_support 24 x batch 4) | **0.71 s** |
+| query encode 4 (with images) | **0.40 s** |
+| EMA write-back, 256 docs | **1.85 s** |
+| **len(uniq)** | **~33 triples/step -> 5 generate calls** |
+
+**Subsample-bias question settled, and it was never load-bearing.** Same embeddings, growing index:
+40k -> 8.43 unique/query, 80k -> 8.41, 120k -> 8.19. Direction is DOWN (the sign I originally
+guessed) but the magnitude is ~3% across a 3x index change, i.e. negligible. Neither side's
+argument mattered — which is itself the result, and cheaper to obtain than to debate.
+
+**len(uniq) ~33 falls in the prior session's AMBIGUOUS band (30-40)**, so the pre-registered
+scoring rule says score against the RECONSTRUCTION, not the band.
+Reconstruction by subtraction, since the direct reader trials were lost: non-reader cost is
+0.71 + 0.40 + 1.85 = **2.96 s**, against a measured step of 37.5-39.1 s, leaving **~34.5-36.1 s for
+the reader over 5 calls = ~6.9-7.2 s per call.** That is at or barely below the 7.2-9.1 s/call
+measured with the 2.6x-too-long filler context — i.e. **cutting prefill 2.6x bought almost
+nothing, which points at DECODE, not prefill, as the dominant cost** (24 sequential decode steps
+are unaffected by context length). If it holds, that REFUTES the prior session's firm prediction
+of a clear per-call drop. **NOT SCORED**: this is inference by subtraction, not the direct
+measurement, and the direct trials must be rerun before the prediction is called either way.

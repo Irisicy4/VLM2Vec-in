@@ -1,0 +1,103 @@
+"""emaidx-1M-s3000 vs v3-rows1M-s3000 — matched-checkpoint table + trend-vs-trend contrast.
+
+Applies the reading registered in RL_REDESIGN.md BEFORE any EMA number existed:
+  primary   ansR@5  (only metric whose baseline decline survives every seed anchor)
+  secondary entR@5  (baseline trend anchor-fragile), acc (no baseline trend at all)
+A single-seed gap inside the observed between-seed spread is reported as NOT CALLABLE.
+
+    python3 compare_ema.py [--arm emaidx-1M-s3000] [--base v3-rows1M-s3000]
+"""
+import argparse, json, math, os
+
+R = os.environ.get("MMRAG_DATA", "/raid/icy/mmrag_data") + "/results"
+METRICS = ["entR@5", "ansR@5", "acc"]
+PRIMARY = "ansR@5"
+# observed between-seed spread at matched steps (seeds 0/1 at steps 250/500); crude bound, not an SD
+SEED_FLOOR = {"entR@5": 4.33, "ansR@5": 1.51, "acc": 0.33}
+TCRIT = {1: 12.706, 2: 4.303, 3: 3.182, 4: 2.776, 5: 2.571, 6: 2.447, 7: 2.365}
+
+
+def read(name):
+    rp, vp = f"{R}/{name}.retrieval.metrics.json", f"{R}/{name}.vqa_top5.json"
+    if not (os.path.exists(rp) and os.path.exists(vp)):
+        return None
+    r, v = json.load(open(rp)), json.load(open(vp))
+    return {"entR@5": r["entity_recall"]["5"] * 100, "ansR@5": r["answer_recall"]["5"] * 100,
+            "acc": v["acc"] * 100, "n_ret": r["n"], "n_vqa": v["n"]}
+
+
+def curve(stem):
+    """(step, metrics) for ck750/1500/2250 and the final, skipping what is not yet evaluated."""
+    out = []
+    for step, nm in [(750, f"{stem}-ck750"), (1500, f"{stem}-ck1500"),
+                     (2250, f"{stem}-ck2250"), (3000, stem)]:
+        d = read(nm)
+        if d:
+            out.append((step, d))
+    return out
+
+
+def fit(xs, ys):
+    n = len(xs)
+    if n < 3:
+        return None
+    mx, my = sum(xs) / n, sum(ys) / n
+    sxx = sum((x - mx) ** 2 for x in xs)
+    b = sum((x - mx) * (y - my) for x, y in zip(xs, ys)) / sxx
+    a = my - b * mx
+    dof = n - 2
+    s2 = sum((y - (a + b * x)) ** 2 for x, y in zip(xs, ys)) / dof
+    se = math.sqrt(s2 / sxx)
+    t = TCRIT[dof]
+    return b * 1000, (b - t * se) * 1000, (b + t * se) * 1000, dof
+
+
+def show_trend(pts, label):
+    xs = [p[0] for p in pts]
+    for m in METRICS:
+        f = fit(xs, [p[1][m] for p in pts])
+        tag = " (PRIMARY)" if m == PRIMARY else ""
+        if not f:
+            print(f"  {label:<22} {m:<7} n={len(xs)} — need >=3 points for a CI"); continue
+        b, lo, hi, dof = f
+        v = "DECLINE" if hi < 0 else ("RISE" if lo > 0 else "spans zero — not distinguishable")
+        print(f"  {label:<22} {m:<7}{tag:<10} {b:+7.3f} pts/1k [{lo:+7.3f},{hi:+7.3f}] dof={dof}  {v}")
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--arm", default="emaidx-1M-s3000")
+    ap.add_argument("--base", default="v3-rows1M-s3000")
+    a = ap.parse_args()
+    A, B = curve(a.arm), curve(a.base)
+    if not A:
+        print(f"no evaluated checkpoints for {a.arm} yet — nothing to compare"); return
+    have = {s for s, _ in A} & {s for s, _ in B}
+    print(f"MATCHED CHECKPOINTS ({a.arm} vs {a.base}); 1 seed each = recorded, not claimed")
+    print(f"{'step':>5} " + "".join(f"{m+' arm':>13}{m+' base':>14}{'delta':>9}{'':>4}" for m in METRICS))
+    da = {m: [] for m in METRICS}
+    for s in sorted(have):
+        ma = dict(A)[s]; mb = dict(B)[s]
+        line = f"{s:>5} "
+        for m in METRICS:
+            d = ma[m] - mb[m]; da[m].append(d)
+            flag = "" if abs(d) >= SEED_FLOOR[m] else " ~"      # ~ = inside seed noise
+            line += f"{ma[m]:>13.2f}{mb[m]:>14.2f}{d:>+9.2f}{flag:>4}"
+        print(line)
+    print(f"  (~ = |delta| below the observed between-seed spread "
+          f"{SEED_FLOOR} -> NOT CALLABLE on one seed)")
+    if da[PRIMARY]:
+        print(f"\nMEAN DELTA over {len(da[PRIMARY])} matched checkpoints:")
+        for m in METRICS:
+            mu = sum(da[m]) / len(da[m])
+            call = "callable" if abs(mu) >= SEED_FLOOR[m] else "INSIDE SEED NOISE — not callable"
+            print(f"  {m:<7}{' (PRIMARY)' if m==PRIMARY else '':<10} {mu:+7.2f}  {call}")
+    print("\nTREND-VS-TREND (least squares, 95% CI):")
+    show_trend(A, a.arm); show_trend(B, a.base)
+    print("\nRegistered scope: ansR@5 is primary. entR@5 secondary (baseline trend is")
+    print("anchor-fragile: present under seed-0/seed-avg anchors, absent under seed-1).")
+    print("acc secondary (no baseline trend under any anchor — nothing to prevent).")
+
+
+if __name__ == "__main__":
+    main()

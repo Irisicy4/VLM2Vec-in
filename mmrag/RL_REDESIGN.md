@@ -1124,8 +1124,15 @@ no MLX and no bytenas mount. Non-MLX path from EMA_HANDOFF.md used throughout.
   instead of 30 discrete full re-encodes. Whatever this cell shows, the honest claim is about
   the EMA refresh SCHEME as a whole; a win or a null CANNOT be attributed to the blending
   coefficient alone. Encoding cost differs by the same token: baseline 30 x 173,755 = 5.21M
-  doc-encodes vs this arm's 173,755 + 1.10M = 1.28M, ~4.1x cheaper — so do NOT budget an EMA
-  arm off the baseline's ~14 s/step in either direction.
+  doc-encodes vs this arm's 173,755 + 1.10M = 1.28M. **That 4.1x is DOC-ENCODES, NOT WALL TIME —
+  do not read it as a speedup** (a correction to this entry's first version, and to the same slip
+  in the handoff). Measured decomposition instead: a full refresh of this 173,755-passage index
+  takes 749 s clean (232 passages/s at encode_bs 64 — note REPRO_NEWCLUSTER:92's ~50/s is for a
+  different setting), so the baseline's 30 refreshes = 6.24 h = **53% of its 11.77 h wall**, with
+  residual training 6.63 s/step; this arm instead pays 368 docs/step = 1.59 s/step. Projected
+  clean: 749 + 3000 x 8.22 s = 7.06 h, i.e. **1.67x wall / ~40% saving, not 4x**.
+  SCOPE: the saving is bounded by how much of the baseline was refresh, so a smaller index or a
+  longer `refresh_steps` shrinks it. This is not a general "EMA is faster" claim.
   This also retro-weakens the div45kv3-emaidx parity row: at 500 steps with refresh_steps 100
   the baseline paid only 5 full refreshes, so the schedule gap there was ~6x smaller than here,
   and "parity at 500 steps" was testing less of the treatment than it appeared to.

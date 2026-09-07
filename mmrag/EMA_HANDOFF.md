@@ -239,6 +239,19 @@ encode plus 368 docs/step ≈ 1.59 s/step, projecting 7.06 h. Note the saving is
 much of the baseline *was* refresh, so it shrinks on a smaller index or a longer
 `refresh_steps` — this is not a general "EMA is faster" claim.
 
+**Where a step's time actually goes — the reward reader, not retrieval.** Two agents misread
+this path in one day, so: with `--algo plgrpo` the judge call is `train_rl.py:467`, scoring
+`uniq` = the **unique** docs across the sampled lists (`sorted(set(pl_idx[b].flatten()))`,
+one triple per unique doc per query). It is *not* `train_rl.py:531`, which sits in the
+non-plgrpo `else:` branch and would give `batch_size × pl_support` = 96. `pl_sample_lists`
+is Gumbel-top-k with independent noise per list, so the lists overlap partially and
+`len(uniq)` lands between 16 (all lists collapse) and 64 (disjoint) — simulating the sampler
+at `pl_support 24 / pl_group 4 / pl_k 4 / temperature 0.02` gives ~28 (wide similarity
+spread) to ~47 (narrow). `score_judge` then batches `reader_batch_size // 2` = 8 triples per
+`generate` call when sampling (`reader_vlm.py:135`), 32 sequences × 24 new tokens each, so
+cost ≈ `ceil(len(uniq)/8)` generate calls. Benchmark the reader at a realistic `len(uniq)`,
+not at 16 or 96 — both are wrong by 2-3x in opposite directions.
+
 **Benchmark your site against 6.6 s/step.** Recovered from `v3-rows1M-s3000`'s checkpoint
 mtimes across four independent 750-step intervals (subtracting the known refreshes): 6.63,
 7.38, 5.75, 6.80 s/step on an H100-80. `metrics.jsonl` carries no timestamps, so count its

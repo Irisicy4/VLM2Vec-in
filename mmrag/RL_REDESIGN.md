@@ -1550,3 +1550,20 @@ because the same author had stated that rule and then failed to apply it to thei
 
 **WHAT IS SOLID AND TRANSFERS** (sampler-and-geometry, not contention): ~8.2 unique docs/query ->
 ~33 triples/step, near-invariant to index size (8.43 / 8.41 / 8.19 at 40k / 80k / 120k).
+
+### 2026-09-07 21:00: relaunched after the takeover — and the rate improved because the box emptied
+Restarted on GPU 1 under `supervise_cell.sh` (relaunches across external kills; the entry script is
+idempotent and the run is seeded, so a restart reproduces the identical row sequence). Cap tightened
+0.32 -> **0.25 (~35 GiB)**, still clearing the 27.8 GiB working set while leaving the co-tenant room.
+Identical startup checks passed: `train rows: 810276`, `RL corpus: 173755 passages`, init encode
+2185 s (vs 2145 s on the killed attempt), **coverage 6.35x FULL** — the registered stop-guard.
+
+**New rate, third clean window: 30.0 s/step (30 steps / 900 s), 4.5x baseline.** Down from the
+37.5-39.1 s/step measured before the takeover, and the reason is visible rather than mysterious:
+GPU 1 now shows **114.3 GiB free of 140.4**, against ~20-60 GiB free under the departed verl job.
+Less SM time-slicing, less penalty — which is the mix-shift point in reverse and further evidence
+that a single "site factor" is not a stable quantity here.
+Revised ETA from step 31: **ck750 ~6.0 h, ck1500 ~12.2 h, full run 25.0 h.**
+CAVEAT: one window under conditions only minutes old. The prior figure was quoted as a range from
+two windows; this is a single observation and should be treated as provisional until a second one
+agrees. Do NOT retro-apply 30.0 s/step to the killed attempt — that ran under a different tenant.

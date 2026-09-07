@@ -252,6 +252,13 @@ spread) to ~47 (narrow). `score_judge` then batches `reader_batch_size // 2` = 8
 cost ≈ `ceil(len(uniq)/8)` generate calls. Benchmark the reader at a realistic `len(uniq)`,
 not at 16 or 96 — both are wrong by 2-3x in opposite directions.
 
+Note the **eval** reader is a different regime: `eval_vqa` generates greedily with no
+rollouts, so the `//2` halving doesn't apply and 1500 queries run as 188 batches of 8. Measured
+from result mtimes on H100 (gap between `<name>.retrieval.metrics.json` and
+`<name>.vqa_top5.json`): **4.3 / 7.0 / 8.2 / 4.6 min** for `v3-rows1M-s3000`'s ck750 / ck1500 /
+ck2250 / final. Minutes, not hours — evaluating an interim checkpoint is cheap, so do it rather
+than waiting out a long run.
+
 **Benchmark your site against 6.6 s/step.** Recovered from `v3-rows1M-s3000`'s checkpoint
 mtimes across four independent 750-step intervals (subtracting the known refreshes): 6.63,
 7.38, 5.75, 6.80 s/step on an H100-80. `metrics.jsonl` carries no timestamps, so count its

@@ -1464,3 +1464,35 @@ therefore `len(uniq)`, the per-step reader load.
   would make this answerable from any results bundle with no re-encoding. NOT changing the dump
   format mid-campaign — it would desynchronise our ck750 eval from the baseline dumps for a
   benefit already obtainable via `CKPT`. Post-campaign change, if ever.
+
+### 2026-09-07 19:09-19:10: RUN KILLED — whole-box takeover, not OOM. emaidx-1M-s3000 lost at step 113
+`train_rl.py` (pid 3496548) SIGKILLed at 19:10:31, step ~113 of 3000. No traceback, no CUDA error —
+the shell recorded "Killed". A concurrent one-off benchmark of ours on GPU 3 died at the same moment.
+
+**Cause: a whole-box vLLM serving deployment displaced every tenant.** Eight
+`vllm.entrypoints.openai.api_server` processes started 19:09:20-19:10:13, ports 31020-31027, one
+pinned per card via CUDA_VISIBLE_DEVICES, `--gpu-memory-utilization 0.85`, serving
+`/raid/icy/tmp/gpt54emrl_v17/keep_step8`. The 8-GPU verl job that had been the resident tenant all
+day is entirely gone (0 `ray::WorkerDict` remain), as are the h200-rag session's two trainers
+(SIGKILLed 19:09:44, 47 s before ours). **Three unrelated workloads dying inside one minute while a
+new claim on all eight cards appears is a takeover, not an OOM** — an OOM killer takes one process
+at a time by size. Host RAM was and is 1.9 TB of 2 TB available; the 6.3/8 GB swap reading is a red
+herring. Not a pattern-kill either: h200-rag issued none, and our own guard was untouched.
+
+**Cannot restart into current conditions.** Verified independently: all 8 cards at 120.1 GiB used /
+20.3 GiB free of 140.4. Our trainer's measured working set is 27.8 GiB, so it does not fit on ANY
+card. `--mem_frac` cannot help — it caps, it does not shrink.
+
+**Cost of the kill: total for this attempt.** `train_rl.py` has NO resume path (no `--resume`, no
+`start_step`; the entry script's only idempotency is "skip training if the FINAL adapter exists").
+save_steps 250 and we reached 113, so no checkpoint was written. The loss is the ~36 min init
+corpus encode plus ~70 min of stepping. Restarting is scientifically clean — the run is seeded, so
+a fresh start reproduces the identical row sequence — it is purely a time cost.
+Written but NOT launched: `supervise_cell.sh`, which relaunches the idempotent entry script across
+external kills so a future kill costs minutes of idle GPU rather than hours until someone notices.
+
+**Self-inflicted lesson, separate from the takeover.** Earlier, patching `auto_eval.sh` with
+Python's `open(p,"w")` truncated the file IN PLACE while bash was executing it and holding fd 255
+at byte offset 1275. That is precisely the hazard this ledger recorded as FALSE for git — because
+git renames (new inode) while a truncating writer does not. Proving one writer safe does not make
+writers-in-general safe. The watcher was restarted; it had done no work.

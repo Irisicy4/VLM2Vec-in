@@ -1159,3 +1159,43 @@ no MLX and no bytenas mount. Non-MLX path from EMA_HANDOFF.md used throughout.
   killed the issuing shell, because the pipeline's own command line contains the pattern. That is
   the fourth time this pattern-kill has bitten this project. Explicit PIDs from a listing, always.
   (No harm: all 16 neighbour processes verified alive afterwards, and no checkpoint existed yet.)
+
+### 2026-09-07: the BASELINE's decline does not survive the project's own CI rule (pre-registered before the EMA arm lands)
+Ran least-squares + 95% CI — the house rule, applied to the comparator rather than the new arm —
+on `v3-rows1M-s3000`'s four on-disk checkpoints (ck750 / ck1500 / ck2250 / final), matched
+estimator throughout (retrieval n=3000, VQA n=1500, 7B reader, top-5).
+
+| fit | entR@5 | ansR@5 | acc |
+|---|---|---|---|
+| slope, pts/1k steps | −0.991 | −0.680 | −0.382 |
+| 95% CI | [−3.711, +1.729] | [−2.438, +1.078] | [−2.303, +1.539] |
+| verdict | spans 0 | spans 0 | spans 0 |
+
+**On the matched 3000-step run alone, NO trend is distinguishable on any of the three metrics.**
+EMA_HANDOFF.md's framing — "ends at entR@5 72.63 … does index-EMA prevent the decline?" — is an
+ENDPOINT comparison (ck750 75.53 → 72.63), and the project's own rule says a CI spanning zero is
+not distinguishable. Caveat both ways: 4 points, dof=2, t=4.303 — this is low power, so it is
+"not established", NOT "established flat".
+
+Merging in the 500-step run's two points (v3-rows1M-ck250 77.00, v3-rows1M 78.70) gives 6 points
+over 250–3000 and flips two of the three: entR@5 −1.738 [−3.359, −0.118] and ansR@5 −1.032
+[−1.990, −0.074] both exclude zero; acc −0.140 [−0.888, +0.608] still spans it.
+**The merge is UNVERIFIED**: v3-rows1M and v3-rows1M-s3000 are separate runs (2k vs 12k draws)
+and merging assumes a shared trajectory — same seed 0, same 810k pool, constant LR, warmup 20,
+refresh_steps 100, differing only in max_steps. Plausible but not checked; results/ carries no
+args.json, and there is no overlapping evaluated checkpoint to test it (s3000 saves every 250
+steps but only ck750/1500/2250 were ever evaluated, so no ck500 exists to compare against
+v3-rows1M's final). Asked the prior session to diff the two args.json files.
+
+**The load-bearing weakness, true under either fit:** the entire declining signal lives in the
+250- and 500-step points, and the 500-step point is exactly the one this ledger already records
+as having FAILED seed validation (2026-08-23 11:20 — seed 0 entR@5 78.70 vs seed 1 74.37). That
+is a **4.33-point seed spread carrying a 6.07-point endpoint "decline"**. Under the merge the
+slope is anchored by the least trustworthy point on the curve, and a seed-1 version of the same
+fit would be markedly flatter.
+
+**PRE-REGISTERED, before emaidx-1M-s3000 produces any number:** "index-EMA prevents the decline"
+is NOT a claim this design can support, because the decline it would prevent is not itself
+established at the matched estimator. What the cell CAN support is (i) matched-checkpoint
+comparison at 750/1500/2250/3000 and (ii) a trend-vs-trend contrast, both 1 seed = recorded, not
+claimed. Registering this now so the reading is not chosen after seeing which way the numbers go.

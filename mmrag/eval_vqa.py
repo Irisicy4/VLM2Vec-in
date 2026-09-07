@@ -11,6 +11,7 @@ import json
 import os
 import random
 import sys
+import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from mmrag.image_store import open_stores  # noqa: E402
@@ -73,7 +74,9 @@ def main():
                         "context": ctx, "answer": r["answer"]})
         kept.append(qid)
 
+    _t0 = time.time()
     accs, preds = reader.score_judge(triples, n_rollouts=1, temperature=0.0, return_preds=True)
+    gen_seconds = time.time() - _t0
     f1s = [squad_f1(p, t["answer"]) for p, t in zip(preds, triples)]
     ems = [answer_strict_em(p, t["answer"]) for p, t in zip(preds, triples)]
     n = len(kept)
@@ -89,10 +92,11 @@ def main():
     name = os.path.basename(args.retrieval).replace(".retrieval.json", "")
     mode = "noctx" if args.no_context else ("gold" if args.gold_context else f"top{args.k}")
     print(f"[{name}] L2 VQA  reader={os.path.basename(args.reader)} mode={mode} n={n}  "
-          f"acc={acc:.4f}  strictEM={em:.4f}  F1={f1:.4f}  "
+          f"acc={acc:.4f}  strictEM={em:.4f}  F1={f1:.4f}  gen={gen_seconds:.0f}s  "
           f"by_split={ {k: round(v, 4) for k, v in split_acc.items()} }")
     out = {"name": name, "reader": args.reader, "mode": mode, "n": n, "acc": acc, "f1": f1,
-           "strict_em": em, "acc_by_split": split_acc, "predictions": per_q}
+           "strict_em": em, "acc_by_split": split_acc,
+           "gen_seconds": round(gen_seconds, 1), "predictions": per_q}
     fp = args.retrieval.replace(".retrieval.json", f".vqa_{mode}.json")
     json.dump(out, open(fp, "w"), indent=2)
     print(f"wrote {fp}")

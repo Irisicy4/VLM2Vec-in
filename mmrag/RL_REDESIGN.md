@@ -1433,3 +1433,30 @@ Note the measured 37.5 s/step is well BELOW the 45-60 s/step I was informally re
 row counts earlier, which is why that estimate was never quoted. The 5.6x aggregate also sits
 between the ~2.9x measured on encoding and the ~7-8x inferred for generation, consistent with a
 step that mixes both — and is a further reason not to collapse them into one site factor.
+
+### 2026-09-07: trained top-24 geometry is unrecoverable from ANY results bundle (code property)
+Question raised while building the walltime cost model: what is the within-query spread of
+sim(q, d_i) across a query's top-24 under the TRAINED policy? It drives Gumbel-top-k overlap and
+therefore `len(uniq)`, the per-step reader load.
+
+- **Not answerable from the existing geometry probes.** `geom_probe_q.py` computes *mean pairwise
+  cosine over a fixed seeded 1,000-query sample* — BETWEEN-query anisotropy (how spread the query
+  cloud is), a different object from WITHIN-query top-24 spread. The div45kv3 numbers (query side
+  base 0.2212 -> v3pure 0.0594 / emaidx 0.0612 / emaenc 0.0976; doc side barely moves) do say
+  training acts on the query tower, which makes "zero-shot geometry may not transfer" well founded
+  rather than pro-forma — but they are a different statistic, from a 500-step 45k-pool cell, and
+  must not stand in for the measurement.
+- **Not answerable from any retrieval dump, at any site, ever.** `eval_retrieval.py:110` does
+  `sims.topk(...).indices` — the `.values` are discarded at the topk call and never reach the
+  JSON, which stores only `topk` pids, `gold_pids`, `ans_pids` and metadata.
+  **METHOD NOTE:** the prior session established this by inspecting four dump files on its
+  cluster; checking the WRITER instead establishes it for every site and every past run,
+  permanently. *Checking the producer generalises where checking the product does not* — worth
+  reaching for whenever a claim is about what data exists rather than what a particular file holds.
+- **Cheap path taken instead:** `bench_uniq.py` now reads its encoder checkpoint from `$CKPT`
+  (default `__profile__`), so the identical script rerun against ck750 yields the trained geometry
+  for one encode on our own lane — turning the caveat into a measured before/after.
+- **DEFERRED, deliberately:** storing a few per-query top-k score summary statistics in the dump
+  would make this answerable from any results bundle with no re-encoding. NOT changing the dump
+  format mid-campaign — it would desynchronise our ck750 eval from the baseline dumps for a
+  benefit already obtainable via `CKPT`. Post-campaign change, if ever.

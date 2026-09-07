@@ -1253,3 +1253,42 @@ steps (2 seeds — a crude bound, NOT an SD):
 So a single-seed emaidx-vs-baseline gap below roughly **4 pts entR@5 or 1.5 pts ansR@5** is
 inside seed noise and CANNOT be called. Written down before the numbers exist, deliberately.
 EMA_HANDOFF.md's "declines to entR@5 72.63" framing is being corrected at source by its author.
+
+### 2026-09-07: throughput investigation on the shared box — cause is reader generation under time-slicing
+The EMA arm ran far slower than the baseline's 6.64 s/step and the cause was chased before
+committing to a long run. Baseline rate is solid: recovered from checkpoint mtimes as four
+independent 750-step intervals (6.63 / 7.38 / 5.75 / 6.80 s/step, mean 6.64, total 11.77 h),
+so the recipe is not at fault and the problem is site-specific.
+
+Ruled out by measurement, not argument:
+- **Memory cap: NOT the cause.** The live trainer sits at 27,808 MiB against its 46,006 MiB
+  ceiling — 60%, stable across every sample rather than pinned the way a thrashing allocator
+  would be. A standalone reader benchmark under the identical `MMRAG_MEM_FRAC=0.32` AND
+  `expandable_segments:True` reports `num_alloc_retries=0`, `num_ooms=0`, reserved 10.66 GiB.
+  The allocator never approaches the limit, so the slow free-and-retry path is never entered.
+- **Attention backend: NOT the cause.** Reader reports `_attn_implementation=flash_attention_2`,
+  dtype bf16. The flash-attn 2.8.3 wheel genuinely engages against torch 2.8.0 — no eager fallback.
+- **Warmup: NOT the cause.** Rate is unchanged when steps 0-12 are excluded.
+
+**Cause: reward-reader generation, punished ~10x by GPU time-slicing.** `score_judge` on this
+box costs 14-18 s for 16 triples; the baseline's ENTIRE step was 6.64 s. Encoding is punished far
+less — the init corpus encode came in at 2.9x (2145 s here vs 749 s clean). **Those two factors
+are NOT the same number, and "the site is uniformly ~3x slow" was an over-smoothing of two
+different measurements.** Mechanistically sensible: decode is a long tail of tiny launch-bound
+kernels (worst case for context-switching), encoding is a few large matmuls.
+
+**CORRECTION — a wrong line-number claim I made and retract.** I reported the per-step reader
+load as 96 triples, citing `train_rl.py:531`. That line is in the **`else:` (non-plgrpo) branch**.
+The plgrpo path is `train_rl.py:456-467`, which scores one triple per **UNIQUE** doc across the
+sampled lists (`sorted(set(pl_idx[b].flatten().tolist()))`, with an `owner` map scattering
+per-document rewards back onto lists). `pl_idx` is (B, G, k) = (4, 4, 4) from `pl_sample_lists`,
+Gumbel-top-k with INDEPENDENT noise per list (rl_core.py:39-42), so unique docs per query is
+4-16 and **len(uniq) is 16-64 triples/step, not 96**. My 16-triple benchmark measured the
+degenerate floor. At temperature 0.02 the scaled-sim gaps within the top-24 are comparable to
+the Gumbel noise scale (~1.28), so lists diverge substantially and the realistic count is toward
+the upper end (~45), which closes the step-time accounting without a second unexplained slowdown.
+Lesson: a line number makes a claim *look* verified; trace which BRANCH consumes the variable.
+
+Consequence for the campaign: `save_steps 250` means interim checkpoints arrive long before the
+run ends, and the registered comparison is checkpoint-matched anyway — so ck750 can be evaluated
+against the baseline's own ck750 without waiting out the full run.

@@ -1076,3 +1076,32 @@ Scripts moved into the repo so the commands resolve: mmrag/scripts/{eval_run,lau
   sft_curve,run_repro,ladder_zs,local_cell_worker,resubmit_ema}.sh, mmrag/geom_probe{,_q}.py.
 On hold per user ("Don't submit new job now"): SFT-best query-geometry probe, emaenc MLX
   duplicate, scheme 4, blend-weight cell.
+
+### 2026-09-07: the 810k "decline" re-read under the CI rule — only ansR@5 survives
+
+Prompted by the H200 site applying the project's own fit-trends rule to the BASELINE before
+its EMA arm landed. Verified here.
+
+`v3-rows1M` (500 steps) and `v3-rows1M-s3000` differ only in `max_steps`, `save_steps`,
+`device`, `output_dir`; `lr_schedule=constant`, `warmup_steps=20` fixed, seed 0, same
+pool/corpus. Constant LR + fixed warmup means max_steps never enters the optimisation and a
+shared seed gives an identical draw sequence, so the 500-step run is a genuine PREFIX of the
+s3000 trajectory and the curves merge legitimately (250/500/750/1500/2250/3000).
+
+Least-squares, 95% CI, pts per 1k steps, seed-0 curve:
+  entR@5 −1.738 [−3.360, −0.117] | ansR@5 −1.031 [−1.988, −0.074] | acc −0.139 [−0.885, +0.607]
+Swapping the step-250/500 anchors for seed 1 (`v3-rows1M-s1-ck250`, `v3-rows1M-s1`):
+  entR@5 −0.796 [−1.776, +0.184] SPANS ZERO | ansR@5 −0.938 [−1.657, −0.218] | acc spans zero
+Seed-averaged anchors: entR@5 −1.267 [−2.245, −0.289] | ansR@5 −0.984 [−1.694, −0.275].
+The four s3000-only points distinguish nothing on any metric (dof=2).
+
+READING: **ansR@5 declines robustly** (CI excludes zero under every anchor choice). entR@5's
+decline is anchor-fragile — seed 0 RISES 77.00→78.70 across steps 250→500 while seed 1 FALLS
+75.47→74.37, so the 78.70 is a seed excursion, not a curve feature, and it carries most of the
+6.07-pt endpoint "decline". acc is flat throughout. Consequence: "does index-EMA prevent the
+decline?" is well-posed ONLY on ansR@5; the earlier endpoint framing (entR@5 78.7→72.63) is
+retracted as not meeting our own CI rule.
+
+Between-seed spread at matched steps (2 seeds, crude bound not an SD): entR@5 1.53 / 4.33,
+ansR@5 0.69 / 1.51, acc 0.00 / 0.33 at steps 250 / 500. Single-seed gaps below ~4 pts entR@5
+or ~1.5 pts ansR@5 are inside seed noise.

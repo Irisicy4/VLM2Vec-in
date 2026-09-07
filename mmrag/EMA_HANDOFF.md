@@ -254,10 +254,27 @@ not an EMA result. Stop and rethink rather than spending the walltime.
 
 ### 1. EMA × scaling — the informative cell (unrun)
 
-Long training on the big pool is where the index goes stale and retrieval declines:
-`v3-rows1M-s3000` (810k-row pool, 3000 steps, constant LR) ends at entR@5 **72.63** / ansR@5 61.59 /
-acc 33.8, vs the 500-step point ~78.7 entR@5 (seed 0; that peak failed seed validation — s1 gave
-74.37 — so compare full curves, not the peak). Question: does index-EMA prevent the decline?
+Long training on the big pool is where the index goes stale. **What actually declines, stated
+to the project's own CI rule** (least-squares over the seed-0 curve at steps 250/500/750/1500/
+2250/3000 — the 500-step run `v3-rows1M` is a genuine prefix of `v3-rows1M-s3000`: their
+configs differ only in `max_steps`, `save_steps`, `device` and `output_dir`, with
+`lr_schedule=constant` and fixed `warmup_steps=20`, so max_steps never enters the optimisation):
+
+| metric | slope /1k steps | robust to which point anchors step 250/500? |
+|---|---|---|
+| **ansR@5** | −0.94 to −1.03 | **yes — CI excludes zero under seed-0, seed-1 and seed-averaged anchors** |
+| entR@5 | −0.80 to −1.74 | no — declines under seed-0/averaged anchors, spans zero under seed-1 |
+| acc | ≈ −0.1 | no trend under any anchor |
+
+So **`ansR@5` is the only metric with a robustly established baseline decline**, and it is the
+only one on which "does index-EMA prevent the decline?" is well-posed. Report entR@5 and acc as
+secondary and scoped. Fitting the four `s3000`-only points alone distinguishes nothing on any
+metric (dof=2, no power). The old framing of this cell as "declines to entR@5 72.63" was an
+endpoint comparison and does not survive the rule.
+
+**Between-seed spread at matched steps** (seed 0 vs seed 1, steps 250/500) bounds what one seed
+can resolve: entR@5 1.53 / 4.33 pts, ansR@5 0.69 / 1.51, acc 0.00 / 0.33. A single-seed gap
+below roughly 4 pts entR@5 or 1.5 pts ansR@5 is inside seed noise and cannot be called.
 
 ```bash
 bash mmrag/mlx_submit_cell.sh "emaidx-1M-s3000" gme2b \

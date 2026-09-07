@@ -245,12 +245,24 @@ this path in one day, so: with `--algo plgrpo` the judge call is `train_rl.py:46
 one triple per unique doc per query). It is *not* `train_rl.py:531`, which sits in the
 non-plgrpo `else:` branch and would give `batch_size × pl_support` = 96. `pl_sample_lists`
 is Gumbel-top-k with independent noise per list, so the lists overlap partially and
-`len(uniq)` lands between 16 (all lists collapse) and 64 (disjoint) — simulating the sampler
-at `pl_support 24 / pl_group 4 / pl_k 4 / temperature 0.02` gives ~28 (wide similarity
-spread) to ~47 (narrow). `score_judge` then batches `reader_batch_size // 2` = 8 triples per
+`len(uniq)` lands between 16 (all lists collapse) and 64 (disjoint). **Measured on real
+retrieval geometry: ~8.2 unique docs per query, so `len(uniq)` ≈ 33 triples/step at batch 4**
+(a simulation over guessed cosine profiles gave 28–47, so it bracketed but did not pin it).
+That figure is close to index-size-invariant — 8.43 / 8.41 / 8.19 unique per query over 40k /
+80k / 120k corpus subsamples, i.e. ~3% across a 3x index change — so it is a property of the
+sampler and the model's similarity spread, not of corpus scale, and should transfer. `score_judge` then batches `reader_batch_size // 2` = 8 triples per
 `generate` call when sampling (`reader_vlm.py:135`), 32 sequences × 24 new tokens each, so
 cost ≈ `ceil(len(uniq)/8)` generate calls. Benchmark the reader at a realistic `len(uniq)`,
 not at 16 or 96 — both are wrong by 2-3x in opposite directions.
+
+**The reader is nearly the whole step, and the non-reader terms are small.** Measured
+directly under co-tenancy: doc encode (96 docs) 0.71 s, query encode (4 with images) 0.40 s,
+EMA write-back (256 docs) 1.85 s — **2.96 s total non-reader**. Against a 37.5–39.1 s
+contended step that leaves ~92% for the reward reader. Two warnings drawn from getting this
+wrong: estimating the EMA write from an *init-encode* rate overstated it by ~1.7x (the cold
+full encode ran 81 passages/s where steady-state write-back achieves ~138/s), and inferring
+the baseline's reader/encoder split rather than measuring it produced a decomposition that
+was off by ~4x on the non-reader total. Measure the terms; do not derive them.
 
 Note the **eval** reader is a different regime: `eval_vqa` generates greedily with no
 rollouts, so the `//2` halving doesn't apply and 1500 queries run as 188 batches of 8. Measured

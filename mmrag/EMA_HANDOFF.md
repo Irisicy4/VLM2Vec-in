@@ -206,6 +206,24 @@ Metrics: entR@5 / ansR@5 from `$D/results/<name>.retrieval.metrics.json`
 EMA knobs in `train_rl.py`: `--index_ema <m>` (index blend, **m is retention**, fresh weight = 1−m)
 with `--index_refresh_extra 256`; `--model_ema <m>` (EMA doc-tower weights).
 
+**`--index_ema` is a compound treatment, not a multiplier — scope claims accordingly.**
+`train_rl.py:353` gates the periodic full refresh on `index_ema == 0`, so switching it on
+*replaces* the refresh schedule rather than adding to it: one full encode at init, then per
+step the stalest `--index_refresh_extra` docs plus the step's own pool docs are EMA-written
+back (`_per_step = index_refresh_extra + batch_size * (N + 4)`, N = `pl_support`). An emaidx
+arm therefore differs from a v3-pure baseline in *two* ways at once — the m=0.9 blending and
+the incremental-vs-discrete refresh schedule — so a win or a null belongs to the EMA refresh
+*scheme*, not to the blending coefficient. To separate them, rerun with `--index_ema 1e-8`:
+still takes the `> 0` branch (incremental schedule) but write-back becomes a pure fresh
+overwrite, isolating schedule from blending.
+
+Two practical consequences. **Cost**: an EMA arm is *cheaper* than its baseline, so don't
+budget walltime off the baseline's rate — at 3000 steps the baseline pays 30 full re-encodes
+(~5.2M doc-encodes on a 173k-passage index) versus ~1.28M here, ~4x less. **Coverage**: the
+run prints an `EMA-index sweep coverage: ...x (FULL|PARTIAL)` line at init. `PARTIAL` means
+some passages keep their init embeddings for the entire run — that is a stale-index confound,
+not an EMA result. Stop and rethink rather than spending the walltime.
+
 ## What is already known (all 1 seed, 500 steps, div45k_v3 pool, ledgered in RL_REDESIGN.md)
 
 | cell | args delta | entR@5 | ansR@5 | acc |

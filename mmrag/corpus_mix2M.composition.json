@@ -1,0 +1,16 @@
+{
+ "_base_corpus_div_v2.jsonl": 1259544,
+ "msmarco": 246819,
+ "quora": 112560,
+ "cqadupstack": 0,
+ "trec-covid": 89506,
+ "webis-touche2020": 78656,
+ "fiqa": 55602,
+ "scidocs": 25283,
+ "arguana": 8673,
+ "scifact": 5183,
+ "nfcorpus": 3633,
+ "_total": 2000000,
+ "_note": "base carried byte-identically so every div-pool gold keeps its pid; BEIR domains are head-N of a streamed corpus (deterministic, NOT a random sample); passages under 40 chars dropped; one pid range per domain from 60000000 in steps of 1000000; topped up with FILL_DOMAINS at pid 70000000+ because BeIR/cqadupstack has no corpus repo on HF",
+ "hotpotqa": 114541
+}

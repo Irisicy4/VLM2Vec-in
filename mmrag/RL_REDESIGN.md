@@ -1314,3 +1314,28 @@ Eval-stage budgeting note: the ~7-8x generation penalty hits `eval_vqa` (1500 qu
 7B reader — the most contention-sensitive stage in the pipeline), while `encode_corpus` /
 `eval_retrieval` track the ~2.9x encoding factor. Record the two halves' walltimes SEPARATELY;
 a single "eval time" number would average two very different contention regimes.
+
+### 2026-09-07: eval-stage cost — corrected DOWN by ~an order of magnitude (attributed, not verified here)
+An earlier warning in this campaign that `eval_vqa` would cost "hours" under contention was wrong
+and is retracted by its author. Baseline VQA-stage durations, recovered on the ORIGINAL cluster
+from the gap between each result's `retrieval.metrics.json` and `vqa_top5.json` mtimes:
+ck750 4.3 min, ck1500 7.0 min, ck2250 8.2 min, final 4.6 min — i.e. **1500 queries through the
+7B reader cost 4-8 min uncontended, not hours.**
+
+Reason the instinct was wrong, and it is a genuine regime difference worth remembering:
+`eval_vqa` generates **greedily with no rollouts**, so `score_judge`'s `bs = batch_size // 2`
+sampling halving (reader_vlm.py:135) does NOT apply — it runs 1500/8 = 188 full batches of short
+generations, which is efficient even on a 7B. Training's 4-rollout sampled judge is a completely
+different regime, and the ~7-8x generation penalty measured there should not be assumed to
+transfer at the same magnitude.
+
+**PROVENANCE — cannot be verified at this site.** Our `results/*.json` were pulled from the HF
+bundle today, so every local mtime is the download timestamp (all identical, 17:09:27) and
+carries no timing information. These four durations rest entirely on the prior session's copies
+on the original cluster; recorded as attributed, not independently confirmed here.
+
+Projection for this box: ~30-70 min for the VQA half at the measured generation penalty. No
+number is offered for the retrieval half — it is corpus-encode-bound (`--bs 128` over 173,755
+passages + 3000 query encodes) and should track the ~2.9x ENCODING factor rather than the
+generation one, but that has never been measured. Recording the two halves separately when
+ck750 is evaluated will produce the first measurement of eval-stage contention for this campaign.

@@ -356,6 +356,23 @@ Convention pinned in RL_REDESIGN.md: **m is retention** (0.99 = very stale index
 Any cell that looks like a win gets seeds 1–2 (`--seed N`, suffix `-s1`/`-s2`) before any claim.
 No margins without matched seeds and matched estimator.
 
+## Reporting, when a second site is involved
+
+**Report the measurement and its provenance, not the ratio.** A ratio is a summary nobody can
+re-check; a measurement plus how it was obtained can be re-derived by anyone, including the
+person who disagrees with you. Every number corrected across the two sites running this cell
+was caught by one side asking for the underlying measurement rather than accepting the
+summary — a "4x" that was a doc-encode count read as wall clock, an "hours" eval estimate that
+was minutes, a uniform "3x site factor" that was 2.9x on encoding and 7-8x on generation, a
+branch citation with a convincing line number pointing at a branch the config never enters,
+and four single observations quoted as though tight. None of these would have been caught by
+one side being more careful alone.
+
+Practical consequences: attribute numbers you did not measure yourself and say you did not
+(`corpus_seconds` from a bundle you downloaded is not your measurement); state what would
+falsify a claim before the data exists; and when you stop early, name it as an interim look
+rather than fitting the truncated curve as if its endpoint were pre-specified.
+
 ## Mechanics / house rules
 
 - `mlx_submit_cell.sh "<name>" gme2b "<train args>"` writes `mmrag/mlx_configs/<name>.yaml`,

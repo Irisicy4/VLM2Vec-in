@@ -1117,3 +1117,45 @@ no MLX and no bytenas mount. Non-MLX path from EMA_HANDOFF.md used throughout.
   knob is verifiably live (unlike the confounded div45kv3-emaenc arm).
   Results pending; will be recorded curve-vs-curve against v3-rows1M-s3000
   (final entR@5 72.63 / ansR@5 61.59 / acc 33.8; ck2250 74.67 / 62.82 / 35.0), 1 seed = recorded.
+- **`--index_ema` IS A COMPOUND TREATMENT — constrain the claim accordingly.** train_rl.py:354
+  gates the periodic full refresh on `index_ema == 0`, so this arm differs from
+  v3-rows1M-s3000 in TWO ways at once: (a) EMA blending at m=0.9 on write-back, and (b) a
+  wholly different refresh schedule — incremental and continuous (368 docs every step)
+  instead of 30 discrete full re-encodes. Whatever this cell shows, the honest claim is about
+  the EMA refresh SCHEME as a whole; a win or a null CANNOT be attributed to the blending
+  coefficient alone. Encoding cost differs by the same token: baseline 30 x 173,755 = 5.21M
+  doc-encodes vs this arm's 173,755 + 1.10M = 1.28M, ~4.1x cheaper — so do NOT budget an EMA
+  arm off the baseline's ~14 s/step in either direction.
+  This also retro-weakens the div45kv3-emaidx parity row: at 500 steps with refresh_steps 100
+  the baseline paid only 5 full refreshes, so the schedule gap there was ~6x smaller than here,
+  and "parity at 500 steps" was testing less of the treatment than it appeared to.
+  Cheap decomposition available if this cell shows anything: rerun with `--index_ema 1e-8`,
+  which still takes the `index_ema > 0` branch (keeping the incremental schedule) while making
+  the write-back a pure fresh overwrite with no blending — isolating schedule from blending at
+  the same cost. NOT launched; proposed for the user's decision after cell 1 lands.
+- Init guard registered BEFORE results: if the coverage line prints PARTIAL rather than FULL,
+  stop rather than run 12 h — PARTIAL means some passages keep their init embeddings all run,
+  which is a stale-index confound, not an EMA result. Arithmetic predicts FULL at 6.35x.
+- Shared-compute note: `nvidia-smi` aggregate `utilization.gpu` reads 0% on this box even under
+  load; `nvidia-smi pmon` shows the truth (this run 19-79% SM alongside the neighbour's 14-28%).
+  Wall-clock here is therefore NOT a clean throughput number for any other site.
+- **Neighbour-safety fix, cell relaunched 17:22 UTC.** The co-resident verl job (8 cards, days
+  of runtime) runs vLLM in SLEEP MODE: it releases ~64 GiB during actor training and RECLAIMS it
+  when rollout starts, failing hard — killing ITS process, not ours — if anyone holds that memory
+  at the moment it wakes. Measured phases per card: actor training 56.4 GiB, handover 18.3 GiB,
+  vLLM rollout 80.6 GiB of 140.4 usable. So co-tenants must size against the 80.6 GiB ROLLOUT
+  peak, not the training figure or a spot check; the swing is 24 GiB and a single nvidia-smi
+  reading can mislead by that much either way (thanks to the h200-rag session for the sampling).
+  `--mem_frac` covered training but NOT the three eval stages (~1 h of 7B reader, uncapped).
+  Closed with a `.pth` hook in our own venv (`mmrag_memcap.py` + `zz_mmrag_memcap.pth`) that
+  applies `set_per_process_memory_fraction(MMRAG_MEM_FRAC)` to every interpreter in that venv as
+  soon as torch is importable — no edit to any estimator-path script. VERIFIED ENFORCING, not
+  assumed: a deliberate 60 GiB allocation is refused with 117 GiB physically free. Worst case is
+  now 80.6 + 44.7 = 125.3 of 140.4 GiB. Cell restarted to pick it up; cost was ~10 min of init
+  encode and no checkpoint. NOTE for other sites: a venv `sitecustomize.py` does NOT work here —
+  `/usr/lib/python3.10/sitecustomize.py` shadows it (that dir precedes venv site-packages on
+  sys.path); the `.pth` is not shadowed.
+- Scar, and the README already warned about it: `pgrep -f train_rl.py | while read p; kill $p`
+  killed the issuing shell, because the pipeline's own command line contains the pattern. That is
+  the fourth time this pattern-kill has bitten this project. Explicit PIDs from a listing, always.
+  (No harm: all 16 neighbour processes verified alive afterwards, and no checkpoint existed yet.)

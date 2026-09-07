@@ -15,6 +15,7 @@ import json
 import os
 import random
 import sys
+import time
 
 import torch
 
@@ -86,7 +87,10 @@ def main():
                                     device=args.device, max_len=args.max_len,
                                     query_instruction=args.query_instruction)
 
+    _t0 = time.time()
     p_emb = encode_corpus(enc, corpus, args.corpus_bs, args.cache_corpus)  # (C, d) cpu fp32
+    corpus_seconds = time.time() - _t0
+    _t1 = time.time()
     pids = [p["pid"] for p in corpus]
     p_emb_gpu = p_emb.to(args.device, dtype=torch.float16)
 
@@ -120,6 +124,7 @@ def main():
         if (i // args.query_bs) % 20 == 0:
             print(f"  queries {done}/{len(queries)}  entityR@5={r_at[5]/done:.3f}", flush=True)
 
+    query_seconds = time.time() - _t1
     n = len(queries)
     line_e = "  ".join(f"R@{k}={r_at[k]/n:.4f}" for k in KS)
     line_a = "  ".join(f"R@{k}={ans_r_at[k]/max(n_ans,1):.4f}" for k in KS)
@@ -131,6 +136,7 @@ def main():
     fp = os.path.join(out_dir, f"{args.name}.retrieval.json")
     json.dump(out, open(fp, "w"))
     metrics = {"name": args.name, "n": n, "n_ans": n_ans,
+               "corpus_seconds": round(corpus_seconds, 1), "query_search_seconds": round(query_seconds, 1),
                "entity_recall": {k: r_at[k] / n for k in KS},
                "answer_recall": {k: ans_r_at[k] / max(n_ans, 1) for k in KS}}
     json.dump(metrics, open(os.path.join(out_dir, f"{args.name}.retrieval.metrics.json"), "w"), indent=2)

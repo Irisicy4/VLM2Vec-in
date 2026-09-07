@@ -4,6 +4,7 @@ merge the shard files afterwards with --merge (order-preserving)."""
 import argparse
 import os
 import sys
+import time
 
 import torch
 
@@ -40,5 +41,7 @@ part = corpus[lo:hi]
 out = f"{a.cache}.{a.shard}of{a.nshards}" if a.nshards > 1 else a.cache
 print(f"corpus: {n} total, shard {a.shard}/{a.nshards} -> [{lo}:{hi}) = {len(part)}", flush=True)
 enc = load_encoder(a.profile, checkpoint_path=a.checkpoint, device=a.device, max_len=512)
+_t0 = time.time()
 emb = encode_corpus(enc, part, a.bs, out)
-print("DONE", tuple(emb.shape), out, flush=True)
+_dt = time.time() - _t0
+print(f"DONE {tuple(emb.shape)} {out} encode={_dt:.0f}s ({len(part)/max(_dt,1e-9):.0f} passages/s)", flush=True)

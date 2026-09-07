@@ -1199,3 +1199,50 @@ is NOT a claim this design can support, because the decline it would prevent is 
 established at the matched estimator. What the cell CAN support is (i) matched-checkpoint
 comparison at 750/1500/2250/3000 and (ii) a trend-vs-trend contrast, both 1 seed = recorded, not
 claimed. Registering this now so the reading is not chosen after seeing which way the numbers go.
+
+### 2026-09-07 (cont.): merge VERIFIED, and anchor-sensitivity splits the answer BY METRIC
+The unverified merge above is now verified. `runs/v3-rows1M/args.json` vs
+`runs/v3-rows1M-s3000/args.json` differ in exactly four fields — `max_steps` (500 vs 3000),
+`save_steps` (250 vs 750), `device`, `output_dir`. Seed 0 both, `lr_schedule constant` both,
+`warmup_steps 20` both (a fixed step count, NOT a fraction of max_steps), pool/corpus/batch_size/
+refresh_steps/pl_support/n_distractor_articles identical, `index_ema` None both. So max_steps
+never enters the optimisation and a shared seed makes `rng.choice(rows)` draw the identical
+sequence: **v3-rows1M is a genuine PREFIX of the s3000 trajectory, not a separate run.** Only
+caveat is different physical GPUs = fp nondeterminism, not an estimator difference.
+
+There is also a seed-1 early curve on disk (`v3-rows1M-s1-ck250`, `v3-rows1M-s1`; seed 1,
+otherwise matched, 500 steps), so "the slope is anchored by the seed-failed point" is testable
+rather than rhetorical. Refit with the early anchor swapped (slopes pts/1k steps, 95% CI):
+
+| variant (early anchor) | entR@5 | ansR@5 | acc |
+|---|---|---|---|
+| A — none (s3000 only) | −0.991 [−3.711, +1.729] spans 0 | −0.680 [−2.438, +1.078] spans 0 | −0.382 spans 0 |
+| B — seed 0 | −1.738 [−3.359, −0.118] **DECLINE** | −1.032 [−1.990, −0.074] **DECLINE** | −0.140 spans 0 |
+| C — seed 1 | −0.794 [−1.774, +0.185] spans 0 | −0.939 [−1.659, −0.220] **DECLINE** | −0.090 spans 0 |
+| D — seed-averaged | −1.266 [−2.243, −0.290] **DECLINE** | −0.986 [−1.695, −0.277] **DECLINE** | −0.115 spans 0 |
+
+(Independently recomputed here from results/ and matching the prior session's fits to 3 dp.)
+
+- **ansR@5 is the ONLY metric whose decline survives every anchor choice** — CI excludes zero
+  under B, C and D alike, slope stable at −0.94 to −1.03 pts/1k steps.
+- **entR@5's decline is anchor-fragile**: present under seed-0 or seed-averaged anchors, gone
+  under seed-1. Visible in the raw points — seed 0 RISES 77.00 → 78.70 between steps 250 and 500
+  while seed 1 FALLS 75.47 → 74.37. The 78.70 is a seed-0 excursion, not a curve feature.
+- **acc has no trend under any variant.**
+
+**REGISTERED (before emaidx-1M-s3000 produces a number):** primary metric = **ansR@5**, the only
+one where "does index-EMA prevent the decline" is a well-posed question. entR@5 and acc are
+secondary and explicitly scoped — on entR@5 the baseline trend is not robustly established, and
+on acc there is no trend to prevent.
+
+**Detectability bound, also registered in advance.** Observed between-seed spread at matched
+steps (2 seeds — a crude bound, NOT an SD):
+
+| step | entR@5 | ansR@5 | acc |
+|---|---|---|---|
+| 250 | 1.53 | 0.69 | 0.00 |
+| 500 | 4.33 | 1.51 | 0.33 |
+
+So a single-seed emaidx-vs-baseline gap below roughly **4 pts entR@5 or 1.5 pts ansR@5** is
+inside seed noise and CANNOT be called. Written down before the numbers exist, deliberately.
+EMA_HANDOFF.md's "declines to entR@5 72.63" framing is being corrected at source by its author.

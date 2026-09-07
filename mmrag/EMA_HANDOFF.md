@@ -57,7 +57,12 @@ Host side: ~24 CPU cores and ~220 GB RAM per job. `train_rl.py` has NO resume �
 restarts at step 0 — so use a non-preemptible partition and ask for ≥24 h walltime
 (~12 h train for the 3000-step cell, plus a few hours of eval).
 Deps are checked/installed by the entry script: torch 2.8.0, transformers 4.57.0, peft 0.17.1,
-accelerate 1.13.0, qwen-vl-utils, flash-attn 2.8.1 (`--no-build-isolation`).
+accelerate 1.13.0, qwen-vl-utils, torchvision, flash-attn 2.8.1 (`--no-build-isolation`).
+`torchvision` is required but **not declared** by qwen-vl-utils (`vision_process.py` imports
+it; the package's own deps are av/packaging/pillow/requests), so a fresh venv fails without
+it — it is now in the entry scripts' pip line, but check yours if you cloned before that.
+transformers 4.57.0 is yanked on PyPI; the exact pin still installs and imports fine, but a
+new site may prefer 4.57.1.
 flash-attn 2.8.1 is what this cluster installed, not a requirement: upstream ships no 2.8.1
 wheel for torch 2.8, and 2.8.3 has precedent in this project (`README.md:73`, `RESUME.md:13`,
 the Isambard env, there paired with torch 2.9). Use the 2.8.3 build matching your torch —

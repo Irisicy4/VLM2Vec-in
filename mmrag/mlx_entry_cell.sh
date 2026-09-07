@@ -23,7 +23,7 @@ echo "    train args: ${CELL_TRAIN_ARGS:-}"
 nvidia-smi -L
 
 python3 - <<'PY' || pip install -q torch==2.8.0 transformers==4.57.0 peft==0.17.1 \
-    huggingface_hub==0.36.2 accelerate==1.13.0 qwen-vl-utils pillow
+    huggingface_hub==0.36.2 accelerate==1.13.0 qwen-vl-utils torchvision pillow
 import sys, torch, transformers, peft, qwen_vl_utils  # noqa
 mj, mn = (int(x) for x in transformers.__version__.split('.')[:2])
 sys.exit(0 if (mj, mn) >= (4, 51) else 1)

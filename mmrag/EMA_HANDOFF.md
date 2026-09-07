@@ -237,7 +237,19 @@ clock (≈40% saving), not the 4x you get by counting doc-encodes.** Measured de
 time**, leaving 6.63 s/step of training compute. The EMA arm replaces that with one init
 encode plus 368 docs/step ≈ 1.59 s/step, projecting 7.06 h. Note the saving is bounded by how
 much of the baseline *was* refresh, so it shrinks on a smaller index or a longer
-`refresh_steps` — this is not a general "EMA is faster" claim. **Coverage**: the
+`refresh_steps` — this is not a general "EMA is faster" claim.
+
+**Benchmark your site against 6.6 s/step.** Recovered from `v3-rows1M-s3000`'s checkpoint
+mtimes across four independent 750-step intervals (subtracting the known refreshes): 6.63,
+7.38, 5.75, 6.80 s/step on an H100-80. `metrics.jsonl` carries no timestamps, so count its
+rows over a wall-clock window — and exclude the first few steps, which absorb the reward
+reader's first load and CUDA autotune. Materially slower than ~7 s/step (contention aside)
+means something is wrong; in observed cases the causes were, in order of likelihood: a
+per-process memory-fraction cap set close to the ~35 GiB working set, which sends the
+allocator into a silent free-and-retry path that is catastrophically slow with no error
+(check `torch.cuda.memory_stats()['num_alloc_retries']` climbing, and note it interacts
+badly with `expandable_segments:True`); a measurement window too short to amortise startup;
+and flash-attn silently falling back to eager attention. **Coverage**: the
 run prints an `EMA-index sweep coverage: ...x (FULL|PARTIAL)` line at init. `PARTIAL` means
 some passages keep their init embeddings for the entire run — that is a stale-index confound,
 not an EMA result. Stop and rethink rather than spending the walltime.

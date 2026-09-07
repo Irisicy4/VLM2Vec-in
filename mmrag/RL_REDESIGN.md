@@ -1076,3 +1076,44 @@ Scripts moved into the repo so the commands resolve: mmrag/scripts/{eval_run,lau
   sft_curve,run_repro,ladder_zs,local_cell_worker,resubmit_ema}.sh, mmrag/geom_probe{,_q}.py.
 On hold per user ("Don't submit new job now"): SFT-best query-geometry probe, emaenc MLX
   duplicate, scheme 4, blend-weight cell.
+
+### 2026-09-07: third site stood up (H200 shared box) — emaidx-1M-s3000 launched
+Site: `fukushimadc-02-hgx-0011`, 8x H200 143GB, `MMRAG_DATA=/raid/icy/mmrag_data`,
+no MLX and no bytenas mount. Non-MLX path from EMA_HANDOFF.md used throughout.
+- **Class-1 data NOT rebuilt.** Pulled verbatim from the HF dataset `Icey444/mmrag-class1-built`
+  (published by the prior session). sha256 verified against its manifest for all three cell-1
+  files: pool_train_1M `c8ea97ed…`, corpus_small `2182002…`, queries_test `a7c9e11f…`. The
+  training process then reported `train rows: 810276`, matching the recorded pool exactly.
+  Rebuilding pool_train_1M would have been wrong even if the flags were known: train_rl.py
+  draws rows by INDEX off a seeded RNG, and 3000 steps x batch 4 touches only ~12k of 810k
+  rows, so file row order alone determines the training set.
+- Class-2 images re-downloaded from HF `BByrneLab/M2KR_Images` (both InfoSeek tars, 54 GB);
+  808,601 images indexed across the two tars; staging smoke test returned real sizes.
+  Class-3 models 31 GB. Baseline `results/*.json` merged with `cp -n` (369 files).
+- **Env deviations from the handoff pins, both recorded rather than hidden:** flash-attn
+  **2.8.3** not 2.8.1 (upstream publishes no 2.8.1 wheel for torch 2.8; 2.8.3 is the version
+  README.md:73 / RESUME.md:13 already ran on Isambard), and transformers 4.57.0 is now YANKED
+  on PyPI — the exact pin still installs and imports, but new sites should prefer 4.57.1.
+  Also `qwen-vl-utils` imports `torchvision` without declaring it, so a clean venv dies at the
+  entry script's dependency check; fixed upstream in 5e1de0f.
+- **Shared-GPU protocol** (a co-resident 8-GPU job owns 58-80 GB per card): built an isolated
+  venv at `$MMRAG_DATA/venv` so the entry script never pip-installs into the shared system
+  python; `CUDA_VISIBLE_DEVICES=<n>` maps the hardcoded `--device cuda:0` onto a headroom GPU;
+  `--mem_frac 0.32` (~46 GB of 143 GB) caps training above its ~35 GiB working set and below
+  the neighbour's peak. `hostname > $MMRAG_DATA/local_hostname.txt` written BEFORE the first
+  launch, so the entry script's `pkill -x keep_gpu` guard never fired on this box.
+  Note the cap does NOT reach the three eval stages (CELL_TRAIN_ARGS goes only to train_rl.py);
+  left uncapped deliberately — ~63 GB free even at the neighbour's peak vs a ~30 GiB eval need,
+  and an eval OOM costs minutes because the entry script skips training when the adapter exists.
+  Eval batch sizes left at baseline: `encode_bs` is a free knob (pure forward passes) but
+  `reader_batch_size` is NOT — reader_temperature 0.7 means changing it reorders RNG
+  consumption and changes which rollouts are sampled.
+- Launched `emaidx-1M-s3000` on GPU 1. Args = `runs/v3-rows1M-s3000/args.json` verified
+  field-by-field (all 13 estimator-relevant fields identical, corpus and batch_size default
+  to the same values) + `--index_ema 0.9 --index_refresh_extra 256` + `--mem_frac 0.32`.
+  RL index = 173,755 passages. index_ema>0 means ONE full encode at init and NO periodic full
+  refresh — instead 256 stalest docs + the step's own pool docs are EMA-written every step
+  (train_rl.py:312-330), so this arm is cheaper than the baseline's 30 full refreshes, and the
+  knob is verifiably live (unlike the confounded div45kv3-emaenc arm).
+  Results pending; will be recorded curve-vs-curve against v3-rows1M-s3000
+  (final entR@5 72.63 / ansR@5 61.59 / acc 33.8; ck2250 74.67 / 62.82 / 35.0), 1 seed = recorded.

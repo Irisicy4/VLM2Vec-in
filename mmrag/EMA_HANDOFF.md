@@ -277,7 +277,22 @@ per-process memory-fraction cap set close to the ~35 GiB working set, which send
 allocator into a silent free-and-retry path that is catastrophically slow with no error
 (check `torch.cuda.memory_stats()['num_alloc_retries']` climbing, and note it interacts
 badly with `expandable_segments:True`); a measurement window too short to amortise startup;
-and flash-attn silently falling back to eager attention. **Coverage**: the
+and flash-attn silently falling back to eager attention.
+
+**What co-tenancy actually costs (measured, one site).** On an H200 sharing all 8 cards with a
+vLLM training job: **37.5–39.1 s/step, i.e. 5.6–5.9x** the 6.64 s/step baseline — two
+consecutive 900 s windows (steps 28→52 and 53→76) agreeing within 4%. Quote the range, not
+either point: the neighbour cycled between ~19 GB asleep and ~82 GB in rollout on a 12–15 min
+period, so a single 15-minute window can sample one phase rather than average the cycle; two
+consecutive windows agreeing is what makes it trustworthy. The penalty is **not uniform** —
+~2.9x on encoding (index encode ran 81 vs 232 passages/s) against ~7–8x inferred on
+generation, which is mechanistically sensible since decode is a long tail of small
+launch-bound kernels while encoding is a few large matmuls.
+⚠️ **Do not port 5.6–5.9x to another recipe.** It is an aggregate over a particular mix, and
+contention reweights the step toward whatever it punishes hardest: the reward reader was ~2/3
+of the contended step against ~1/2 of the uncontended one. A recipe with a different reader
+share gets a different aggregate, in a direction invisible from the number alone. Caveat from
+the measuring site: no uncontended card existed on that box, so no clean control was possible. **Coverage**: the
 run prints an `EMA-index sweep coverage: ...x (FULL|PARTIAL)` line at init. `PARTIAL` means
 some passages keep their init embeddings for the entire run — that is a stale-index confound,
 not an EMA result. Stop and rethink rather than spending the walltime.

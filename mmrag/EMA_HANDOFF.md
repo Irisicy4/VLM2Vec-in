@@ -368,6 +368,14 @@ branch citation with a convincing line number pointing at a branch the config ne
 and four single observations quoted as though tight. None of these would have been caught by
 one side being more careful alone.
 
+Two corollaries learned the hard way. **A test that cannot come out both ways is worse than no
+test**, because it launders a hunch into a documented finding — the inode rule below was
+written into this file on the strength of a check incapable of distinguishing the hypotheses,
+and two sites then "independently" agreed on the wrong answer. Independence is a property of
+whether each check could have falsified the claim, not of who ran it. **And an over-cautious
+rule is not free**: a false safety warning tells the next site to skip something that was
+safe, which costs exactly as much as a missing warning when the skipped thing was useful.
+
 Practical consequences: attribute numbers you did not measure yourself and say you did not
 (`corpus_seconds` from a bundle you downloaded is not your measurement); state what would
 falsify a claim before the data exists; and when you stop early, name it as an interim look
@@ -396,9 +404,13 @@ rather than fitting the truncated curve as if its endpoint were pre-specified.
   Verify on your own filesystem before relying on either answer; it may be version- or
   fs-dependent. The hazard class that *is* real is any writer that truncates in place and
   keeps the inode — a `>` redirect, some editors.
-  ⚠️ Test it correctly: comparing `stat -c %i` before/after is **not sufficient**, because a
-  freed inode is often immediately reused and you get a false "unchanged". Pin the old inode
-  with a hard link, or hold an open fd and check whether it still sees the old content. Our
-  first attempt at this got the wrong answer exactly that way.
+  ⚠️ Test it correctly, and note the inference is **asymmetric**. A *changed* inode is
+  conclusive (an in-place rewrite cannot change one). An *unchanged* inode is inconclusive: a
+  freed inode is often handed straight back, so "unchanged" cannot distinguish "same file"
+  from "new file, recycled number" — which is precisely how our first attempt reached the
+  wrong conclusion. The check that discriminates in **both** directions: hold an open fd
+  across the operation (or pin the old inode with a hard link) and see whether it still reads
+  the old content. Measured that way on two filesystems (bytenas/NFS and XFS), git replaced
+  the inode and the held fd kept the original content.
 - Ledger every result (including nulls and confounds) in `mmrag/RL_REDESIGN.md`; the results page
   with per-row reproduce commands is `mmrag/docs/vqa_retriever_loop.html` — add rows there too.

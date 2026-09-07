@@ -385,5 +385,16 @@ rather than fitting the truncated curve as if its endpoint were pre-specified.
   not distinguishable.
 - Eval artifacts stay in `$D/results` / repo-gitignored dirs, never `/tmp`. Never `pkill keep_gpu`
   on a dev box (the entry script guards this; leave the guard alone).
+- **Never `git pull` at a site with a cell running.** Bash reads a script incrementally from a
+  byte offset rather than slurping it, and `git checkout` rewrites files **in place, keeping
+  the same inode** (verified: inode unchanged across `git checkout HEAD~1 -- file`). So
+  updating `mlx_entry_cell.sh` while a shell is executing it can make that shell resume at a
+  stale offset and run fragments of a line — and the entry script stays open for the entire
+  run, including the eval stages hours later. The `.py` files are safe (each is a separate
+  future interpreter invocation); the `.sh` files are not, because one of them *is* the
+  process. Cherry-pick the `.py` changes mid-run and take the rest afterwards. If an entry
+  script genuinely must change mid-run, write a new file and point the launcher at it rather
+  than editing in place. A pull would also clobber the site-local path rewiring, which is
+  uncommitted by design.
 - Ledger every result (including nulls and confounds) in `mmrag/RL_REDESIGN.md`; the results page
   with per-row reproduce commands is `mmrag/docs/vqa_retriever_loop.html` — add rows there too.

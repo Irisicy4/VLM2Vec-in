@@ -257,7 +257,15 @@ rollouts, so the `//2` halving doesn't apply and 1500 queries run as 188 batches
 from result mtimes on H100 (gap between `<name>.retrieval.metrics.json` and
 `<name>.vqa_top5.json`): **4.3 / 7.0 / 8.2 / 4.6 min** for `v3-rows1M-s3000`'s ck750 / ck1500 /
 ck2250 / final. Minutes, not hours — evaluating an interim checkpoint is cheap, so do it rather
-than waiting out a long run.
+than waiting out a long run. Treat those as order-of-magnitude, not precise: single
+observations, and a ~2x spread across nominally identical work.
+
+⚠️ **The mtime trick only works where the files were written.** At any site that pulled the
+results bundle from HF, every `results/*.json` mtime is the *download* timestamp — all
+identical — so this silently yields zeros rather than failing loudly. The tell that mtimes are
+genuine: `<name>.retrieval.json` and `<name>.retrieval.metrics.json` are written back-to-back
+(gap ≈ 0.0 s) while `<name>.vqa_top5.json` is minutes later. A bulk copy flattens all three to
+one instant and cannot produce that structure.
 
 **Benchmark your site against 6.6 s/step.** Recovered from `v3-rows1M-s3000`'s checkpoint
 mtimes across four independent 750-step intervals (subtracting the known refreshes): 6.63,

@@ -1381,3 +1381,28 @@ got a result AGREEING with me — and only my test on this box refuted it. **Two
 agreeing is not the same as being right**, especially when one party's confidence seeded the
 other's interpretation. Six claims were retracted across the two sites today; this is the only one
 where a belief both parties had already converged on was overturned by a two-minute check.
+
+### 2026-09-07 (cont.): pull-hazard settled on BOTH sites, and the right way to test it
+Confirmed here with the definitive method (hard-link pin + an fd held open across the checkout),
+XFS, git 2.34.1: inode 14301683 -> 14301686 (CHANGED); disk content afterwards `echo v1`; content
+read through the descriptor opened BEFORE the checkout still `echo v2`. The old inode stays alive
+behind the held descriptor. The prior session reproduced the same on its bytenas mount, where NFS
+additionally left a `.nfs000...` silly-rename artifact — the filesystem announcing that the old
+inode survived because something held it open. **Both sites: git REPLACES, a running shell is safe.**
+
+**The inference asymmetry that produced the wrong rule, worth more than the result.** The prior
+session's first test compared `stat -c %i` before/after, saw an unchanged number, and concluded
+"rewrote in place". That is invalid: git unlinks then creates, and the filesystem hands back the
+inode number it just freed, so an UNCHANGED number cannot distinguish "same file" from "new file,
+recycled number". A CHANGED number, however, IS conclusive — an in-place rewrite cannot change the
+inode. So our two `stat`-only tests were not equally good: mine landed on the sound side of the
+asymmetry by luck, not method. **Use the open-fd / hard-link-pin test**, which discriminates in
+both directions; record that as the method.
+
+**Process lesson (the sharpest of the day).** Sequence was: prior session assumed replace+rename
+(correct) -> I asserted in-place with no test -> their invalid test agreed with me -> both sites
+converged on the wrong rule and committed it. An invalid test that agrees with a confident
+assertion is worth LESS than no test, because it launders a hunch into a documented finding.
+Independence is not about who ran the check but about whether it could have come out the other way.
+**And a false safety rule is not free**: it tells a future site to skip a safe operation — here,
+the eval-timing instrumentation, exactly the kind of improvement that would then be declined.

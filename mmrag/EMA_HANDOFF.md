@@ -32,8 +32,17 @@ Hardware per cell: **one GPU, ~40 GB VRAM minimum, 48 GB comfortable.** Measured
 | VQA eval | Qwen2.5-VL-7B (16 GB) + batch-8 image activations | ~25–30 GiB (estimated) |
 
 24 GB cards are not viable (the 7B eval reader alone is 16 GB of weights). To fit a tighter
-card: `--reader_batch_size 16→8`, `--encode_bs 64→32`, eval `--batch_size 8→4` — none of
-these touch the estimator. Historical OOMs in the logs show PyTorch holding only ~8.7 GiB on
+card, prefer `--encode_bs 64→32` and the eval-stage `--bs 192` / `--batch_size 8` in
+`mlx_entry_cell.sh`: encoding is pure forward passes, so shrinking it is deterministic and
+cannot change which data the run sees. **Change `--reader_batch_size` only as a last resort**
+— it gates sampled generation (`reader_temperature 0.7`), so a different batch size can
+reorder RNG consumption and change which rollouts are drawn.
+
+On a card shared with another tenant, `train_rl.py --mem_frac <f>` caps the training process
+(`torch.cuda.set_per_process_memory_fraction`). Note it reaches **training only**:
+`CELL_TRAIN_ARGS` is passed to `train_rl.py` alone, so the encode/retrieval/VQA stages that
+follow run uncapped. An eval-stage OOM is cheap to recover — the entry script skips training
+when `$RUN/adapter_model.safetensors` exists, so a rerun resumes at the eval stage. Historical OOMs in the logs show PyTorch holding only ~8.7 GiB on
 a full card; those were the `keep_gpu` daemon, not real demand — don't size against them.
 
 **On a shared GPU box, two hazards:**
@@ -49,6 +58,10 @@ restarts at step 0 — so use a non-preemptible partition and ask for ≥24 h wa
 (~12 h train for the 3000-step cell, plus a few hours of eval).
 Deps are checked/installed by the entry script: torch 2.8.0, transformers 4.57.0, peft 0.17.1,
 accelerate 1.13.0, qwen-vl-utils, flash-attn 2.8.1 (`--no-build-isolation`).
+flash-attn 2.8.1 is what this cluster installed, not a requirement: upstream ships no 2.8.1
+wheel for torch 2.8, and 2.8.3 has precedent in this project (`README.md:73`, `RESUME.md:13`,
+the Isambard env, there paired with torch 2.9). Use the 2.8.3 build matching your torch —
+it is an attention kernel, not an estimator change.
 
 ## Staging the data (fresh site — nothing pre-mounted)
 

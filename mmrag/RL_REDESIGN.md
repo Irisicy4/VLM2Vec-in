@@ -1525,3 +1525,28 @@ nothing, which points at DECODE, not prefill, as the dominant cost** (24 sequent
 are unaffected by context length). If it holds, that REFUTES the prior session's firm prediction
 of a clear per-call drop. **NOT SCORED**: this is inference by subtraction, not the direct
 measurement, and the direct trials must be rerun before the prediction is called either way.
+
+**STRONGER REASON NOT TO SCORE IT (prior session's, and it is decisive).** The subtraction mixes
+TWO CONTENTION REGIMES: the 2.96 s non-reader terms were measured on GPU 3 in a standalone
+process, while the 37.5-39.1 s step came from the live run on GPU 1 at a different time under a
+different co-tenant. Because contention here is ~2.9x on encoding but ~7-8x on generation, the
+mismatch does NOT cancel — it lands entirely inside the residual being attributed to the reader.
+So ~6.9-7.2 s/call carries both measurement errors plus an unknown cross-card contention delta and
+is **uninterpretable**, independently of it being subtraction rather than a direct trial. Rerun the
+direct trials on the same card; do not let the subtraction stand in for them.
+
+**PREDICTION SCORED: MISS (self-scored by its author).** Predicted len(uniq) 22-27, measured 33 —
+the AMBIGUOUS band. But since the registered rule was "score against the reconstruction, not the
+band", the verdict is that the decomposition FAILED, and the failure is diagnosable: it assumed
+~13.1 s of non-reader cost (3.2 s EMA + 9.9 s encoding) against a measured 2.96 s, i.e. **4.4x too
+high**. Two errors, both from deriving rather than measuring:
+1. The EMA write cost was computed from the INIT-encode rate (81 passages/s). Steady-state
+   write-back is ~138/s (256 docs in 1.85 s) — a cold full encode is not a valid proxy for warm
+   incremental writes.
+2. The baseline's 6.64 s/step was split into reader vs encoder by inference, then the encoder half
+   scaled by 2.9x — two guesses stacked on each other.
+**A wrong band is information about the model; a right band would have been luck.** Recorded
+because the same author had stated that rule and then failed to apply it to their own estimate.
+
+**WHAT IS SOLID AND TRANSFERS** (sampler-and-geometry, not contention): ~8.2 unique docs/query ->
+~33 triples/step, near-invariant to index size (8.43 / 8.41 / 8.19 at 40k / 80k / 120k).

@@ -1333,6 +1333,19 @@ transfer at the same magnitude.
 bundle today, so every local mtime is the download timestamp (all identical, 17:09:27) and
 carries no timing information. These four durations rest entirely on the prior session's copies
 on the original cluster; recorded as attributed, not independently confirmed here.
+The source-side mtimes DO self-validate, which is worth stating because it is checkable evidence
+rather than assertion: `eval_retrieval` writes `retrieval.json` and `retrieval.metrics.json`
+back-to-back, then `eval_vqa` writes `vqa_top5.json` a stage later. On the original cluster the
+first pair is separated by 0.0 s and the second by minutes, for all four checkpoints. A bulk copy
+cannot produce that structure — it collapses everything to one instant, which is exactly OUR
+symptom. So the pattern itself distinguishes genuine write times from a flattened copy.
+**Two caveats that travel WITH the attribution:** (1) single observations, one per checkpoint, no
+repeats; (2) the spread is nearly 2x (4.3-8.2 min) for nominally identical work — 1500 queries,
+same reader, same k — and the cause (content-dependent generation length vs unknown worker load)
+cannot be distinguished. Treat as "single-digit minutes on an H100, order-of-magnitude reliable",
+NOT a tight baseline. Consequence for our measurement: any contention ratio we compute against it
+must be reported as a RANGE carrying that 2x baseline variance, never as a point estimate.
+`eval_vqa.py` has no timing instrumentation, so no independent log exists to cross-check.
 
 Projection for this box: ~30-70 min for the VQA half at the measured generation penalty. No
 number is offered for the retrieval half — it is corpus-encode-bound (`--bs 128` over 173,755

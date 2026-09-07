@@ -1421,9 +1421,13 @@ own reader/encoder benchmarks were competing for CPU during it):
 | ck1500 reached at | ~15.1 h |
 | one-time init corpus encode | 2145 s for 173,755 passages = 81 passages/s (vs 232/s clean = 2.9x) |
 
-**CAVEATS, and they matter more than the point estimate.** (i) ONE window of 24 steps — a single
-observation, no variance. A second window is running before this is quoted anywhere as the site's
-rate. (ii) The neighbour verl job cycles between ~19 GB (vLLM asleep) and ~82 GB (rollout) on a
+**SECOND WINDOW (steps 53->76, 23 steps in 900 s): 39.1 s/step, 5.9x.** So the site rate is
+**37.5-39.1 s/step (5.6-5.9x baseline)**, full run **31.2-32.6 h**, ck750 at ~7.3 h from either
+window's start. Two consecutive 15-min windows spanning ~30 min — i.e. roughly two of the
+neighbour's 12-15 min rollout cycles — agreeing within 4%. **Quote the range, not either point.**
+
+**CAVEATS, and they matter more than the point estimate.** (i) Two windows, 47 steps total —
+enough to show the rate is stable across neighbour cycles, not enough to characterise a tail. (ii) The neighbour verl job cycles between ~19 GB (vLLM asleep) and ~82 GB (rollout) on a
 12-15 min period, so a 15-min window covers roughly ONE cycle and may not average it; the phase
 transition is visible in gpu_watch.log at 18:32:21, where every card drops ~62 GB at once.
 (iii) There is NO uncontended GPU on this box — all 8 cards host the neighbour — so no clean

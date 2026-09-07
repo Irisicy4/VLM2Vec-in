@@ -22,7 +22,31 @@ On the original cluster `$D=/mnt/bn/tns-algo-video-public-my2/yijiangli/data/mmr
 **On any other cluster: skip MLX entirely and run the entry script directly** (below);
 the yaml resource block (bytenas volume, queue, namespace `/user/yliang.26`) is site-specific.
 
-Hardware per cell: one ~80 GB GPU (GME-2B LoRA train + Qwen2.5-VL-7B eval reader).
+Hardware per cell: **one GPU, ~40 GB VRAM minimum, 48 GB comfortable.** Measured per stage
+(stages run sequentially, so the training peak is the ceiling):
+
+| stage | resident | VRAM |
+|---|---|---|
+| RL training | GME-2B bf16 (~4.4 GB) + Qwen2.5-VL-3B reward reader (7.1 GB) co-resident | 25.9 GiB measured peak alloc, ~35 GiB working set |
+| corpus encode + retrieval eval | GME-2B | 8.7–10.3 GiB measured |
+| VQA eval | Qwen2.5-VL-7B (16 GB) + batch-8 image activations | ~25–30 GiB (estimated) |
+
+24 GB cards are not viable (the 7B eval reader alone is 16 GB of weights). To fit a tighter
+card: `--reader_batch_size 16→8`, `--encode_bs 64→32`, eval `--batch_size 8→4` — none of
+these touch the estimator. Historical OOMs in the logs show PyTorch holding only ~8.7 GiB on
+a full card; those were the `keep_gpu` daemon, not real demand — don't size against them.
+
+**On a shared GPU box, two hazards:**
+1. `--device cuda:0` is hardcoded throughout the entry scripts. To use any other physical
+   GPU, launch with `CUDA_VISIBLE_DEVICES=<n>` so `cuda:0` maps onto it.
+2. `mlx_entry_cell.sh` runs `pkill -x keep_gpu` on any host whose name doesn't match
+   `$MMRAG_DATA/local_hostname.txt` — if that file is missing or stale **the pkill fires and
+   may kill another team's VRAM-holding daemon**. Run `hostname > $D/local_hostname.txt`
+   before the first cell, or delete that line outright on a shared host.
+
+Host side: ~24 CPU cores and ~220 GB RAM per job. `train_rl.py` has NO resume — a kill
+restarts at step 0 — so use a non-preemptible partition and ask for ≥24 h walltime
+(~12 h train for the 3000-step cell, plus a few hours of eval).
 Deps are checked/installed by the entry script: torch 2.8.0, transformers 4.57.0, peft 0.17.1,
 accelerate 1.13.0, qwen-vl-utils, flash-attn 2.8.1 (`--no-build-isolation`).
 
@@ -33,7 +57,30 @@ locally-built artifacts; rebuilding them (build_div_mix*.py) would give a *diffe
 your numbers would not be comparable to the baselines below. **Class 2 can be re-downloaded**
 from public sources if a direct copy is impossible.
 
-### Class 1 — copy verbatim from `SRC=/mnt/bn/tns-algo-video-public-my2/yijiangli/data/mmrag_data` (~2.2 GB)
+### Class 1 — download from Hugging Face (easiest, ~2.1 GB)
+
+Published public at **https://huggingface.co/datasets/Icey444/mmrag-class1-built** — all five
+built files plus the baseline `results/*.json` bundle and a README carrying sha256+bytes for
+each. Verify against that manifest before training.
+
+```bash
+mkdir -p $D/built $D/results $D/runs $D/cache $D/images/{Infoseek,EVQA,OKVQA,OVEN}
+hf download Icey444/mmrag-class1-built --repo-type dataset --local-dir $D/hf_pull
+mv $D/hf_pull/built/*.jsonl $D/built/
+cp -n $D/hf_pull/results/*.json $D/results/   # -n: never clobber your own results
+```
+
+**Never rebuild `pool_train_1M.jsonl`.** Its exact build flags are not recorded (the ledger
+says only "full InfoSeek train, target ~1M rows"; actual 810,276 rows), and `train_rl.py`
+draws training rows with `rng.choice(rows)` — by INDEX into the file's row order. A 3000-step
+cell at batch 4 touches only ~12k of those 810k rows, so row order alone decides the training
+set: anything not byte-identical trains on different data and cannot be compared to the
+baselines. `corpus_small.jsonl` / `queries_test.jsonl` *are* deterministically rebuildable
+(`build_infoseek_data.py --train_per_entity 10 --max_train 60000 --distractor_articles 20000`,
+verified by an exact-count rebuild in `REPRO_NEWCLUSTER.md` and a `cmp` check in
+`build_big_pool.sh`) — but downloading is still simpler.
+
+### Class 1, alternate — copy verbatim from `SRC=/mnt/bn/tns-algo-video-public-my2/yijiangli/data/mmrag_data` (~2.2 GB)
 
 ```bash
 mkdir -p $D/built $D/results $D/runs $D/cache $D/images/{Infoseek,EVQA,OKVQA,OVEN}

@@ -1292,3 +1292,25 @@ Lesson: a line number makes a claim *look* verified; trace which BRANCH consumes
 Consequence for the campaign: `save_steps 250` means interim checkpoints arrive long before the
 run ends, and the registered comparison is checkpoint-matched anyway — so ck750 can be evaluated
 against the baseline's own ck750 without waiting out the full run.
+
+### 2026-09-07: STOPPING RULE for emaidx-1M-s3000, registered before checkpoint 1 exists
+The contended rate makes the full 3000 steps expensive, so an interim look is likely. Writing
+the rule down NOW so it cannot be reverse-engineered from the numbers later.
+
+- **Evaluate ck750 and ck1500** as they land (`mmrag/scripts`-style launcher `run_eval.sh GPU
+  <result-name> runs/emaidx-1M-s3000/checkpoint-N`), same estimator as the in-cell eval:
+  retrieval `--max-q 3000`, VQA 7B top-5 `--max-q 1500`.
+- **Continue to 3000 unless ansR@5 is null at BOTH ck750 and ck1500** beyond the registered
+  ~1.5-point between-seed floor. Baseline matched rows: ck750 entR@5 75.53 / ansR@5 63.55 /
+  acc 35.13; ck1500 73.40 / 62.04 / 33.87.
+- **If stopped early it is reported as an INTERIM-LOOK STOP, with the truncation named.** A
+  truncated curve must NOT be fitted and presented as though its endpoint were pre-specified —
+  the trend CIs above assume a fixed 4-point design, and an optional-stopping curve does not
+  satisfy that. Any early-stop trend is descriptive only.
+- A null at a single checkpoint is **uninformative**, not evidence of no effect: |delta| below
+  ~1.5 pts ansR@5 / ~4 pts entR@5 is inside the observed between-seed spread on one seed.
+
+Eval-stage budgeting note: the ~7-8x generation penalty hits `eval_vqa` (1500 queries through the
+7B reader — the most contention-sensitive stage in the pipeline), while `encode_corpus` /
+`eval_retrieval` track the ~2.9x encoding factor. Record the two halves' walltimes SEPARATELY;
+a single "eval time" number would average two very different contention regimes.

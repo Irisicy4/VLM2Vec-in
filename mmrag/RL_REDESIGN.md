@@ -1352,3 +1352,32 @@ number is offered for the retrieval half — it is corpus-encode-bound (`--bs 12
 passages + 3000 query encodes) and should track the ~2.9x ENCODING factor rather than the
 generation one, but that has never been measured. Recording the two halves separately when
 ck750 is evaluated will produce the first measurement of eval-stage contention for this campaign.
+
+### 2026-09-07: I asserted a mid-run pull hazard, then my own test refuted it — narrowed
+I claimed a `git pull` mid-run could corrupt the shell executing `mlx_entry_cell.sh`, because
+bash reads a script incrementally from a saved byte offset. Half of that is true and half is not.
+
+Measured here (git 2.34.1, XFS, /raid):
+- The live shell DOES hold an open descriptor to the script: `/proc/<pid>/fd/255 ->
+  mmrag/mlx_entry_cell.sh`. The incremental-read half is real.
+- **`git checkout <ref> -- <file>` REPLACES the inode** — 3/3 trials, never in place. `git merge`
+  likewise. So git writes a temp file and renames.
+
+Those two facts together give the OPPOSITE of my claim: because git replaces the inode and bash
+holds the OLD one open, the old file survives as long as that shell holds it, and the pull would
+NOT have corrupted the run. **Corrected rule:** a shell executing from an open fd is vulnerable
+only to writers that modify a file IN PLACE (same inode) — an editor or a truncating redirect.
+Git is not such a writer here, though this may vary by git version/filesystem, which is itself a
+reason not to state a flat rule. Check it in two minutes with `stat -c %i` before believing either
+version.
+
+The decision to defer the .sh files was still correct, but for only ONE of the two reasons given:
+**a merge would have clobbered this site's uncommitted path rewiring.** That reason was sufficient
+alone; leading with an untested mechanism was the error.
+
+Process note, the sharpest of the day: the prior session initially believed the safe (correct)
+version, talked itself out of it because my confident mechanism disagreed, ran its own test and
+got a result AGREEING with me — and only my test on this box refuted it. **Two independent checks
+agreeing is not the same as being right**, especially when one party's confidence seeded the
+other's interpretation. Six claims were retracted across the two sites today; this is the only one
+where a belief both parties had already converged on was overturned by a two-minute check.

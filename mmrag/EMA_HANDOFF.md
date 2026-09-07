@@ -52,6 +52,18 @@ a full card; those were the `keep_gpu` daemon, not real demand — don't size ag
    `$MMRAG_DATA/local_hostname.txt` — if that file is missing or stale **the pkill fires and
    may kill another team's VRAM-holding daemon**. Run `hostname > $D/local_hostname.txt`
    before the first cell, or delete that line outright on a shared host.
+3. **`--mem_frac` alone is not enough when you share a card with another tenant.** It reaches
+   `train_rl.py` only, so ~an hour of uncapped 7B-reader eval runs unattended after the
+   training cap expires. Cap the whole environment instead, via a `.pth` hook in your own
+   venv's `site-packages` (every `.pth` there is executed at interpreter startup, so it
+   covers the eval stages without touching any estimator-path script). A venv
+   `sitecustomize.py` does **not** work: these images ship
+   `/usr/lib/python3.11/sitecustomize.py`, which is earlier on `sys.path` and shadows it.
+   Verify the cap enforces rather than assuming it.
+   Also profile the neighbour properly before choosing a fraction — a vLLM co-tenant in
+   sleep mode releases tens of GiB during actor training and reclaims it at rollout, so a
+   spot check can understate its true peak badly (measured on one H200 site: 56 GiB observed
+   vs 80.6 GiB actual peak) and it will die if you are holding that memory when it wakes.
 
 Host side: ~24 CPU cores and ~220 GB RAM per job. `train_rl.py` has NO resume — a kill
 restarts at step 0 — so use a non-preemptible partition and ask for ≥24 h walltime

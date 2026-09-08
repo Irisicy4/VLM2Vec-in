@@ -1567,3 +1567,42 @@ Revised ETA from step 31: **ck750 ~6.0 h, ck1500 ~12.2 h, full run 25.0 h.**
 CAVEAT: one window under conditions only minutes old. The prior figure was quoted as a range from
 two windows; this is a single observation and should be treated as provisional until a second one
 agrees. Do NOT retro-apply 30.0 s/step to the killed attempt — that ran under a different tenant.
+
+### 2026-09-08 00:55 (step ~460): reward signal is ERODING — flagged early, registered falsifiably
+Trend on binned means, **incomplete final bin dropped** (10 rows of 75 — a partial bin must not
+anchor a slope; that is the same error as the seed-0 excursion anchoring the entR@5 decline):
+
+| signal | bin means (75-step bins, steps 0-449) | slope/1k | 95% CI | verdict |
+|---|---|---|---|---|
+| judge reward | .190 .215 .197 .203 .200 .195 | −0.006 | [−0.092, +0.080] | flat |
+| gold in pool | .750 .763 .723 .767 .750 .753 | +0.008 | [−0.143, +0.159] | flat |
+| **group std** | .0478 .0427 .0456 .0386 .0361 .0334 | **−0.038** | **[−0.057, −0.019]** | **FALLING** |
+| **degenerate frac** | .540 .570 .553 .583 .607 .640 | **+0.244** | **[+0.115, +0.373]** | **RISING** |
+
+**Reading: not collapse, not improvement — the LEARNING SIGNAL is thinning.** group_std is the
+within-group spread of judge reward; when it hits zero the advantage is zero and the step teaches
+nothing. Degenerate fraction is the share of groups already in that state: **0.54 -> 0.64**, and
+group_std==0 in **16/100 of the last steps** against 42/460 all-time. Two independent statistics
+agreeing, both CIs excluding zero, both roughly monotone across six bins.
+
+Meanwhile reward and gold-in-pool are **flat** — so relative to base this run is **not improving on
+its own train-side proxies**, it is holding level while the gradient signal erodes. This is the
+early form of the failure that killed the VLM2Vec-4B cells (group_std 0 at step 249), differing
+only in degree: those hit 100%, this is at 16% and climbing.
+
+**DO NOT over-read the extrapolation.** A naive linear fit puts group_std at zero near step 1300,
+but a quantity bounded below by zero decays rather than crossing it — expect an asymptote, not a
+cliff. The extrapolation is not a prediction and is recorded only to show the direction is
+material within this run's remaining budget.
+
+**REGISTERED THRESHOLDS, before ck750 exists** (so the reading cannot be chosen after the fact):
+- **Signal effectively dead** if, at any 75-step complete bin, degenerate frac >= 0.85 AND
+  group_std <= 0.015. Report as a signal-death stop, not as an EMA result.
+- **Erosion confirmed but survivable** if both trends keep their sign at ck750 and ck1500 while
+  entR@5/ansR@5 stay within the registered seed floor of the baseline.
+- **Erosion was noise** if either CI crosses zero once 10+ complete bins exist (step ~750).
+Note this is a property of the RECIPE under a thinning-index regime, and cannot be attributed to
+index-EMA without the matched baseline arm — v3-rows1M-s3000's own metrics.jsonl is not on this
+site, so the comparison is currently impossible here. Requested from the origin cluster.
+
+Pace note: now **20.0 s/step** (GPU 1 has 113.9 GiB free) — ck750 in ~1.6 h, full run ~14 h.

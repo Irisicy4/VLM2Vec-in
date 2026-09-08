@@ -27,7 +27,38 @@ entR@5 floor 1.8x and understated acc 2x.
 
 **What makes the winning recipe dynamic.** The retrieval index is not precomputed and fixed: the
 RL corpus is **re-encoded with the current policy weights every 100 steps** (`--refresh_steps 100`),
-so the action space the policy samples from moves with the policy. That is the dynamism carried by
+so the action space the policy samples from moves with the policy.
+
+> **Definition — "periodic full refresh"** (`train_rl.py:262-271, 340-356`)
+>
+> *Index membership is fixed for the whole run.* At startup `build_rl_corpus` keeps every passage
+> of every gold-entity URL in the training rows, plus `--n_distractor_articles` randomly chosen
+> (seeded) non-gold article URLs, again keeping *all* passages of each kept URL. For
+> `corpus_small` + 3000 that is 173,755 passages. Refresh never adds, removes or reweights a
+> passage — **only its embedding changes.**
+>
+> *"Full"* = `refresh_corpus()` re-encodes **all** of `corpus_texts` in chunks of `--encode_bs` and
+> replaces the whole `corpus_emb` matrix (fp32, on device). Not incremental, not a subset.
+>
+> *"Periodic"* = once at init (step 0), then at every optimizer step where
+> `step % refresh_steps == 0`. For a 3000-step run at `refresh_steps 100` that is **30 full
+> re-encodes** (init + steps 100, 200, … 2900), measured at 749 s each on a 173,755-passage index,
+> i.e. **6.24 h = 53% of that run's 11.77 h wall clock.**
+>
+> *Consequence — bounded staleness.* Between refreshes the index is stale: retrieval at step *k*
+> scores a query embedded with step-*k* weights against document embeddings from step
+> 100·⌊*k*/100⌋. The train/index skew is therefore **0 to 99 steps, sawtooth**, reset to zero at
+> each refresh.
+>
+> *Interactions.* The branch is gated `elif args.index_ema == 0`, so **index-EMA replaces periodic
+> refresh entirely** rather than adding to it — that is why index-EMA is a compound treatment
+> (blend coefficient *and* schedule) and why its staleness profile is different: monotonically
+> rising toward a plateau of |index| / docs-per-step ≈ 472 instead of a 0-99 sawtooth. The encode
+> also runs inside `doc_tower()`, a no-op unless model-EMA is on, in which case documents are
+> encoded with the EMA weights while queries stay live.
+>
+> *What has never been measured:* `--refresh_steps 0`, i.e. the same recipe with the index frozen
+> at its init embeddings. That is the control that would price the dynamism itself. That is the dynamism carried by
 every RL row below, and it is part of the recipe that beats SFT. The EMA variants (index-EMA,
 model-EMA) are *different* dynamic schedules layered on top; none of them has yet added anything
 measurable — see "dynamic-schedule variants" below.

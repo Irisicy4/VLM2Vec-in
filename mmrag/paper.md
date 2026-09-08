@@ -23,7 +23,14 @@ entR@5 floor 1.8x and understated acc 2x.
 
 ---
 
-## Main result — best no-gold RL vs relevance-SFT vs frozen base
+## Main result — best DYNAMIC no-gold RL vs relevance-SFT vs frozen base
+
+**What makes the winning recipe dynamic.** The retrieval index is not precomputed and fixed: the
+RL corpus is **re-encoded with the current policy weights every 100 steps** (`--refresh_steps 100`),
+so the action space the policy samples from moves with the policy. That is the dynamism carried by
+every RL row below, and it is part of the recipe that beats SFT. The EMA variants (index-EMA,
+model-EMA) are *different* dynamic schedules layered on top; none of them has yet added anything
+measurable — see "dynamic-schedule variants" below.
 
 GME-Qwen2-VL-2B, InfoSeek, 500 steps (~2k query draws).
 
@@ -49,6 +56,25 @@ about **2x the SFT transfer** (+1.4/+2.1, 1 seed).
 
 **Standing caveat — exposure asymmetry.** RL visits ~2,000 queries (500 steps x batch 4); SFT
 visits ~19,200 (600 x 32). RL wins on ~10x fewer query visits, and with no relevance labels.
+
+### Dynamic-schedule variants — which flavour of "dynamic" actually pays
+
+| schedule | what changes | best result | vs its matched control |
+|---|---|---|---|
+| **periodic full refresh (`--refresh_steps 100`)** | full index re-encode every 100 steps | **76.09 / 63.46 / 34.71** (3 seeds) | this IS the winning recipe; beats SFT +1.86 acc |
+| index-EMA (`--index_ema 0.9`) | no periodic refresh; per-step blended write-back of the top candidates, near-boundary hard negatives and the stalest docs | 77.23 / 65.84 / 34.47 @ck750 | **+1.60 / +1.06 / +0.60 — all inside floors, not callable** |
+| model-EMA (`--model_ema 0.99`) | doc tower encoded with EMA'd weights | 72.47 / 60.49 / 32.20 | **UNUSABLE** — trained q(live)·d(EMA), evaluated both live |
+| frozen-index variant (`*-frozen`) | undocumented | 78.43 / 63.02 / 33.60 (v1 family, 1 seed) | **cannot be used** — the axis it varies is not recorded anywhere |
+
+**Reading.** The dynamism that is established as load-bearing is the plain periodic re-encode; it
+is inside the recipe that beats SFT. Every *refinement* of that schedule is so far null or
+unusable. Index-EMA's apparent +2.29 ansR@5 came from a cross-cluster baseline; against a
+same-hardware control it halves to +1.06 and falls under the floor, and its slope matches the
+control's, so it moves the level rather than the trajectory. Model-EMA has never been cleanly run.
+A `*-frozen` v1 arm exists whose numbers sit ~1 point below its `-det` twin, but neither
+`RESULTS.md` nor any doc records what "frozen" varies, so it cannot serve as the static-index
+control the comparison needs. **Building that control — the same recipe with the refresh disabled —
+is the missing measurement that would price the dynamism itself.**
 
 ---
 

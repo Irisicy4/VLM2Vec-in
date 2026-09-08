@@ -1912,3 +1912,33 @@ Cost of NOT having launched it: a published +2.29 that is roughly half artifact.
 The control's training was stopped at step 1000 (the mix2M grid supersedes it), so there is no
 matched ck1500/2250/3000. The mix2M grid is built the right way round — all four cells are
 same-hardware, same-week, matched pairs by construction.
+
+### 2026-09-08 18:50: the memory cap DID bite — but only on the in-cell eval path (encode --bs 192)
+`emaidx-1M-s3000` finished 3000 steps, then its in-cell final eval died:
+`torch.OutOfMemoryError: Tried to allocate 25.43 GiB ... 125.98 GiB is free ... 34.95 GiB allowed`.
+The card had **126 GiB free**; our own `MMRAG_MEM_FRAC=0.25` ceiling (34.95 GiB of 139.80) refused
+the allocation. The 25.43 GiB request is the `lm_head` projection over a batch of long doc
+sequences against a 152k vocab.
+
+**Why it never showed before.** The three interim points (ck750/1500/2250) all ran through
+`mlx_entry_eval.sh`, which encodes at `--bs 128`; the in-cell final eval in `mlx_entry_cell.sh`
+uses `--bs 192`. Same cap, 1.5x the batch, and only the larger one crosses it. So the earlier
+conclusion "the cap is not the problem" was right *for the path it was tested on* and wrong as a
+general statement — a reminder that a negative result inherits the scope of the configuration it
+was measured in.
+
+**Fix, and why this one rather than raising the cap.** Re-ran the final point through
+`run_eval.sh` (the `--bs 128` path). That is not a workaround but the *more* consistent choice:
+the other three curve points were produced by exactly that path, and `encode_bs` is a free knob
+(pure forward passes, no sampling, no RNG), so the estimator is unchanged. Raising the cap would
+have made the final point the only one encoded at a different batch size.
+
+**Also stopped the cell supervisor**: `train_rl.py` had already written the final adapter, so the
+supervisor's retry would skip training, re-run the same `--bs 192` encode and OOM again — an
+infinite relaunch loop. Idempotency protects against a killed *trainer*, not against a stage that
+fails deterministically.
+
+**Standing procedure adopted:** produce final-point evals through `run_eval.sh`, not the in-cell
+stage, whenever a memory cap is in force. **The four mix2M grid cells will hit this same OOM at
+their final eval** (same entry script, same `--bs 192`, same 0.25 cap) — handle their step-1500
+points the same way.

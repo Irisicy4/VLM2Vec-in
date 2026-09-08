@@ -1669,3 +1669,52 @@ first, so the JSON field records a 1.5 s cache load. **Reporting it as the corpu
 have given a ~2000x wrong number and a nonsense contention ratio.** Read the encode cost from
 `encode_corpus.py`'s DONE line. Note 1.75x here vs 2.9x measured earlier — the box emptied, so the
 site factor is not stable in time either.
+
+### 2026-09-08: WHY THE RECIPE STOPS IMPROVING — the reward is STARVED, and it is reader-limited
+User's actual target restated: *a dynamic recipe significantly better than relevance-SFT that keeps
+improving within 1 epoch.* Scored against that, from data on this site.
+
+**(1) Level vs relevance-SFT — RL wins, ~+3 to +4 ansR@5 (1 seed each, recorded not claimed).**
+Best SFT ansR@5 63.27 (`sft-curve-lr1e4-s1-ck1050`); the `sft-big-1M` scaling line averages ~61.6.
+RL gme2b arms reach 65-66.5; `emaidx-1M-s3000-ck750` is 65.84; gme7b-v3pure 69.02.
+
+**(2) Scaling — NEITHER recipe satisfies "keeps improving". This is the unmet requirement.**
+`sft-big-1M`, 11 checkpoints over steps 2100-27300, least squares per 10k steps:
+entR@5 +0.131 [−0.565, +0.827] FLAT · ansR@5 +0.399 [−0.517, +1.315] FLAT ·
+acc +0.427 [+0.032, +0.822] rising, but only ~1.2 acc points across the whole line.
+RL `v3-rows1M-s3000` ck750->3000: all three flat-to-declining, every CI spanning zero.
+**Scale context that reframes the goal: 810k rows at batch 4 is ~202,500 steps = 1 epoch. Every
+run on record is <=3000 steps = 12k draws = 1.5% OF AN EPOCH.** Turnover is observed at ~2-3k
+draws, i.e. at ~1% of an epoch. So "keeps improving through 1 epoch" is not merely untested — the
+recipe currently stops improving two orders of magnitude before that point.
+
+**(3) MECHANISM (new, measured on emaidx-1M-s3000, 924 steps): the reward is STARVED, not saturated.**
+| condition | n steps | degenerate frac | mean reward |
+|---|---|---|---|
+| gold in pool for all 4 queries | 294 | **0.532** | 0.255 |
+| gold in pool for 3 of 4 | 379 | 0.613 | 0.200 |
+| gold in pool for 2 of 4 | 215 | 0.666 | 0.155 |
+| gold in pool for 1 of 4 | 35 | 0.700 | 0.097 |
+Degeneracy-heavy steps (>=0.75) have **LOW** reward (median 0.125; **0% of them exceed 0.9**), not
+high — so degenerate groups are all-WRONG, not all-RIGHT. **Even with gold retrieved for every
+query, 53% of groups still carry zero advantage.** The 3B reward reader converts a correct
+retrieval into a correct answer only ~20-25% of the time; when it fails on all 4 sampled lists the
+rewards tie, the advantage is exactly zero, and the step teaches nothing.
+Erosion over the run (CIs excluding zero): degenerate 0.586 -> 0.621, group_std 0.0403 -> 0.0376,
+while gold_in_pool (0.748 -> 0.753) and reward (0.200 -> 0.205) stay FLAT.
+
+**(4) THE CONSEQUENCE THAT MATTERS: more data cannot fix this.** The bottleneck sits DOWNSTREAM of
+retrieval, in the reader's ability to discriminate. That predicts exactly what the campaign already
+observed and could not explain: 25k / 200k / 810k pools all plateau in the same place; acc and R@5
+peak at different draws; and the SFT rows-line is flat too. A recipe that "keeps improving" must
+first stop wasting ~60% of its steps on zero-advantage groups.
+
+**(5) LEVERS, all present in the code and NONE tested at scale in this campaign.**
+- `--reward logit` — mean logP(answer | image, question, context), continuous and ALWAYS defined,
+  so ties are essentially impossible and degeneracy should collapse toward zero. **It is
+  train_rl.py's own default; the campaign fixed on `judge` throughout.** Highest leverage.
+- `--reward gain` — judge(ctx) − judge(no ctx); removes reward on queries answerable without retrieval.
+- `--reward_gate_noctx` — per-query DATA FILTER keeping only queries whose best candidate beats the
+  no-context baseline. Tried once: `gate-gme2b-nogold` 79.70/64.90/33.67 vs `nogate-gme2b-nogold`
+  79.40/63.96/33.33 → +0.94 ansR@5, +0.30 entR@5, +0.34 acc (1 seed, small, right direction).
+- `--reward mix` — z-scored judge+logit. `--reward_gate_std` — zeroes no-signal pools.

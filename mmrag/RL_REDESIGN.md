@@ -1820,3 +1820,29 @@ would not reproduce to within 0.05 across 750 steps of training.
 **But stability of the OFFSET is precisely what says the slope is unchanged**, i.e. EMA lifts the
 level and does not alter the trajectory. Against the user's target (a recipe that KEEPS improving)
 a constant offset is the wrong shape, however real it is.
+
+### 2026-09-08: SEED FLOORS RE-DERIVED from every multi-seed family on disk (supersedes the 2-seed bound)
+The floors used all campaign were taken from ONE two-seed pair (v3-rows1M s0/s1 at steps 250/500).
+Recomputed as 2x the pooled between-seed SD over every family with >=2 matched seeds:
+
+| family | n seeds | entR@5 | ansR@5 | acc |
+|---|---|---|---|---|
+| plgrpo-gme2b-nogold (v2, +anchor) | 4 | 79.78 ± 0.77 | 64.48 ± 1.96 | 33.60 ± 0.70 |
+| scale-rows25k | 3 | 78.98 ± 0.49 | 65.37 ± 0.56 | 34.62 ± 0.23 |
+| v3-rows1M @2k draws | 2 | 76.53 ± 3.06 | 64.47 ± 1.07 | 34.57 ± 0.24 |
+| plgrpo-t005 | 2 | 79.10 ± 0.47 | 63.92 ± 0.23 | 33.23 ± 0.05 |
+| **pooled SD** | | **1.20** | **0.96** | **0.30** |
+
+**New floors (2 SD): entR@5 2.40 · ansR@5 1.91 · acc 0.61** — replacing 4.33 / 1.51 / 0.33.
+The old bound was wrong in BOTH directions: it overstated entR@5 by 1.8x (its 3.06 SD was the
+seed-0 excursion, a single anomalous run standing in for a variance estimate) and understated acc
+by 2x, which is exactly why the ck750 acc verdict flipped sign at ck1500. `compare_ema.py` updated.
+
+**Effect on the standing result** (2 matched checkpoints, 1 seed each):
+| metric | mean delta | old verdict | NEW verdict |
+|---|---|---|---|
+| ansR@5 (primary) | +2.27 | callable | callable (floor 1.91) |
+| entR@5 | +2.57 | not callable | **now callable** (floor 2.40) |
+| acc | −0.20 | not callable | not callable (floor 0.61) |
+Note the ck750 acc −0.67 sits within rounding of the new 0.61 floor, so it was never the clean
+"callable negative" I first reported; the retraction was right for a second, independent reason.

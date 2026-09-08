@@ -12,18 +12,35 @@ import argparse, json, math, os
 R = os.environ.get("MMRAG_DATA", "/raid/icy/mmrag_data") + "/results"
 METRICS = ["entR@5", "ansR@5", "acc"]
 PRIMARY = "ansR@5"
-# observed between-seed spread at matched steps (seeds 0/1 at steps 250/500); crude bound, not an SD
-SEED_FLOOR = {"entR@5": 4.33, "ansR@5": 1.51, "acc": 0.33}
+# 2x pooled between-seed SD, from every family on disk with >=2 matched seeds
+# (plgrpo base n=4, scale-rows25k n=3, v3-rows1M n=2, plgrpo-t005 n=2):
+#   entR@5 sd 1.20 | ansR@5 sd 0.96 | acc sd 0.30  ->  2sd floors below.
+# SUPERSEDES the original {4.33, 1.51, 0.33}, which came from ONE two-seed pair at steps 250/500 —
+# that overstated the entR@5 floor 1.8x (its 3.06 sd was the seed-0 excursion) and understated
+# BOTH ansR@5 and acc, which is why the ck750 acc verdict flipped at ck1500.
+SEED_FLOOR = {"entR@5": 2.40, "ansR@5": 1.91, "acc": 0.61}
 TCRIT = {1: 12.706, 2: 4.303, 3: 3.182, 4: 2.776, 5: 2.571, 6: 2.447, 7: 2.365}
 
 
 def read(name):
+    """RETRIEVAL is the primary product and is written BEFORE the VQA stage runs.
+
+    acc is optional on purpose: the pipeline order is encode -> retrieval -> VQA, and VQA is
+    both the slowest stage and the most contention-sensitive, so there is a real window where
+    entR@5/ansR@5 exist and acc does not. Requiring both used to make this function return None
+    in that window, hiding the PRIMARY metric (ansR@5) behind the secondary one.
+    """
     rp, vp = f"{R}/{name}.retrieval.metrics.json", f"{R}/{name}.vqa_top5.json"
-    if not (os.path.exists(rp) and os.path.exists(vp)):
+    if not os.path.exists(rp):
         return None
-    r, v = json.load(open(rp)), json.load(open(vp))
-    return {"entR@5": r["entity_recall"]["5"] * 100, "ansR@5": r["answer_recall"]["5"] * 100,
-            "acc": v["acc"] * 100, "n_ret": r["n"], "n_vqa": v["n"]}
+    r = json.load(open(rp))
+    out = {"entR@5": r["entity_recall"]["5"] * 100, "ansR@5": r["answer_recall"]["5"] * 100,
+           "entR@1": r["entity_recall"]["1"] * 100, "entR@10": r["entity_recall"]["10"] * 100,
+           "acc": None, "n_ret": r["n"], "n_ans": r.get("n_ans"), "n_vqa": None}
+    if os.path.exists(vp):
+        v = json.load(open(vp))
+        out["acc"], out["n_vqa"] = v["acc"] * 100, v["n"]
+    return out
 
 
 def curve(stem):
@@ -55,10 +72,13 @@ def fit(xs, ys):
 def show_trend(pts, label):
     xs = [p[0] for p in pts]
     for m in METRICS:
-        f = fit(xs, [p[1][m] for p in pts])
+        ys = [p[1][m] for p in pts if p[1].get(m) is not None]
+        xs2 = [p[0] for p in pts if p[1].get(m) is not None]
+        f = fit(xs2, ys) if len(xs2) == len(xs) else fit(xs2, ys)
+        xs_used = xs2
         tag = " (PRIMARY)" if m == PRIMARY else ""
         if not f:
-            print(f"  {label:<22} {m:<7} n={len(xs)} — need >=3 points for a CI"); continue
+            print(f"  {label:<22} {m:<7} n={len(xs_used)} — need >=3 points for a CI"); continue
         b, lo, hi, dof = f
         v = "DECLINE" if hi < 0 else ("RISE" if lo > 0 else "spans zero — not distinguishable")
         print(f"  {label:<22} {m:<7}{tag:<10} {b:+7.3f} pts/1k [{lo:+7.3f},{hi:+7.3f}] dof={dof}  {v}")
@@ -80,6 +100,9 @@ def main():
         ma = dict(A)[s]; mb = dict(B)[s]
         line = f"{s:>5} "
         for m in METRICS:
+            if ma.get(m) is None or mb.get(m) is None:
+                line += f"{'-':>13}{'-':>14}{'pending':>9}{'':>4}"
+                continue
             d = ma[m] - mb[m]; da[m].append(d)
             flag = "" if abs(d) >= SEED_FLOOR[m] else " ~"      # ~ = inside seed noise
             line += f"{ma[m]:>13.2f}{mb[m]:>14.2f}{d:>+9.2f}{flag:>4}"
@@ -89,6 +112,9 @@ def main():
     if da[PRIMARY]:
         print(f"\nMEAN DELTA over {len(da[PRIMARY])} matched checkpoints:")
         for m in METRICS:
+            if not da[m]:
+                print(f"  {m:<7}{' (PRIMARY)' if m==PRIMARY else '':<10}   pending (VQA stage not finished)")
+                continue
             mu = sum(da[m]) / len(da[m])
             call = "callable" if abs(mu) >= SEED_FLOOR[m] else "INSIDE SEED NOISE — not callable"
             print(f"  {m:<7}{' (PRIMARY)' if m==PRIMARY else '':<10} {mu:+7.2f}  {call}")

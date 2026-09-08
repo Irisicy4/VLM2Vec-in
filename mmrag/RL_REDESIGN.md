@@ -1738,3 +1738,29 @@ first stop wasting ~60% of its steps on zero-advantage groups.
 | `corpus_seconds` field in the metrics JSON | 1.5 s | — | **cache LOAD — reporting it as encode cost is a ~2000x error** |
 The VQA ratio is given as a RANGE because the baseline figure is four single observations spanning
 nearly 2x; a point estimate would fake a precision the comparator does not have.
+
+### 2026-09-08 04:32: ATTRIBUTION ANSWERED — the erosion is a RECIPE property, NOT an EMA effect
+`v3pure-1M-s3000-loc` (identical args minus the two EMA flags, same seed, same hardware) reached
+step 300. Matched over the first 300 steps of each arm:
+
+| signal | EMA arm | control | delta |
+|---|---|---|---|
+| degenerate frac | 0.5617 | 0.5717 | −0.010 |
+| group_std | 0.0437 | 0.0423 | +0.0014 |
+| reward raw mean | 0.2012 | 0.2018 | −0.0006 |
+| gold_in_pool | 0.7508 | 0.7075 | **+0.0433** |
+
+**Three of four are indistinguishable.** The reward starvation — ~56-57% zero-advantage groups —
+is present in the control at the same level, so it is a property of the v3-pure recipe under this
+reward, **not** something index-EMA causes. This resolves the branch registered at 00:55 in favour
+of "recipe property, null for EMA", and it means the erosion finding generalises beyond this arm:
+any cell using `--reward judge` with a 3B reader on this pool is wasting ~60% of its steps.
+
+**The one real difference is gold_in_pool, +0.043 in the EMA arm** — the EMA index puts the gold
+passage into the top-24 more often. That is a coherent mechanism for the ck750 ansR@5 advantage
+(+2.29) and is what index-EMA would be expected to do if it helps at all. 1 seed, 300 steps,
+recorded not claimed; it needs the matched ck750 from the control before it is worth anything.
+
+CAVEAT: 300 steps of overlap, one seed per arm, and the control is 700 steps behind. The
+degeneracy comparison is the robust part (three statistics agreeing to within 1-2%); the
+gold_in_pool gap is a single number and could still be noise.

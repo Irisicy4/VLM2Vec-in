@@ -1606,3 +1606,29 @@ index-EMA without the matched baseline arm — v3-rows1M-s3000's own metrics.jso
 site, so the comparison is currently impossible here. Requested from the origin cluster.
 
 Pace note: now **20.0 s/step** (GPU 1 has 113.9 GiB free) — ck750 in ~1.6 h, full run ~14 h.
+
+### 2026-09-08 01:11: LOCAL CONTROL ARM launched — `v3pure-1M-s3000-loc` (GPU 3)
+The erosion finding above is **uninterpretable without a matched arm**: group_std falling and
+degenerate-fraction rising may simply be what v3-pure does on the 810k pool at 3000 steps, in
+which case it is a recipe property and a null for index-EMA. The origin cluster's
+`runs/v3-rows1M-s3000/metrics.jsonl` is NOT in the published Class-1 bundle (results/*.json only),
+so the comparison cannot be made from anything on this site. Request sent; the peer is offline.
+
+Launched the comparator locally instead. Args are **emaidx-1M-s3000's minus exactly
+`--index_ema 0.9 --index_refresh_extra 256`** — everything else identical, seed 0, same pool,
+same corpus, same 3000 steps, `--mem_frac 0.25`. Distinct name so it can never overwrite the
+published `v3-rows1M-s3000` rows.
+
+Justification for the scope addition: all eight cards were idle (GPUs 3/5/7 at 140.4 GiB free)
+after the takeover ended, so this displaces nothing; it is reversible; and it converts the primary
+observation from uninterpretable to interpretable. It also yields a **same-hardware** comparator,
+which is strictly better than the cross-site comparison — it removes the fp-nondeterminism and
+different-GPU caveats that the published baseline carries.
+
+What it decides:
+- Baseline erodes at the same rate -> erosion is a RECIPE property, null for EMA.
+- Baseline holds its spread while the EMA arm thins -> a genuine EMA effect, and a mechanistically
+  sensible one: a deliberately stale index makes a query's top-24 more homogeneous over time,
+  which is exactly what would flatten within-group reward.
+Watch: two concurrent cells share this box's CPU (image decode is CPU-bound). If cell 1's rate
+degrades materially from its current 20.0 s/step, the control gets killed — cell 1 has priority.

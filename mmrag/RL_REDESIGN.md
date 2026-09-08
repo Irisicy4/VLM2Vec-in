@@ -1846,3 +1846,34 @@ by 2x, which is exactly why the ck750 acc verdict flipped sign at ck1500. `compa
 | acc | −0.20 | not callable | not callable (floor 0.61) |
 Note the ck750 acc −0.67 sits within rounding of the new 0.61 floor, so it was never the clean
 "callable negative" I first reported; the retraction was right for a second, independent reason.
+
+### 2026-09-08 14:05: ck2250 RESOLVES the registered 3-way check — the entR@5 widening was noise
+| gap (EMA − baseline) | ck750 | ck1500 | ck2250 |
+|---|---|---|---|
+| entR@5 | +1.70 | +3.43 | **+1.67** |
+| ansR@5 | +2.29 | +2.24 | +1.84 |
+
+Registered at ck1500 (before these numbers existed): *"if the entR@5 gap collapses back, +3.43 was
+seed noise as the floor warns."* **That is the branch that fired.** The gap returned to its ck750
+value, so the ck1500 reading "EMA slows the entR@5 decline by 1.73 points" is **RETRACTED** — it
+was one checkpoint's excursion, and the re-derived 2.40 floor covers all three points.
+
+**Trend vs trend (3 points, dof=1, so t=12.706 and the CIs are near-useless by construction):**
+entR@5 EMA −0.600 [−1.089, −0.111] vs baseline −0.578 [−17.206, +16.050]; ansR@5 EMA −0.789 vs
+baseline −0.490, both spanning zero. The point estimates are nearly identical between arms
+(−0.60 vs −0.58 on entR@5), which is the same conclusion the constant offset already implied:
+**EMA moves the level, not the slope.** Do not quote these CIs — with one degree of freedom a
+3-point fit cannot distinguish anything; ck3000 makes it dof=2, still weak.
+
+**Standing after 3 matched checkpoints (1 seed each):**
+| metric | mean delta | floor | verdict |
+|---|---|---|---|
+| ansR@5 (primary) | **+2.12** | 1.91 | callable — but ck2250 alone (+1.84) is BELOW the floor |
+| entR@5 | +2.27 | 2.40 | not callable |
+| acc | −0.20 | 0.61 | not callable |
+
+The honest summary of the whole EMA-on-corpus_small line: **one metric, answer-recall, sits about
+2 points above the baseline as a constant offset, with no evidence of a slope change.** Against a
+target of "keeps improving", a level shift with an unchanged (negative) slope is the wrong shape.
+This is the arm the mix2M grid now re-tests on a diverse index and, for the first time, on the
+ANCHORED recipe.

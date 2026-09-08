@@ -1764,3 +1764,33 @@ recorded not claimed; it needs the matched ck750 from the control before it is w
 CAVEAT: 300 steps of overlap, one seed per arm, and the control is 700 steps behind. The
 degeneracy comparison is the robust part (three statistics agreeing to within 1-2%); the
 gold_in_pool gap is a single number and could still be noise.
+
+### 2026-09-08 09:19: ck1500 — the two metrics separate in a way that speaks to the original question
+| | ck750 | ck1500 | change |
+|---|---|---|---|
+| EMA entR@5 | 77.23 | 76.83 | **−0.40** |
+| base entR@5 | 75.53 | 73.40 | **−2.13** |
+| EMA ansR@5 | 65.84 | 64.29 | −1.55 |
+| base ansR@5 | 63.55 | 62.04 | −1.51 |
+
+**On entR@5 the EMA arm declines 1.73 points LESS than the baseline over the same interval; on
+ansR@5 the two slopes are indistinguishable (−1.55 vs −1.51).** The advantage therefore behaves
+differently by metric: ansR@5 is a near-CONSTANT OFFSET (+2.29 -> +2.24), while entR@5 WIDENS
+(+1.70 -> +3.43) purely because the baseline falls faster.
+
+Read against the original framing — "does index-EMA prevent the decline?" — this is the first
+evidence that the answer may be **metric-specific and the opposite way round from the
+registration**: the decline it appears to slow is **entR@5**, the metric scoped SECONDARY because
+its baseline trend was anchor-fragile; on **ansR@5**, the registered PRIMARY and the only metric
+whose baseline decline survived every seed anchor, EMA shifts the level but does **not** change the
+slope. A recipe that raises the level without changing the slope does not "keep improving" — it
+plateaus in parallel, one step higher.
+
+**NOT CALLABLE, and the reasons are specific.** (i) The entR@5 deltas (+1.70, +3.43) are both
+inside their 4.33 seed floor, so the very comparison carrying this reading is the one the seed
+bound cannot resolve. (ii) Two points cannot be fitted with a CI (needs >=3), so "declines less" is
+an arithmetic difference between two pairs, not a trend test. (iii) One seed per arm.
+**REGISTERED to check at ck2250 and ck3000, before those numbers exist:** if the entR@5 gap keeps
+widening while the ansR@5 gap stays flat near +2.2, the metric-specific reading holds; if the
+ansR@5 gap also widens, EMA is changing the slope and the registration's primary/secondary scoping
+was wrong; if the entR@5 gap collapses back, +3.43 was seed noise as the floor warns.

@@ -1877,3 +1877,38 @@ The honest summary of the whole EMA-on-corpus_small line: **one metric, answer-r
 target of "keeps improving", a level shift with an unchanged (negative) slope is the wrong shape.
 This is the arm the mix2M grid now re-tests on a diverse index and, for the first time, on the
 ANCHORED recipe.
+
+### 2026-09-08 16:34: SAME-HARDWARE CONTROL LANDS — "EMA is better" does NOT survive it
+`v3pure-1M-s3000-loc-ck750` = the EMA arm's args minus exactly `--index_ema 0.9
+--index_refresh_extra 256`, same seed, same pool, same corpus, **same GPUs, same week**.
+
+| ck750 | entR@5 | ansR@5 | acc |
+|---|---|---|---|
+| emaidx-1M-s3000 | 77.23 | 65.84 | 34.47 |
+| **control, same hardware** | **75.63** | **64.78** | **33.87** |
+| published baseline, origin cluster | 75.53 | 63.55 | 35.13 |
+
+| delta | vs SAME-HARDWARE control | vs published baseline |
+|---|---|---|
+| entR@5 (floor 2.40) | +1.60 — not callable | +1.70 — not callable |
+| **ansR@5 (floor 1.91)** | **+1.06 — NOT CALLABLE** | +2.29 — callable |
+| acc (floor 0.61) | +0.60 — not callable | −0.67 — callable |
+
+**The primary metric's advantage halves against the clean comparator and drops below the floor.**
++2.29 becomes +1.06. So roughly half of what was being read as an EMA effect was cross-site
+difference — different GPUs, different week, fp nondeterminism — not the treatment.
+**On the estimator-matched, hardware-matched comparison, NOTHING is callable at ck750.**
+
+This retracts the standing headline. The earlier entry "ansR@5 +2.27 mean over 3 checkpoints,
+callable" was measured against the published baseline only; its same-hardware counterpart exists
+at ck750 alone and does not reproduce the margin. The correct statement is:
+**at ck750, index-EMA is not distinguishable from no index-EMA on any of the three metrics.**
+
+Note the acc column also flips sign between comparators (+0.60 vs −0.67), which is a second,
+independent demonstration that the cross-site gap is the same size as the effect being measured —
+and is exactly why the control was launched. Cost of having launched it: one GPU for ~4 h.
+Cost of NOT having launched it: a published +2.29 that is roughly half artifact.
+
+The control's training was stopped at step 1000 (the mix2M grid supersedes it), so there is no
+matched ck1500/2250/3000. The mix2M grid is built the right way round — all four cells are
+same-hardware, same-week, matched pairs by construction.

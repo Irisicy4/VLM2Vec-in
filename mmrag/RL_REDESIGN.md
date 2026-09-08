@@ -1942,3 +1942,33 @@ fails deterministically.
 stage, whenever a memory cap is in force. **The four mix2M grid cells will hit this same OOM at
 their final eval** (same entry script, same `--bs 192`, same 0.25 cap) — handle their step-1500
 points the same way.
+
+### 2026-09-08 21:00: emaidx-1M-s3000 COMPLETE — full 4-point curve vs the published baseline
+Final point produced via `run_eval.sh` (encode `--bs 128`, the same path as the three interim
+points) after the in-cell `--bs 192` stage OOMed against our own cap.
+
+| step | entR@5 | ansR@5 | acc | Δ entR@5 | Δ ansR@5 | Δ acc |
+|---|---|---|---|---|---|---|
+| 750 | 77.23 | 65.84 | 34.47 | +1.70 | +2.29 | −0.67 |
+| 1500 | 76.83 | 64.29 | 34.13 | +3.43 | +2.24 | +0.27 |
+| 2250 | 76.33 | 64.65 | 35.27 | +1.67 | +1.84 | +0.27 |
+| 3000 | 75.83 | 64.82 | 34.20 | +3.20 | +3.22 | +0.40 |
+| **mean** | | | | **+2.50 callable** | **+2.40 callable** | +0.07 not callable |
+
+Slopes per 1k steps (dof=2): entR@5 EMA −0.627 [−0.726, −0.527] vs baseline −0.991 [−3.711, +1.729];
+ansR@5 EMA −0.359 [−2.137, +1.418] vs baseline −0.680 [−2.438, +1.078]; acc EMA +0.044 vs −0.382,
+both spanning zero. Point estimates favour the EMA arm on every metric and **only the EMA arm's
+entR@5 decline is itself distinguishable from zero** — its CI is 30x tighter than the baseline's,
+which is a statement about the baseline's noisiness, not about EMA.
+
+**Against the published (cross-cluster) baseline the arm looks good: +2.50 / +2.40, both callable.**
+**Against the same-hardware control at the one checkpoint where both exist it does not: +1.60 /
++1.06, neither callable.** Both statements are in the record and the second is the one that
+governs, because it is the only comparison in which the treatment is the sole difference. The gap
+trajectory is also non-monotone on both recall metrics (entR@5 +1.70 / +3.43 / +1.67 / +3.20 —
+alternating), which is what a ~1-point real effect plus ~1.2-point seed-scale noise looks like, not
+a clean offset.
+
+**Honest summary of this cell:** index-EMA on the 810k pool is worth on the order of 1 to 2 points
+of answer recall, is not separable from noise against its only matched control, and does not change
+the slope. It does not deliver a recipe that keeps improving.

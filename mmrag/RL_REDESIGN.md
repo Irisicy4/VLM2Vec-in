@@ -1794,3 +1794,29 @@ an arithmetic difference between two pairs, not a trend test. (iii) One seed per
 widening while the ansR@5 gap stays flat near +2.2, the metric-specific reading holds; if the
 ansR@5 gap also widens, EMA is changing the slope and the registration's primary/secondary scoping
 was wrong; if the entR@5 gap collapses back, +3.43 was seed noise as the floor warns.
+
+### 2026-09-08 09:40: ck1500 acc RETRACTS the ck750 accuracy verdict
+ck1500 acc 34.13 vs baseline 33.87 = **+0.27**. Against ck750's **−0.67**, the accuracy delta
+**flips sign between consecutive checkpoints**, and the two-point mean is −0.20, back inside the
+floor and not callable.
+
+**Retraction:** the ck750 line "acc −0.67, callable" should not be read as an accuracy cost of
+index-EMA. A quantity that reverses sign between adjacent matched checkpoints is behaving like
+noise, and the flip is direct evidence that the **0.33 acc floor is too tight** — it was derived
+from a two-seed spread of 0.00 and 0.33 at steps 250/500, the smallest and least trustworthy of
+the three floors. The honest current statement on accuracy is **no distinguishable difference**.
+
+Standing after two matched points (1 seed each, recorded not claimed):
+
+| metric | ck750 delta | ck1500 delta | mean | verdict |
+|---|---|---|---|---|
+| ansR@5 (PRIMARY) | +2.29 | +2.24 | **+2.27** | callable at both, and REMARKABLY stable |
+| entR@5 | +1.70 | +3.43 | +2.57 | inside its 4.33 floor at both |
+| acc | −0.67 | +0.27 | −0.20 | **sign flip -> noise** |
+
+The ansR@5 offset is the one durable signal: two independent matched checkpoints, +2.29 and +2.24,
+a spread of 0.05 against a floor of 1.51. That stability is itself evidence — a noise-driven gap
+would not reproduce to within 0.05 across 750 steps of training.
+**But stability of the OFFSET is precisely what says the slope is unchanged**, i.e. EMA lifts the
+level and does not alter the trajectory. Against the user's target (a recipe that KEEPS improving)
+a constant offset is the wrong shape, however real it is.

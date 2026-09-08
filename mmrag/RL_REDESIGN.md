@@ -1641,7 +1641,17 @@ Estimator-matched (retrieval n=3000, n_ans=2450, corpus_small, same eval script 
 | **ansR@5 (PRIMARY)** | **65.84** | 63.55 | **+2.29** | 1.51 | **YES** |
 | entR@5 (secondary) | 77.23 | 75.53 | +1.70 | 4.33 | no — inside noise |
 | entR@1 / entR@10 | 59.53 / 83.13 | — | — | — | (baseline not on disk at these k) |
-| acc (secondary) | pending | 35.13 | — | 0.33 | VQA stage running |
+| **acc (secondary)** | **34.47** | 35.13 | **−0.67** | 0.33 | **YES — and it is NEGATIVE** |
+
+**ck750 COMPLETE, and the two callable metrics point OPPOSITE ways.** ansR@5 +2.29 (callable,
+positive) against acc −0.67 (callable, negative; strictEM 0.2573, F1 0.3472, n=1500; by split
+unseen-entity 0.3396 / unseen-question 0.3594). This is the campaign's own documented
+anti-diagnostic decoupling — "acc and R@5 routinely move in opposite directions" — appearing again
+at a matched checkpoint, and it is exactly why the house rule demands the metric be named in every
+claim. **"emaidx beats the baseline at ck750" is not a sentence anyone may write.** It beats it on
+answer-recall and loses on accuracy, both outside their respective seed floors, at one seed each.
+Note also the acc floor (0.33) is by far the tightest of the three, being derived from a
+two-seed spread of 0.00 and 0.33 — so "callable" here rests on the weakest floor of the set.
 
 **The primary metric clears its pre-registered noise floor.** ansR@5 +2.29 against a floor of 1.51
 that was written down BEFORE any EMA number existed. entR@5 moves the same direction but is well
@@ -1718,3 +1728,13 @@ first stop wasting ~60% of its steps on zero-advantage groups.
   no-context baseline. Tried once: `gate-gme2b-nogold` 79.70/64.90/33.67 vs `nogate-gme2b-nogold`
   79.40/63.96/33.33 → +0.94 ansR@5, +0.30 entR@5, +0.34 acc (1 seed, small, right direction).
 - `--reward mix` — z-scored judge+logit. `--reward_gate_std` — zeroes no-signal pools.
+
+### Eval-stage walltime, complete (first full measurement under contention)
+| stage | measured | vs clean | note |
+|---|---|---|---|
+| `encode_corpus.py`, 422,378 passages | 3165 s (133/s) | 232/s clean = **1.75x** | read from the DONE line, NOT `corpus_seconds` |
+| `eval_retrieval.py` query search, 3000 q | 304 s | — | |
+| `eval_vqa.py` 7B reader, 1500 q | 824 s = 13.7 min | 4.3-8.2 min = **1.7-3.2x** | greedy, no rollouts |
+| `corpus_seconds` field in the metrics JSON | 1.5 s | — | **cache LOAD — reporting it as encode cost is a ~2000x error** |
+The VQA ratio is given as a RANGE because the baseline figure is four single observations spanning
+nearly 2x; a point estimate would fake a precision the comparator does not have.

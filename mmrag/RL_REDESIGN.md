@@ -1632,3 +1632,40 @@ What it decides:
   which is exactly what would flatten within-group reward.
 Watch: two concurrent cells share this box's CPU (image decode is CPU-bound). If cell 1's rate
 degrades materially from its current 20.0 s/step, the control gets killed — cell 1 has priority.
+
+### 2026-09-08 03:52: FIRST RESULT — emaidx-1M-s3000 ck750 vs baseline ck750
+Estimator-matched (retrieval n=3000, n_ans=2450, corpus_small, same eval script and flags).
+
+| metric | EMA arm ck750 | baseline ck750 | delta | registered seed floor | callable? |
+|---|---|---|---|---|---|
+| **ansR@5 (PRIMARY)** | **65.84** | 63.55 | **+2.29** | 1.51 | **YES** |
+| entR@5 (secondary) | 77.23 | 75.53 | +1.70 | 4.33 | no — inside noise |
+| entR@1 / entR@10 | 59.53 / 83.13 | — | — | — | (baseline not on disk at these k) |
+| acc (secondary) | pending | 35.13 | — | 0.33 | VQA stage running |
+
+**The primary metric clears its pre-registered noise floor.** ansR@5 +2.29 against a floor of 1.51
+that was written down BEFORE any EMA number existed. entR@5 moves the same direction but is well
+inside its (much wider) 4.33 floor, exactly as the registration anticipated — entR@5 was scoped
+secondary precisely because its baseline trend was anchor-fragile.
+
+**WHAT THIS IS NOT.** One seed and ONE checkpoint. The registered reading is curve-vs-curve at
+750/1500/2250/3000; a single point is not a curve and cannot show whether EMA changes the SHAPE,
+which was the actual question. Do not quote +2.29 as the effect. The baseline's own ck750 -> 3000
+ansR@5 trend is −0.680 pts/1k [−2.438, +1.078], i.e. not distinguishable from flat, so "prevents
+the decline" still has no established decline to prevent at the matched estimator.
+Cross-site caveat stands: this ck750 was produced on H200s here, the baseline's on the origin
+cluster. That is what `v3pure-1M-s3000-loc` (running, step ~120) exists to remove.
+
+### Eval-stage contention split — first measurement in this campaign
+| stage | measured | note |
+|---|---|---|
+| `encode_corpus.py` (422,378 passages) | **3165 s = 133 passages/s** | vs 232/s clean = **1.75x** |
+| `eval_retrieval.py` query search (3000 q) | **304 s** | |
+| `corpus_seconds` in the metrics JSON | **1.5 s** | **cache LOAD, not the encode** |
+| `eval_vqa.py` 7B reader | running | |
+
+The `corpus_seconds` trap is real and confirmed: `mlx_entry_eval.sh` runs `encode_corpus.py --cache`
+first, so the JSON field records a 1.5 s cache load. **Reporting it as the corpus encode cost would
+have given a ~2000x wrong number and a nonsense contention ratio.** Read the encode cost from
+`encode_corpus.py`'s DONE line. Note 1.75x here vs 2.9x measured earlier — the box emptied, so the
+site factor is not stable in time either.

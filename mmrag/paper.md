@@ -357,6 +357,49 @@ retrieval is still net-harmful to the reader.
 
 ---
 
+## Q4 — Does indirect RL need downstream data quality? Filter to queries RAG can actually help.
+
+**Sizing first, from evaluations already on disk** (frozen base, n=1500, same queries): reading the
+gold-context and no-context runs per query gives an exact taxonomy of what retrieval can and cannot
+buy.
+
+| category | gold / no-ctx | share | top-5 acc today |
+|---|---|---|---|
+| **RAG-BENEFITS** — retrieval is the whole game | 1 / 0 | **32.3%** | 43.8% |
+| RAG-UNNEEDED — reader already knows it | 1 / 1 | 18.1% | 84.9% |
+| **RAG-HOPELESS** — wrong even WITH the gold passage | 0 / 0 | **48.5%** | 2.2% |
+| RAG-HARMS — context breaks a correct answer | 0 / 1 | 1.1% | 17.6% |
+
+Anchors: gold-context accuracy **50.40**, no-context **19.27**, current top-5 **30.80**.
+
+**Two consequences, and the first bounds every other question in this document.**
+
+**(1) The absolute ceiling of retrieval on this benchmark is 50.40 accuracy.** Perfect retrieval —
+handing the reader the gold passage every time — scores 50.40, because 48.5% of queries are wrong
+even then. Current top-5 is 30.80, so the entire remaining headroom for *any* retrieval method,
+RL or SFT or oracle, is **19.6 accuracy points**. The 34-35 plateau that Q2 documents sits at about
+a quarter of the way through that gap. Any claim that a retrieval recipe "keeps improving" is
+bounded by this number, and it is a property of the reader and the dataset, not of the recipe.
+
+**(2) It independently confirms the Q2 starvation mechanism, from the reader side.** The 48.5%
+RAG-HOPELESS rows can produce *only* all-wrong reward groups: no candidate, gold included, lets the
+reader answer. That is measured on the reader, not inferred from training logs, and it matches the
+~53% zero-advantage groups seen during training closely enough to be the same phenomenon.
+
+**The Q4 experiment this motivates.** Filter the training pool to RAG-BENEFITS rows only (gold
+correct AND no-context wrong), which removes by construction the rows that generate dead gradient,
+and train the same recipe on it. Predictions, registered before running: degeneracy should fall
+well below the ~0.59 baseline; and because the campaign has repeatedly shown pool SIZE is null, a
+~3x smaller but fully-informative pool should not lose on that account. **Control required:** an
+unfiltered random pool of the SAME size, or the result confounds filtering with pool size.
+Note `--reward_gate_noctx` already implements a close relative of this online, using the policy's
+best candidate instead of the gold passage; it was tried once for +0.94 ansR@5 at 1 seed. The
+gold-based version is the cleaner, policy-independent form and is what Q4 asks for.
+**Cost:** the filter needs a gold-context and a no-context reader pass over each candidate training
+row, ~2 reader calls/row, so it is sharded across GPUs rather than run inline.
+
+---
+
 ## Open / in flight
 
 - **mix2M grid (4 cells, running).** {v3-pure, v2-anchored} x {EMA, no EMA} on the 2M mixed-domain

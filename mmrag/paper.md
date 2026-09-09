@@ -186,7 +186,33 @@ Source diversity in the pool neither helps nor hurts at matched draws.
 | corpus_mix2M — 2M passages, 37% off-domain | 69.83 | 57.88 | 32.40 |
 | delta | **−6.00** | **−6.94** | −1.80 |
 
-**CONFOUNDED, and the confound is not small.** mix2M is both 4.7x LARGER (more distractors of any
+**CONFOUND BROKEN — by running the base on the same index.** The zero-shot base was then scored on
+both indexes too, and it does not degrade, it **collapses**:
+
+| | entR@5 | ansR@5 | acc |
+|---|---|---|---|
+| base on corpus_small (422k, in-domain) | 68.53 | 54.94 | 30.80 |
+| RL on corpus_small | 75.83 | 64.82 | 34.20 |
+| **RL − base** | **+7.30** | **+9.88** | **+3.40** |
+| base on corpus_mix2M (2M, 37% off-domain) | **14.27** | **9.96** | 20.87 |
+| RL on corpus_mix2M | 69.83 | 57.88 | 32.40 |
+| **RL − base** | **+55.57** | **+47.92** | **+11.53** |
+
+Changing the eval index costs the RL retriever 6.0 entR@5 and costs the frozen base **54.3**. If the
+drop were merely a 4.7x larger index, both arms would pay a similar toll; they do not, by an order
+of magnitude. **So the drop is a capability difference, not an index-size artifact, and the earlier
+"confounded" caveat is resolved.** Note the base's accuracy on mix2M (20.87) sits essentially at the
+reader's no-context floor (19.27) — the documented signature of retrieval being dead — so the base
+is not merely worse, its retrieval has stopped functioning on a mixed-domain index.
+
+**This is the strongest evidence in the campaign that annotation-free RL buys something real.** On
+the homogeneous benchmark the recipe looks like a +3.4 accuracy improvement. On a mixed-domain index
+the same adapter is **+11.5 accuracy and +55.6 entity recall** over its own base, because the base
+cannot reject off-domain passages at all and the RL-trained retriever largely can. The homogeneous
+benchmark was hiding most of the effect. It also reframes Q1: multi-source data does not help
+*training* measurably, but it is where the *evaluation* becomes able to see the difference.
+
+**Original caveat, retained for the record:** mix2M is both 4.7x LARGER (more distractors of any
 kind) and 37% off-domain. A bigger index alone lowers recall, so this drop **cannot** be attributed
 to a failure to reject off-domain passages. The control that would separate them is an eval index of
 comparable size that is entirely in-domain — `corpus_div_v2` (1.26M, 0% off-domain) is the obvious

@@ -141,7 +141,26 @@ mismatch rather than a failure of diversity. 1 seed; not claimed.
 
 Source diversity in the pool neither helps nor hurts at matched draws.
 
-**(c) Diverse retrieval INDEX — IN PROGRESS.** Every index used above is homogeneous encyclopedic
+**(c) Diverse EVAL index — first measurement, and the drop is large.** The same finished adapter
+(`emaidx-1M-s3000`), same `queries_test`, n=3000, scored against two different eval indexes:
+
+| eval index | entR@5 | ansR@5 | acc |
+|---|---|---|---|
+| corpus_small — 422k passages, 0% off-domain | 75.83 | 64.82 | 34.20 |
+| corpus_mix2M — 2M passages, 37% off-domain | 69.83 | 57.88 | 32.40 |
+| delta | **−6.00** | **−6.94** | −1.80 |
+
+**CONFOUNDED, and the confound is not small.** mix2M is both 4.7x LARGER (more distractors of any
+kind) and 37% off-domain. A bigger index alone lowers recall, so this drop **cannot** be attributed
+to a failure to reject off-domain passages. The control that would separate them is an eval index of
+comparable size that is entirely in-domain — `corpus_div_v2` (1.26M, 0% off-domain) is the obvious
+candidate and has not been run. Until then the honest statement is: *retrieval quality on this
+benchmark is substantially index-dependent, and the published numbers are specific to a 422k
+in-domain index.* A zero-shot run on the same mix2M index is finishing and will say whether the
+RL-vs-base gap survives the harder index, which is the part that matters for whether the recipe
+generalises.
+
+**(d) Diverse TRAINING index — IN PROGRESS.** Every index used above is homogeneous encyclopedic
 Wikipedia, so nothing has ever tested whether the retriever can reject an *off-domain* passage.
 `corpus_mix2M` (2,000,000 passages: 63% the existing multimodal corpus, 37% BEIR across msmarco /
 hotpotqa / quora / trec-covid / touche / fiqa / scidocs / arguana / scifact / nfcorpus) is now the

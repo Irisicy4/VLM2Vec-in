@@ -247,6 +247,36 @@ exactly zero, and the step teaches nothing. The signal also thins over training 
 stay flat. A matched control with the EMA flags removed reproduces this within 1-2%, so it is a
 property of the recipe under this reward, **not** of any index treatment.
 
+**Tested: does multi-source data fix the starvation? NO — it slightly worsens it.**
+Degeneracy is logged per step, so this is measurable directly on the running cells with no extra
+compute. Matched over the first 103 steps of every arm (the shortest arm sets the window):
+
+| training data condition | degenerate frac | group spread | arms |
+|---|---|---|---|
+| InfoSeek pool + corpus_small (homogeneous) | 0.5546 | 0.0445 | 2 |
+| InfoSeek pool + corpus_mix2M (diverse index) | 0.5667 | 0.0452 | 2 |
+| InfoSeek pool + corpus_mix2M, anchored | 0.6153 | 0.0406 | 2 |
+| **diverse pool + corpus_mix2M (both)** | **0.6104** | **0.0377** | 2 |
+
+Going from fully homogeneous to diverse on both axes moves degeneracy **0.5546 → 0.6104 (worse)**
+and group spread **0.0445 → 0.0377 (worse)**. Gold-in-pool is roughly flat across conditions
+(0.72 / 0.71 / 0.72), so this is not explained by the gold passage falling out of the candidate set.
+
+**Why the mechanism predicts exactly this.** Starvation is *reader*-limited: the groups that carry
+no advantage are the ones where the reader answers wrongly from every candidate. Data diversity acts
+on the retrieval side — it changes which wrong documents populate the pool. It cannot make the 3B
+reader better at converting a good passage into a right answer, and adding harder or off-domain
+distractors can only make the pool slightly worse. So diversity is the wrong lever for this
+bottleneck, for the same reason the four EMA schemes are.
+
+**Statistical honesty.** 103 steps is early, and the two arms inside each condition differ by the
+EMA flag rather than by seed, so they are not replicates. Within-condition spread runs 0.003 to
+0.046 in degeneracy, and the between-condition difference is 0.056 — comparable to the largest
+within-condition spread. So: **no evidence diversity helps, weak evidence it slightly hurts, effect
+size comparable to the noise available to measure it.** One arm is an outlier worth watching —
+`mix2m-v2anchor-ema` shows gold-in-pool 0.4951 against ~0.72 elsewhere and the highest degeneracy
+(0.6383); if that persists it is a problem with that cell, not a property of the condition.
+
 **Consequence.** The bottleneck sits downstream of retrieval. That predicts what the campaign
 observed and could not explain: every pool size plateaus in the same place, accuracy and recall
 peak at different draws, and the SFT line is flat too. A recipe that keeps improving must first

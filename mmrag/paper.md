@@ -328,6 +328,52 @@ size comparable to the noise available to measure it.** One arm is an outlier wo
 `mix2m-v2anchor-ema` shows gold-in-pool 0.4951 against ~0.72 elsewhere and the highest degeneracy
 (0.6383); if that persists it is a problem with that cell, not a property of the condition.
 
+**WHY the reward discriminates early and not late — measured, and it is the POLICY, not the reward.**
+Probing the finished run's own checkpoints for the geometry that drives Plackett-Luce sampling
+(40k-passage index, 16 real queries, 400 draws, run twice per checkpoint — replicates agree to 0.02):
+
+| checkpoint | top-24 cosine spread | unique docs / query |
+|---|---|---|
+| zero-shot | 0.1342 | 8.43 |
+| 250 | 0.1361 | 8.27 |
+| 750 | 0.1363 | 8.17 |
+| 1500 | 0.1366 | 8.03 |
+| 2250 | **0.1535** | **7.70** |
+| 3000 (final) | 0.1527 | 7.85 |
+
+**The policy sharpens (+13.8% spread) and its sampling explores less (−6.9% unique docs).** The
+mechanism: `pl_sample_lists` is Gumbel-top-k over sims/τ at τ=0.02, and Gumbel noise has scale
+~1.28. Early, the top-24 similarities sit close together, so the scaled gaps are comparable to the
+noise and the G=4 sampled lists genuinely differ — different documents, different rewards, usable
+advantage. As training sharpens the profile, the scaled gaps outgrow the noise, sampling drifts
+toward deterministic, the four lists increasingly pick the *same* documents, and their rewards
+converge. **The magnitudes agree: unique docs −6.9% against degeneracy +7.1%** (0.588 → 0.630).
+
+Within-run trajectory, which fits this and rules out the obvious alternatives:
+
+| phase | degenerate | reward level | reward on degen≥.75 steps | steps with usable spread |
+|---|---|---|---|---|
+| 0-499 | 0.588 | 0.200 | 0.158 | 73.0% |
+| 1000-1499 | 0.595 | 0.236 | 0.192 | 72.0% |
+| 2500-2999 | 0.630 | 0.232 | 0.183 | 66.0% |
+
+Reward **level rises +16%** while reward **spread falls −12.5%** and gold-in-pool is flat (0.745 →
+0.7425). So the reward is not failing and retrieval is not decaying — **the policy is succeeding, and
+its success is what removes the gradient.** This is self-limiting rather than starving: a 7-point
+loss of usable-gradient steps over 3000 steps. It also explains why the plateau is so robust to
+data, compute and estimator changes: none of them touch τ or the sampling temperature, which is what
+sets how long exploration survives.
+
+**Caveats.** Both series are monotone through ck2250 then tick back at the final checkpoint, so
+"monotone" is a 5-of-6 statement. The probe uses a 40k index rather than the run's 174k one; the
+earlier size check showed unique-docs moves only ~3% across a 3x index change, so the direction is
+safe but the absolute values are not the run's own. And this coexists with the reader-side floor:
+the 48.5% RAG-HOPELESS rows (Q4) supply a persistent all-wrong population regardless of sampling.
+**Both are real: a fixed reader-limited floor, plus a growing agreement term driven by the policy
+sharpening.** The two mechanisms have different fixes — the floor needs data filtering (Q4), the
+sharpening needs an exploration knob (`--pl_behavior_temperature`, which the record lists as tried
+and "hurt in combo", never at scale).
+
 **Consequence.** The bottleneck sits downstream of retrieval. That predicts what the campaign
 observed and could not explain: every pool size plateaus in the same place, accuracy and recall
 peak at different draws, and the SFT line is flat too. A recipe that keeps improving must first

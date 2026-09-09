@@ -130,6 +130,42 @@ But v3-pure on the *diverse* pool scores acc 33.00 against 34.71 ± 0.19 on the 
 i.e. **diversity costs ~1.7 acc on an InfoSeek benchmark**, plausibly a train/test distribution
 mismatch rather than a failure of diversity. 1 seed; not claimed.
 
+**(a2) The other side of the comparison — does SFT degrade on multi-source data?**
+Same recipe, same diverse pool, same InfoSeek eval, matched checkpoints (1 seed per leg):
+
+| ckpt | SFT ansR@5 InfoSeek pool | diverse pool | Δ |
+|---|---|---|---|
+| 450 | 59.92 | 59.02 | −0.90 |
+| 600 | 59.84 | 58.00 | −1.84 |
+| 750 | 62.04 | 60.41 | −1.63 |
+| 900 | 59.59 | 59.80 | +0.20 |
+| 1050 | 56.82 | 54.53 | −2.29 |
+| **mean** | | | **−1.29, negative at 4/5** |
+
+**The two methods move in OPPOSITE directions on answer recall when the training pool becomes
+multi-source:**
+
+| method | entR@5 | ansR@5 | acc |
+|---|---|---|---|
+| SFT, InfoSeek pool → diverse pool | +0.70 | **−1.63** | −0.93 |
+| RL, InfoSeek pool → diverse pool | +0.74 | **+1.11** | −1.71 |
+
+So the answer to "does SFT fail or go flat on multi-source data" is: **it degrades, mildly and
+consistently, on answer recall** (4 of 5 matched checkpoints negative, mean −1.29), while RL's
+answer recall *improves* (+1.11). Both methods lose accuracy on the diverse pool, RL slightly more
+(−1.71 vs −0.93), and both gain a little entity recall — so the divergence is specific to answer
+recall, the metric that measures whether the retrieved passage actually contains the answer.
+Read together with the head-to-head **on** the diverse pool (RL − SFT = +0.97 / **+4.16** / +0.93,
+the largest answer-recall margin in the whole campaign), the shape is that diversity *widens* the
+RL-over-SFT gap on answer recall rather than closing it.
+
+**NOT ESTABLISHED — the honest statistics.** The differential is ~+2.4 on ansR@5. The single-metric
+seed floor is 1.91, and a difference-of-differences compounds that to roughly 2.70, so **+2.4 sits
+below the compounded floor**. Every leg is 1 seed except RL's InfoSeek-pool arm. What supports it
+beyond the point estimate is only the *consistency of sign* — SFT is negative at 4 of 5 matched
+checkpoints — which is suggestive and not a significance test. Seeding the two diverse-pool legs is
+the cheapest way to settle it.
+
 **(b) Mixed-source pools at matched draws** — flat:
 
 | pool | rows | entR@5 | ansR@5 | acc |

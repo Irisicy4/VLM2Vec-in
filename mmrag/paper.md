@@ -262,12 +262,37 @@ Going from fully homogeneous to diverse on both axes moves degeneracy **0.5546 �
 and group spread **0.0445 → 0.0377 (worse)**. Gold-in-pool is roughly flat across conditions
 (0.72 / 0.71 / 0.72), so this is not explained by the gold passage falling out of the candidate set.
 
-**Why the mechanism predicts exactly this.** Starvation is *reader*-limited: the groups that carry
-no advantage are the ones where the reader answers wrongly from every candidate. Data diversity acts
-on the retrieval side — it changes which wrong documents populate the pool. It cannot make the 3B
-reader better at converting a good passage into a right answer, and adding harder or off-domain
-distractors can only make the pool slightly worse. So diversity is the wrong lever for this
-bottleneck, for the same reason the four EMA schemes are.
+**WHY — my first explanation was wrong, and its own prediction killed it.** I proposed that
+off-domain passages displace in-domain near-misses, so more lists become all-junk, so more groups
+score all-zero. Two measurements, both against that:
+
+*(i) The retriever does discriminate against off-domain content.* From the mix2M retrieval dumps
+(pid ≥ 60M identifies BEIR), the index is **37.0% off-domain but only 10.2%** of retrieved top-100
+and **9.9%** of the top-5 that reach the reader — a 3.7x under-representation. Median rank of the
+first off-domain passage is 11. It is not drowning in off-domain text; 32.6% of queries do get at
+least one off-domain passage into their top-5, so the displacement is real but modest.
+
+*(ii) The extra degenerate groups are NOT all-wrong.* If they were, reward on the most-degenerate
+steps would fall and zero-reward steps would become commoner as data diversifies. Both go the
+**opposite** way:
+
+| condition | degenerate | reward | reward on degen≥.75 steps | frac of steps with reward 0 |
+|---|---|---|---|---|
+| homogeneous | 0.555 | 0.195 | 0.156 | 0.039 |
+| diverse index | 0.567 | 0.187 | 0.129 | 0.034 |
+| both diverse | 0.610 | 0.200 | 0.142 | **0.024** |
+
+Zero-reward steps get **rarer** (0.039 → 0.024) and the reward level is flat. So diversity is
+producing *variance reduction within groups at constant mean* — lists agreeing more often at a
+middling reward — not a shift toward failure. **My displacement-to-all-zero story is refuted.**
+
+*What I do not know:* why lists agree more under diversity. I am not going to supply a second
+mechanism after the first one failed a test, especially since **the effect itself is not
+established** — 0.056 in degeneracy against within-condition spread up to 0.046. The correct order
+of work is to establish whether the effect is real (seed the conditions) before explaining it.
+What survives is the *negative* claim, which does not need a mechanism: **diversity does not reduce
+starvation.** And the reason to expect that a priori still holds — starvation is reader-limited, and
+diversity acts on the retrieval side, so it cannot make the 3B reader convert a good passage better.
 
 **Statistical honesty.** 103 steps is early, and the two arms inside each condition differ by the
 EMA flag rather than by seed, so they are not replicates. Within-condition spread runs 0.003 to

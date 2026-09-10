@@ -429,6 +429,63 @@ retrieval is still net-harmful to the reader.
 
 ---
 
+## Appendix — the slate / joint-context reward (`--reward ragacc`): how it failed
+
+The one attempt at rewarding a *selected slate* rather than individual passages. It is the closest
+thing in the record to a "dynamic rerank" arm, and it collapsed harder than any other reward.
+Recipe otherwise standard no-gold (GRPO-8, cc 0.3, lr 2e-5, 500 steps, gme2b). Comparator: the
+`judge` reward reaches entR@5 **79.60** on the same settings; SFT reaches 73.73.
+
+| run | entR@1/@5 | ansR@5 | acc |
+|---|---|---|---|
+| rl-ragacc-nogold-lr2e5 | 0.0007 / **0.0017** | 0.0020 | 0.1480 |
+| rl-ragacc-nogold-lr2e5-s1 | 0.2827 / 0.5633 | 0.4029 | 0.2653 |
+| rl-ragacc-nogold-lr1e5 | 0.1083 / 0.3853 | 0.2433 | 0.2100 |
+| rl-ragacc-nogold-lr1e5-1500 | 0.0013 / 0.0030 | 0.0037 | 0.1440 |
+| rl-ragacc-nogold-N16 | 0.4270 / 0.6680 | 0.4820 | 0.2927 |
+| rl-ragacc-nogold-frozen | 0.2473 / 0.4693 | 0.3506 | 0.2560 |
+| rl-ragacc7b-nogold-lr2e5 | 0.1590 / 0.4030 | 0.2808 | 0.2273 |
+| rl-ragacc-**gold**-lr2e5 | 0.3713 / 0.6157 | 0.4400 | 0.2787 |
+| rl-ragacc7b-**gold**-lr2e5 | 0.5480 / 0.7870 | 0.6086 | 0.3247 |
+
+**Four defects, all visible in `train_rl.py:489-508`, in order of severity.**
+
+1. **The baseline is computed across QUERIES, not across samples of one query.**
+   `adv_q = (slate_r − slate_r.mean()) / (slate_r.std() + 1e-6)` takes its mean and std over the
+   **batch of 4 different queries**. Every other reward path z-scores within a group of G samples of
+   the *same* query. So the advantage here encodes *which queries happened to be easy*, which the
+   policy does not control, rather than *which slate was better*, which it does. An easy query gives
+   its slate positive advantage even if the slate was poor; a hard query punishes a perfect slate.
+   This is not a variance-reduced policy gradient — it is a query-difficulty signal.
+2. **One scalar for k=5 documents, so no credit assignment.**
+   `advantages.scatter_(1, slates, adv_q…expand(-1, k))` assigns *the same* advantage to all five
+   slate members. A slate that succeeds because of one good passage promotes four irrelevant ones
+   equally; a slate that fails despite containing the gold passage pushes the gold *down*. The
+   surviving recipe fixes exactly this by reading each unique document separately — the in-source
+   comment at `train_rl.py:456` reads "per-document credit — the joint-context scalar variant
+   collapsed, see ragacc".
+3. **Only 5 of 24 candidates receive any gradient**; the other 19 get exactly zero advantage, so
+   nothing pushes bad candidates down and there is no force opposing collapse.
+4. **The z-score is over 4 values.** With `std + 1e-6` in the denominator and a coarse reward, a
+   batch where all four queries score alike produces either a vanishing or an exploding advantage.
+
+**Empirical signatures that confirm the diagnosis rather than just describing the failure.**
+*Seed instability:* the same config at lr 2e-5 gives entR@5 0.0017 (seed 0) and 0.5633 (seed 1) — a
+330x spread, which is what a 4-sample noisy baseline predicts and what no other reward family shows.
+*Longer training makes it worse, not better:* lr 1e-5 at 500 steps 0.3853 → at 1500 steps 0.0030,
+i.e. the collapse is progressive, consistent with an advantage that has no term pushing candidates
+apart. *Gold-seeding rescues it:* the `-gold-` variants reach 0.6157 and 0.7870 because forcing the
+gold passage into the pool prevents the policy from losing it — masking, not fixing, the defect.
+*Accuracy lands near the no-context floor* (0.1480 vs the reader's 0.1927), the documented signature
+of retrieval being dead rather than merely weak.
+
+**Conclusion.** The slate reward failed for reasons of estimator construction, not because
+downstream RAG accuracy is a bad objective. A correct version would need a within-query baseline
+over several sampled slates, and per-document credit within the slate — at which point it becomes
+the PL-GRPO recipe that works. This is recorded so the idea is not re-attempted in its broken form.
+
+---
+
 ## Q5 — Is the "reward starvation" partly a GRADER defect? Yes, and a large part of it.
 
 Every reward and every accuracy number in this campaign is produced by `answer_correct()`

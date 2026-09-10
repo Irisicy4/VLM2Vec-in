@@ -566,6 +566,37 @@ apart**; the only difference within a pair is the scheme.
 
 (~ = inside the seed floors 2.40 / 1.91 / 0.61.)
 
+**CROSS-PROJECT JOINT CLAIM (text-side collaboration, 2026-09-10).** The text-side project ran the
+same knob at far lower coverage and every arm turned over. Their bracket, all vs a frozen-index
+control, R@5 at 1k→5k queries:
+
+| arm | coverage | blend | outcome |
+|---|---|---|---|
+| frozen control | — | — | 0.508 → 0.607, monotone |
+| 32 rows/step | 0.04x | 0.1 | level to 3k, then −5 to −7 by 5k |
+| 128 rows/step | 0.16x | 0.1 | level to 3k, then −5 to −7 by 5k |
+| dmixDynCov 704/step | 1.06x | 0.5 | −10.4 / −11.2 at 4k/5k, both seeds |
+| dmixDynFreq 2816/step | 4.2x | 0.5 | monotone down from 1k |
+
+**Turnover is invariant to coverage across 0.04x–4.2x and to blend rate.** The only thing every
+failing arm shares, and the frozen control does not, is that **the document tower trains**. Their
+candidate-side mean pairwise cosine ran 0.171 → 0.072 across the turnover — the doc tower
+contracting, with the index following it.
+
+Our side supplies the other half of the bracket: at **6.35x and 30x** coverage we see no turnover
+(`emaidx-1M-s3000` entR@5 77.23 / 76.83 / 76.33 / 75.83 at 3k/6k/9k/12k queries — a 1.4-point drift
+over 9k queries, not a turnover), and our one *contracting* cell is the anchored arm with the index
+left un-damped (1126 distinct top-1 docs, entR@5 below zero-shot).
+
+**JOINT CLAIM: the mediator is whether document geometry is HELD, not how much of the index moves.**
+Held by any of three means — freezing the doc gradient (their control, and our scheme 3), damping
+the index with EMA (our scheme 1), or the contrastive anchor — and the recipe is stable. Held by
+none and the doc tower contracts and takes the index with it. Bracketed 0.04x–30x across two
+projects, two model families, two modalities.
+**Open test on our side:** `mix2m-v3pure` is anchor-off, index-EMA-off, doc tower training — their
+failing condition exactly. At 3k queries it is 78.43, no turnover. Its 6k-query endpoint is
+evaluating now and is the direct test of the joint claim on multimodal data.
+
 **Reading.** On the anchor-free recipe index-EMA is null-to-negative: nothing callable against the
 same-hardware control on the homogeneous index, and it *costs* 2.80 entR@5 on the mixed index.
 The apparent +19.59 on the anchored arm is **not an EMA gain** — it is EMA preventing a collapse

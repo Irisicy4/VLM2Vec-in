@@ -622,6 +622,45 @@ never had. It is the leading candidate for why the same doc-side gradient contra
 here — which would make "keep the index live" a real design rule rather than an aesthetic
 preference, and it is directly testable by running our own recipe at their coverage.
 
+**CONVERGED DESIGN RULE (both projects, 2026-09-10).** The text-side record splits three ways once
+read by refresh *operation* rather than by coverage:
+
+| refresh operation | outcome on their side |
+|---|---|
+| **full and periodic** (13.5k index, full re-encode /100 steps, doc tower training) | **every RL > Rel-SFT win they hold** — TriviaQA 8B +3.6 over same-build SFT, 4 seeds a side |
+| **frozen** index | only *ties* SFT |
+| **partial and accumulating** (write-back on the 1M index) | turns over at every coverage 0.04x–4.2x and both blend rates |
+
+Their analytic age argument, which needed no GPU and is the concrete form of the mechanism: a
+round-robin sweep at 32 rows/step touches ~20k of 999,993 rows over 1,250 steps, so **98% of the
+index carries the BASE encoding for the entire run** while the document tower scoring the candidates
+drifts away from it. Even their 1x arm gives each row one visit at blend 0.5, so effective age is
+about half the run. Our 100-step full refresh bounds mean *and* max age at 99.
+
+**The rule that fits both records: train on a small refreshable index, evaluate on the large frozen
+one, and never let a moving tower score against rows it did not encode.** Their supporting number:
+on the frozen 1M cells the query tower alone lifts R@30 from 0.56 to 0.83 over 28k queries, so a
+large frozen index is not wasted — it just cannot be the index the document tower trains against.
+This is also the cost-side rule: the index cheap enough to refresh fully is the same index that
+wins, and their winning cells run 13.5k while their failing ones run 1M.
+
+**Pre-registered pair, both sides, written before any number exists.**
+*Ours:* `mix2m-partialwb` — `--index_ema 0.5 --index_refresh_extra 0` = 112 rows/step = **0.91x
+coverage, blend 0.5**, landing inside their failing regime (their dmixDynCov: 1.06x, blend 0.5,
+−10.4/−11.2 R@5). Control is `mix2m-v3pure`, identical but full periodic refresh, which drifted
+−2.20 entR@5 from 3k→6k queries, inside the 2.40 floor. **Prediction: the partial arm turns over by
+more than 2.40 below its own 3k point.** Disconfirming branch stated: if it drifts inside the floor
+too, the operation is not the variable on multimodal data and the projects differ by model or
+modality, not schedule.
+*Theirs:* a 200k multi-source subcorpus with 100% gold coverage, full re-encode /100 steps, doc
+tower training, against frozen-index twins on the **same** corpus differing only in the freeze,
+2 seeds each, 6k queries. **Prediction: live beats frozen at 6k.**
+
+**Asymmetry to check first if the four cells disagree:** their 200k corpus is both the training and
+the eval index, while ours is a 184,660-row training carve-out evaluated against the full 2M — a
+train/eval index gap they do not have. They have offered to reproduce our gap by re-scoring their
+live endpoints against the full 1M (~70 GPU-min per checkpoint), to be run only if the projects split.
+
 **Reading.** On the anchor-free recipe index-EMA is null-to-negative: nothing callable against the
 same-hardware control on the homogeneous index, and it *costs* 2.80 entR@5 on the mixed index.
 The apparent +19.59 on the anchored arm is **not an EMA gain** — it is EMA preventing a collapse

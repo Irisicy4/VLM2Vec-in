@@ -429,6 +429,70 @@ retrieval is still net-harmful to the reader.
 
 ---
 
+## Q5 — Is the "reward starvation" partly a GRADER defect? Yes, and a large part of it.
+
+Every reward and every accuracy number in this campaign is produced by `answer_correct()`
+(`mmrag/reader_vlm.py`), i.e. **cover-EM**. It was audited against an external LLM judge
+(Qwen3-30B-A3B-Instruct-2507, temperature 0, served over an OpenAI-compatible endpoint) by
+re-grading the *stored* predictions of a finished run — no retraining, no re-reading.
+
+### Definitions used below
+
+| term | exact definition |
+|---|---|
+| **cover-EM** (`answer_correct`) | For each gold alias *g*: normalise both strings (lowercase, strip non-alphanumerics, collapse whitespace); score 1 if the prediction equals *g*, **or** if *g*'s token sequence appears contiguously in the prediction's tokens. Token-boundary containment, not raw substring. This is the reward signal *and* the reported accuracy. |
+| **strict-EM** | Same normalisation, equality only, no containment. |
+| **LLM-judge** | The 30B model is shown the question, up to 12 gold aliases, and the model answer, and asked to reply 1 if the answer matches any gold "allowing paraphrase and formatting differences", else 0. Greedy. |
+| **false negative** | cover-EM scored 0, judge scored 1. |
+| **false positive** | cover-EM scored 1, judge scored 0. |
+| **string-gold query** | `answer_aliases` is a list of strings. |
+| **numeric-range-gold query** | `answer_aliases` is a list of **dicts** of the form `{'wikidata': v, 'range': [lo, hi]}` — InfoSeek's numeric questions, where any value inside `[lo, hi]` is correct. |
+
+### Audit result (run `emaidx-1M-s3000`, n=1500, 400 predictions sampled)
+
+| stratum | n judged | judge disagrees | rate |
+|---|---|---|---|
+| cover-EM said WRONG | 250 | 94 | **37.6% false negative** |
+| cover-EM said RIGHT | 150 | 8 | **5.3% false positive** |
+| implied judge-graded accuracy | | | **57.12** vs cover-EM **34.20** |
+
+### The dominant cause is a metric defect, not judge leniency
+
+`answer_correct()` does `_normalize(str(g))` on each gold. When the gold is a **dict**, that
+stringifies to `"{'wikidata': 33.7, 'range': [30.33, 37.07]}"` and is then searched for as a token
+sequence inside the prediction — **which can never match any number the reader produces.**
+
+| stratum of the eval set | share | cover-EM accuracy |
+|---|---|---|
+| string-gold | 78.1% | 43.81 |
+| **numeric-range gold** | **21.9%** | **0.00** |
+
+**21.9% of queries are scored 0 by construction**, and 15,414 of the 71,335 test queries (21.6%)
+are of this kind. The headline 34.20 is computed over a denominator that includes them; the same run
+scores **43.81 on the queries the metric can actually grade.**
+
+### What this does and does not overturn
+
+- **It is a real, mechanical defect** and it explains most of the 37.6% false-negative rate. The
+  overturned examples are overwhelmingly numeric: `"3.4 km²"` vs range [3.006, 3.674]; `"10"` vs
+  [8.55, 10.45]; `"509 megawatts"` vs [450, 550] — all correct under InfoSeek's own rule, all scored 0.
+- **The judge is also too lenient in places**, so 37.6% is an upper bound. It credited
+  `"The Dead Sea has a salinity of 30%"` against range [30.33, 37.07] (30 is *outside*), and
+  `"Fabaceae"` (family) for a gold of `"Amphicarpaea"` (genus) on a "closest upper taxonomy"
+  question. A range-aware programmatic grader, not an LLM, is the correct fix for the numeric stratum.
+- **It does NOT invalidate the RL-vs-SFT comparison.** Both arms are scored by the same broken
+  metric on the same queries, so the *ordering* is unaffected; the *levels* are all understated by
+  roughly the same amount.
+- **It DOES bear on Q2's starvation.** Numeric queries can only ever return reward 0, so they are a
+  guaranteed all-wrong population in training — an ~22% floor of dead gradient that is an artifact of
+  the grader, on top of the reader-limited floor Q4 measures. This is a *fixable* component of the
+  plateau, and the first one identified that requires no new model, data or compute.
+- **Registered consequence:** fix `answer_correct` to evaluate `lo <= float(pred_number) <= hi` for
+  dict golds, then re-measure degeneracy. Predicted effect: degenerate fraction should fall by
+  roughly the numeric share of the training pool.
+
+---
+
 ## Q4 — Does indirect RL need downstream data quality? Filter to queries RAG can actually help.
 
 **Sizing first, from evaluations already on disk** (frozen base, n=1500, same queries): reading the

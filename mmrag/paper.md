@@ -640,7 +640,40 @@ Prior worth stating: the geometry probes show RL moves the **query** tower hard 
 cosine 0.2212 → 0.0594) while the doc side barely moves, and model-EMA damps the doc tower — i.e.
 aimed at the tower that is not moving. That argues for a null; it is cheap to settle.
 
-### Scheme 4 — EMA as a regulariser for full fine-tuning. NOT EXECUTED; not implemented.
+### Scheme 4 — EMA as a regulariser. NOT EXECUTED here, but the text-side project HAS run it, and the answer is conditional.
+
+Their evidence (0.6B, 1M multi-source index, 2-4 seeds), where their `m` is the **update rate**:
+
+| condition | result |
+|---|---|
+| **frozen** index, m=0.01 | **no degeneration over 28k queries**: 0.476 (1k) → 0.632 (13k) → 0.647 (28k), still rising, above their Rel-SFT ceiling of 0.630. Query-side pairwise cosine falls 0.210 → 0.121 (spreading, not collapsing); degenerate-group rate has no trend; within-group reward std flat. |
+| rate m=0.1 | the pre-registered KL→0 degeneracy: flat 0.550 / 0.546 / 0.546 |
+| rate m=0.001 | collapses back to a base anchor: 0.534 |
+| **live** index (doc tower trains, full re-encode /100 steps) | **EMA 47.8 max, 45.8 final vs base-anchored KL 48.1 max** — a late decline 4x the KL spread. Their phrase: *"a lagged copy of a moving policy against a moving index."* 4B in-domain: EMA 0.738 vs KL 0.742. |
+
+**So "EMA regularisation beats KL" is true only when the index is HELD, and false when it is live.**
+Our index is live — refreshed every 100 steps — so on this project the expected outcome is no gain
+and a late decline. The interior optimum is m=0.01 (update rate) with one decade measured either
+side. This is the cheapest possible answer to scheme 4 and it cost no GPU time here.
+
+### Reward-reader strength — bears directly on the "use a 30B reader" proposal
+
+Text-side measurement, swapping the reward reader from 3B to a 30B MoE:
+
+| quantity | 3B | 30B |
+|---|---|---|
+| training queries answerable WITHOUT context | 21% | **34%** |
+| fails even WITH gold | 39% | 33% |
+| **share of queries that can move a reward** | **37%** | **31%** |
+
+**A stronger reward reader makes saturation worse, not better.** It converts more queries into the
+"answerable without retrieval" quadrant than it rescues from the "hopeless" quadrant, so the
+fraction of rows carrying usable reward variance *falls*. This is the mirror image of our Q4
+taxonomy (32.3% benefit / 48.5% hopeless with a 3B) and it predicts that swapping our reader for a
+30B would shrink the useful training set rather than fix the starvation.
+**What did work on their side: the filter.** Keeping only reward-variance rows is **+4 to +7 R@5**
+over a matched control at 3k queries across 2 seeds — the largest positive effect either project has
+found for the plateau, and independent confirmation that Q4's filter is the right lever.
 
 No code path exists. Two forms, both requiring changes. **KL/L2 to the EMA weights**: cheap to add,
 but the nearest measured evidence is against it — KL-to-init hurts (β=0.01 → −0.7 acc, β=0.1 → −1.7)

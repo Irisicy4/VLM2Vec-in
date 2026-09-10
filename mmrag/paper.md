@@ -593,9 +593,34 @@ Held by any of three means — freezing the doc gradient (their control, and our
 the index with EMA (our scheme 1), or the contrastive anchor — and the recipe is stable. Held by
 none and the doc tower contracts and takes the index with it. Bracketed 0.04x–30x across two
 projects, two model families, two modalities.
-**Open test on our side:** `mix2m-v3pure` is anchor-off, index-EMA-off, doc tower training — their
-failing condition exactly. At 3k queries it is 78.43, no turnover. Its 6k-query endpoint is
-evaluating now and is the direct test of the joint claim on multimodal data.
+**TEST RESULT — the joint claim does NOT transfer to multimodal.** `mix2m-v3pure` is their failing
+condition exactly: anchor off, index-EMA off, document tower training, live index.
+
+| queries | step | entR@5 | ansR@5 | acc |
+|---|---|---|---|---|
+| 3,000 | 750 | 78.43 | 65.27 | 34.20 |
+| 6,000 | 1500 | 76.23 | 64.12 | 34.47 |
+| (zero-shot base) | | 68.53 | 54.94 | 30.80 |
+| **3k → 6k** | | **−2.20** | **−1.14** | **+0.27** |
+
+All three deltas are **inside the seed floors** (2.40 / 1.91 / 0.61), and the arm finishes 7.7 points
+of entR@5 **above** its zero-shot base. Their arms lost 5 to 11 R@5 by this point at every coverage
+they tried. **So the "doc tower training ⇒ contraction" mediator does not reproduce here**, and the
+joint claim must be narrowed: it holds on their 0.6B text setup and does not, at this budget, on
+GME-2B multimodal.
+
+Candidate reasons, none tested: our index is refreshed **fully every 100 steps** (30x coverage)
+where their write-back arms only ever touch 0.04x–4.2x, so our doc embeddings are never far from the
+live encoder and may not have room to drift; our base is retrieval-finetuned and theirs is a 0.6B
+general encoder; and our budget is 6k queries where their turnover shows at 3–5k but their *frozen
+control* keeps rising to 28k, so we may simply be measuring too early. **The honest status is that
+the mediator is confirmed on one side, refuted on the other, and the difference between the setups
+is itself the next experiment.**
+
+Note what this does to the coverage story: our 30x full refresh is the one thing their failing arms
+never had. It is the leading candidate for why the same doc-side gradient contracts there and not
+here — which would make "keep the index live" a real design rule rather than an aesthetic
+preference, and it is directly testable by running our own recipe at their coverage.
 
 **Reading.** On the anchor-free recipe index-EMA is null-to-negative: nothing callable against the
 same-hardware control on the homogeneous index, and it *costs* 2.80 entR@5 on the mixed index.

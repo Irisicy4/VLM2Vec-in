@@ -597,7 +597,39 @@ The one genuinely new component — mined hard negatives entering the **loss** r
 is a code change and was not executed. Nearest evidence is discouraging: the contrastive anchor,
 whose negatives are cross-query documents, is precisely what causes the contraction above.
 
-### Scheme 3 — model-EMA (`--model_ema 0.99`). NOT PREVIOUSLY RUN ANYWHERE; LAUNCHED NOW.
+### Scheme 3 — model-EMA (`--model_ema 0.99`). LAUNCHED. **And it is structurally the strongest arm in either project, which reverses my prior.**
+
+`train_rl.py:594-597` is the fact I had missed:
+```
+if args.model_ema > 0:  c_emb_g = c_emb.detach()   # grad via queries only
+else:                   c_emb_g = enc.encode_docs(flat, grad=True)
+```
+**With `--model_ema` OFF the document tower trains; with it ON the document gradient is detached and
+only the query tower learns.** So scheme 3 is not merely "encode docs with smoothed weights" — it
+*disables doc-side training*. That makes it the same structure as the text-side project's **frozen
+control**, which in their hands **beat every dynamic-index arm they ran** (R@5 0.508→0.607 over
+1k→5k queries, while their 1.06x-coverage arm turned over by −10.4 and −11.2 at 4k/5k on both seeds,
+and their 4.2x arm declined monotonically).
+
+Their mechanism, which explains my own anchor result from the other side: every write-back cell of
+theirs turns the doc tower on, and its candidate-side mean pairwise cosine ran **0.171 → 0.072**
+across the turnover — the doc tower contracting, with the index following it. My anchored no-EMA
+cell contracting to 1126 distinct top-1 documents is the same phenomenon. **A training doc tower
+with nothing holding its geometry contracts; their frozen control removes the gradient, my index-EMA
+damps its effect on the index.** That reframes the whole coverage question: their turnover appears
+at 1.06x *and* 4.2x, so it is not a coverage effect, and my 30x-vs-6.35x null is expected because
+both of my arms hold the doc side one way or another.
+
+Operating point, checked across conventions: our `--model_ema` is a **retention** factor
+(`ema.mul_(m).add_(p, alpha=1-m)`), so 0.99 means a 0.01 update rate — identical to the interior
+optimum they measured (0.01), with 0.1 degenerating and 0.001 collapsing back to a base anchor.
+The launched cell is therefore at their validated rate by coincidence.
+
+**Registered prediction, before the result:** if the doc-tower-geometry account is right, scheme 3
+should be the best of the four schemes here, not the null I predicted earlier from the
+"aimed at the tower that doesn't move" argument. That argument was wrong because it assumed the doc
+tower barely moves; in fact it barely moves *in the probes*, while still carrying the gradient that
+lets it contract.
 
 The only prior attempt, `div45kv3-emaenc` (72.47/60.49/32.20), is **unusable**: it trained
 q(live)·d(EMA) but evaluated both towers live — a train/eval geometry mismatch, not a result. The

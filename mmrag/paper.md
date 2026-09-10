@@ -550,6 +550,76 @@ scores **43.81 on the queries the metric can actually grade.**
 
 ---
 
+## Dynamic schemes — what was executed, and what it returned
+
+Scheme numbering is the user's. Every pair below is **same hardware, same week, same seed, one flag
+apart**; the only difference within a pair is the scheme.
+
+### Scheme 1 — index-EMA (`--index_ema 0.9 --index_refresh_extra 256`). EXECUTED, 3 settings.
+
+| setting | comparison | entR@5 | ansR@5 | acc |
+|---|---|---|---|---|
+| 810k pool, corpus_small, ck750 | vs **same-hardware** control | +1.60~ | +1.06~ | +0.60~ |
+| 810k pool, corpus_small, 4-ckpt mean | vs published (cross-cluster) baseline | +2.50 | +2.40 | +0.07~ |
+| 2M mixed index, v3-pure, ck750 | vs matched twin | **−2.80** | −0.08~ | +0.47~ |
+| 2M mixed index, **anchored**, ck750 | vs matched twin | **+14.80** | **+19.59** | **+6.40** |
+
+(~ = inside the seed floors 2.40 / 1.91 / 0.61.)
+
+**Reading.** On the anchor-free recipe index-EMA is null-to-negative: nothing callable against the
+same-hardware control on the homogeneous index, and it *costs* 2.80 entR@5 on the mixed index.
+The apparent +19.59 on the anchored arm is **not an EMA gain** — it is EMA preventing a collapse
+that the anchor causes. The anchored no-EMA arm scores 63.57 entR@5, **below the 68.53 zero-shot
+base**, and shows the documented contraction signature:
+
+| arm | distinct top-1 docs / 3000 q | distinct top-5 | entR@5 |
+|---|---|---|---|
+| anchored, no EMA | **1126** | **4735** | 63.57 |
+| anchored + index-EMA | 1435 | 6478 | 78.37 |
+| v3-pure, no EMA | 1538 | 6924 | 78.43 |
+| v3-pure + index-EMA | 1810 | 7809 | 75.63 |
+
+So the finding is: **the contrastive anchor damages retrieval on a diverse index, and index-EMA
+prevents that damage.** Mechanistically coherent — the anchor's negatives are cross-query documents,
+and on a 37%-off-domain index most are trivially separable, so its gradient is dominated by easy
+separations and the embedding space narrows; a smoothed, staler index damps that. 1 seed, 1
+checkpoint: recorded, not claimed.
+
+### Scheme 2 — selected-candidate + pool-EMA + rarity + hard negatives. NOT SEPARATELY EXECUTED, because it is already scheme 1's implementation.
+
+`train_rl.py:401-422` in the `--index_ema` branch does all three per step: EMA-writes the selected
+top candidates from the encodings just computed (`pool_ids`, :401/:417); re-encodes and EMA-writes
+the near-boundary documents, commented in-source as *"near-boundary = free hard negatives"*
+(`boundary_ids`, :402/:419-422); and re-encodes the **stalest** documents by `doc_last_upd`
+(`ema_refresh_stale`, :322-330) — i.e. deliberately sampling the less-frequently-updated ones.
+Running it as a separate cell would re-run scheme 1 under a new name. **Its results are scheme 1's.**
+The one genuinely new component — mined hard negatives entering the **loss** rather than the index —
+is a code change and was not executed. Nearest evidence is discouraging: the contrastive anchor,
+whose negatives are cross-query documents, is precisely what causes the contraction above.
+
+### Scheme 3 — model-EMA (`--model_ema 0.99`). NOT PREVIOUSLY RUN ANYWHERE; LAUNCHED NOW.
+
+The only prior attempt, `div45kv3-emaenc` (72.47/60.49/32.20), is **unusable**: it trained
+q(live)·d(EMA) but evaluated both towers live — a train/eval geometry mismatch, not a result. The
+fix (saving `ema_tower/`) landed at `train_rl.py:668` and had never been exercised. Launched
+`mix2m-modelema` (`--model_ema 0.99`) against a matched twin `mix2m-modelema-ctrl`, co-located on one
+card so contention is identical, 1500 steps on the mixed index. **Result pending.**
+Prior worth stating: the geometry probes show RL moves the **query** tower hard (mean pairwise
+cosine 0.2212 → 0.0594) while the doc side barely moves, and model-EMA damps the doc tower — i.e.
+aimed at the tower that is not moving. That argues for a null; it is cheap to settle.
+
+### Scheme 4 — EMA as a regulariser for full fine-tuning. NOT EXECUTED; not implemented.
+
+No code path exists. Two forms, both requiring changes. **KL/L2 to the EMA weights**: cheap to add,
+but the nearest measured evidence is against it — KL-to-init hurts (β=0.01 → −0.7 acc, β=0.1 → −1.7)
+and the ledger closed that axis with *"bare > KL on MM; the regulariser must match the failure mode
+the base actually has, and gme2b has none."* An EMA reference is a moving target rather than a fixed
+one, so it is not the identical experiment, but the prior is poor. **Full fine-tuning with weight
+averaging**: everything on record is LoRA r32; full FT changes the optimisation regime, memory
+profile and collapse risk at once, so a result would be hard to attribute. Recommended last.
+
+---
+
 ## Q4 — Does indirect RL need downstream data quality? Filter to queries RAG can actually help.
 
 **Sizing first, from evaluations already on disk** (frozen base, n=1500, same queries): reading the

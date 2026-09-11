@@ -5,14 +5,14 @@
 set -uo pipefail
 # The worker image may auto-start a keep_gpu daemon that inflates to hold idle VRAM and
 # then OOMs the training step. Clear it on the MLX worker only — never on the local box.
-LH=$(cat /mnt/bn/tns-algo-video-public-my2/yijiangli/data/mmrag_data/local_hostname.txt 2>/dev/null)
+LH=$(cat /raid/icy/mmrag_data/local_hostname.txt 2>/dev/null)
 [ "$(hostname)" != "$LH" ] && pkill -x keep_gpu 2>/dev/null; true  # worker images only; exact name, never the dev box
-ROOT=/mnt/bn/tns-algo-video-public-my2/yijiangli/project/VLM2Vec-rl
-export MMRAG_DATA=/mnt/bn/tns-algo-video-public-my2/yijiangli/data/mmrag_data
-export HF_HOME=/mnt/bn/tns-algo-video-public-my2/yijiangli/hf_home
+ROOT=/raid/icy/VLM2Vec-in
+export MMRAG_DATA=/raid/icy/mmrag_data
+export HF_HOME=/raid/icy/iris/.cache/huggingface
 export PYTHONPATH=$ROOT
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
-export TMPDIR=${TMPDIR:-/mnt/bn/tns-algo-video-public-my2/yijiangli/data/tmp}
+export TMPDIR=${TMPDIR:-/raid/icy/mmrag_data/tmp}
 mkdir -p "$TMPDIR"; cd "$ROOT"
 
 NAME=${CELL_NAME:?CELL_NAME not set}

@@ -2,11 +2,11 @@
 # Eval-only MLX worker: encode -> retrieval -> vqa for one checkpoint.
 # Env: CELL_NAME (result name), CELL_CKPT (checkpoint dir under $MMRAG_DATA), CELL_PROFILE.
 set -uo pipefail
-LH=$(cat /mnt/bn/tns-algo-video-public-my2/yijiangli/data/mmrag_data/local_hostname.txt 2>/dev/null)
+LH=$(cat /raid/icy/mmrag_data/local_hostname.txt 2>/dev/null)
 [ "$(hostname)" != "$LH" ] && pkill -x keep_gpu 2>/dev/null; true  # worker images only; exact name, never the dev box
-ROOT=/mnt/bn/tns-algo-video-public-my2/yijiangli/project/VLM2Vec-rl
-export MMRAG_DATA=/mnt/bn/tns-algo-video-public-my2/yijiangli/data/mmrag_data
-export HF_HOME=/mnt/bn/tns-algo-video-public-my2/yijiangli/hf_home
+ROOT=/raid/icy/VLM2Vec-in
+export MMRAG_DATA=/raid/icy/mmrag_data
+export HF_HOME=/raid/icy/iris/.cache/huggingface
 export PYTHONPATH=$ROOT
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 D=$MMRAG_DATA; NAME=$CELL_NAME; CK=$D/$CELL_CKPT; PROF=${CELL_PROFILE:-gme2b}

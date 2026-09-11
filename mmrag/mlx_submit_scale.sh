@@ -6,10 +6,10 @@
 # Usage: bash mmrag/mlx_submit_scale.sh              # all cells
 #        bash mmrag/mlx_submit_scale.sh scale-rows50k:50000:500   # just one
 set -eu
-ROOT=/mnt/bn/tns-algo-video-public-my2/yijiangli/project/VLM2Vec-in
+ROOT=/raid/icy/VLM2Vec-in
 MLX=/opt/tiger/mlx_deploy/bin/mlx
 CFGDIR=$ROOT/mmrag/mlx_configs
-D=/mnt/bn/tns-algo-video-public-my2/yijiangli/data/mmrag_data
+D=/raid/icy/mmrag_data
 mkdir -p "$CFGDIR"
 
 CELLS=(

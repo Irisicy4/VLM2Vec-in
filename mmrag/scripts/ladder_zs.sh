@@ -1,8 +1,8 @@
 #!/bin/bash
 # Zero-shot evals for the base-model ladder (local, eval-only). usage: ladder_zs.sh <profile> <name> <gpu>
-export HF_HOME=/mnt/bn/tns-algo-video-public-my2/yijiangli/hf_home
-export MMRAG_DATA=/mnt/bn/tns-algo-video-public-my2/yijiangli/data/mmrag_data
-export PYTHONPATH=/mnt/bn/tns-algo-video-public-my2/yijiangli/project/VLM2Vec-rl
+export HF_HOME=/raid/icy/iris/.cache/huggingface
+export MMRAG_DATA=/raid/icy/mmrag_data
+export PYTHONPATH=/raid/icy/VLM2Vec-in
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 D=$MMRAG_DATA; PROFILE=$1; NAME=$2; GPU=$3
 cd "$PYTHONPATH"

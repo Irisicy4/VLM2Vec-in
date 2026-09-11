@@ -3,10 +3,10 @@
 # the same idempotent pipeline as mlx_entry_cell.sh, one worker per GPU.
 #   usage: local_cell_worker.sh <gpu>
 GPU=${1:?gpu}
-D=/mnt/bn/tns-algo-video-public-my2/yijiangli/data/mmrag_data
+D=/raid/icy/mmrag_data
 Q=$D/cell_queue.txt
 LOCK=$D/.cellq_lock
-ROOT=/mnt/bn/tns-algo-video-public-my2/yijiangli/project/VLM2Vec-rl
+ROOT=/raid/icy/VLM2Vec-in
 
 pop() {
   while ! mkdir "$LOCK" 2>/dev/null; do sleep 2; done

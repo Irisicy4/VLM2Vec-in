@@ -1,10 +1,10 @@
 #!/bin/bash
 set -uo pipefail
-ROOT=/mnt/bn/tns-algo-video-public-my2/yijiangli/project/VLM2Vec-rl
-export MMRAG_DATA=/mnt/bn/tns-algo-video-public-my2/yijiangli/data/mmrag_data
-export HF_HOME=/mnt/bn/tns-algo-video-public-my2/yijiangli/hf_home
+ROOT=/raid/icy/VLM2Vec-in
+export MMRAG_DATA=/raid/icy/mmrag_data
+export HF_HOME=/raid/icy/iris/.cache/huggingface
 export PYTHONPATH=$ROOT PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
-export TMPDIR=${TMPDIR:-/mnt/bn/tns-algo-video-public-my2/yijiangli/data/tmp}; mkdir -p "$TMPDIR"; cd "$ROOT"
+export TMPDIR=${TMPDIR:-/raid/icy/mmrag_data/tmp}; mkdir -p "$TMPDIR"; cd "$ROOT"
 python3 - <<'PY' || pip install -q torch==2.8.0 transformers==4.57.0 peft==0.17.1 huggingface_hub==0.36.2 accelerate==1.13.0 qwen-vl-utils pillow
 import sys, torch, transformers, peft, qwen_vl_utils
 sys.exit(0)

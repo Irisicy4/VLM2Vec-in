@@ -1,8 +1,8 @@
 #!/bin/bash
 # eval_run.sh <run_name> <profile> <gpu>
-export HF_HOME=/mnt/bn/tns-algo-video-public-my2/yijiangli/hf_home
-export MMRAG_DATA=/mnt/bn/tns-algo-video-public-my2/yijiangli/data/mmrag_data
-export PYTHONPATH=/mnt/bn/tns-algo-video-public-my2/yijiangli/project/VLM2Vec-rl
+export HF_HOME=/raid/icy/iris/.cache/huggingface
+export MMRAG_DATA=/raid/icy/mmrag_data
+export PYTHONPATH=/raid/icy/VLM2Vec-in
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 D=$MMRAG_DATA; NAME=$1; PROF=$2; GPU=$3; CKPT=$D/runs/$1
 cd "$PYTHONPATH"

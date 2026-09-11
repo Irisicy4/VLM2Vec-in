@@ -153,6 +153,12 @@ def main():
     # corpus
     ap.add_argument("--n_distractor_articles", type=int, default=3000)
     ap.add_argument("--refresh_steps", type=int, default=100)
+    ap.add_argument("--refresh_frac", type=float, default=1.0,
+                    help="fraction of the RL index re-encoded at each periodic refresh. 1.0 (default) "
+                         "= the whole index, i.e. unchanged behaviour. <1.0 = a fresh UNIFORM RANDOM "
+                         "sample of that fraction each time, so mean age is bounded but MAX age is "
+                         "not (a row can go unrefreshed for the whole run); contrast --index_ema's "
+                         "stalest-first sweep, which bounds max age. The init encode is always full.")
     ap.add_argument("--index_ema", type=float, default=0.0,
                     help="EMA index (mmrag-ema scheme 1+2): 0 = legacy full re-encode every "
                          "refresh_steps. m>0 = NO periodic full refresh; instead every step the "
@@ -261,15 +267,29 @@ def main():
     corpus_emb = None
 
     @torch.no_grad()
-    def refresh_corpus():
+    def refresh_corpus(frac=1.0):
+        """frac=1.0: re-encode the whole index (original behaviour, also the init encode).
+        frac<1.0: re-encode a uniform random sample and write only those rows back in place."""
         nonlocal corpus_emb
         t0 = time.time()
-        embs = []
-        for i in range(0, len(corpus_texts), args.encode_bs):
-            e = enc.encode_docs(corpus_texts[i : i + args.encode_bs], batch_size=args.encode_bs)
-            embs.append(e.float())
-        corpus_emb = torch.cat(embs)  # (C, d) on device fp32
-        print(f"  corpus refreshed in {time.time()-t0:.0f}s", flush=True)
+        if frac >= 1.0 or corpus_emb is None:
+            embs = []
+            for i in range(0, len(corpus_texts), args.encode_bs):
+                e = enc.encode_docs(corpus_texts[i : i + args.encode_bs], batch_size=args.encode_bs)
+                embs.append(e.float())
+            corpus_emb = torch.cat(embs)  # (C, d) on device fp32
+            print(f"  corpus refreshed in {time.time()-t0:.0f}s (full)", flush=True)
+            return
+        C = len(corpus_texts)
+        k = max(1, int(round(frac * C)))
+        idxs = torch.randperm(C)[:k].tolist()
+        parts = []
+        for i in range(0, k, args.encode_bs):
+            chunk = [corpus_texts[j] for j in idxs[i : i + args.encode_bs]]
+            parts.append(enc.encode_docs(chunk, batch_size=args.encode_bs).float())
+        new = torch.cat(parts).to(corpus_emb.device)
+        corpus_emb[torch.as_tensor(idxs, device=corpus_emb.device, dtype=torch.long)] = new
+        print(f"  corpus refreshed in {time.time()-t0:.0f}s (random {k}/{C} = {100*k/C:.1f}%)", flush=True)
 
     # EMA index state: per-doc last-refresh step (staleness drives the extra-refresh sample)
     doc_last_upd = None
@@ -353,7 +373,7 @@ def main():
                       flush=True)
         elif args.index_ema == 0 and args.refresh_steps and step % args.refresh_steps == 0:
             with doc_tower():
-                refresh_corpus()
+                refresh_corpus(args.refresh_frac)
 
         # image-missing guard: a mixed pool can carry rows whose archive is absent or
         # damaged — resample instead of crashing a long run over a bad slice.

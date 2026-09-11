@@ -1,6 +1,6 @@
 #!/bin/bash
-D=/mnt/bn/tns-algo-video-public-my2/yijiangli/data/mmrag_data
-R=/mnt/bn/tns-algo-video-public-my2/yijiangli/project/VLM2Vec-rl
+D=/raid/icy/mmrag_data
+R=/raid/icy/VLM2Vec-in
 until grep -q OKVQA_REDL_DONE $D/logs/okvqa_redl.log 2>/dev/null; do sleep 120; done
 python3 -c "
 import zipfile

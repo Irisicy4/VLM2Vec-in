@@ -5,9 +5,9 @@
 #   usage: bash run_repro.sh <arm>   with arm in {zs, nogold}
 set -euo pipefail
 ARM=${1:?arm: zs|nogold}
-export HF_HOME=/mnt/bn/tns-algo-video-public-my2/yijiangli/hf_home
-export MMRAG_DATA=/mnt/bn/tns-algo-video-public-my2/yijiangli/data/mmrag_data
-export PYTHONPATH=/mnt/bn/tns-algo-video-public-my2/yijiangli/project/VLM2Vec-in
+export HF_HOME=/raid/icy/iris/.cache/huggingface
+export MMRAG_DATA=/raid/icy/mmrag_data
+export PYTHONPATH=/raid/icy/VLM2Vec-in
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 cd "$PYTHONPATH"
 

@@ -2,9 +2,9 @@
 # SFT max-over-checkpoints: retrain the exact tuned-baseline config with checkpoints every 150
 # steps AND run 1200 total (the recorded s1200 cell suggests SFT was still rising at 600).
 # Then eval every checkpoint. SFT training is cheap (no reader) — the whole curve in one night.
-export HF_HOME=/mnt/bn/tns-algo-video-public-my2/yijiangli/hf_home
-export MMRAG_DATA=/mnt/bn/tns-algo-video-public-my2/yijiangli/data/mmrag_data
-export PYTHONPATH=/mnt/bn/tns-algo-video-public-my2/yijiangli/project/VLM2Vec-rl
+export HF_HOME=/raid/icy/iris/.cache/huggingface
+export MMRAG_DATA=/raid/icy/mmrag_data
+export PYTHONPATH=/raid/icy/VLM2Vec-in
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 D=$MMRAG_DATA; cd "$PYTHONPATH"
 RUN=$D/runs/sft-curve-lr1e4

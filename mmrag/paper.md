@@ -691,11 +691,31 @@ base**, and shows the documented contraction signature:
 | v3-pure, no EMA | 1538 | 6924 | 78.43 |
 | v3-pure + index-EMA | 1810 | 7809 | 75.63 |
 
-So the finding is: **the contrastive anchor damages retrieval on a diverse index, and index-EMA
-prevents that damage.** Mechanistically coherent — the anchor's negatives are cross-query documents,
-and on a 37%-off-domain index most are trivially separable, so its gradient is dominated by easy
-separations and the embedding space narrows; a smoothed, staler index damps that. 1 seed, 1
-checkpoint: recorded, not claimed.
+**RETRACTED at the 6k-query endpoint.** I reported this at ck750 as "the anchor damages retrieval
+on a diverse index and index-EMA prevents it", with the contraction signature to back it. The
+endpoint says it was a **transient mid-training dip, not a contraction**:
+
+| anchored arm | 3k queries | 6k queries |
+|---|---|---|
+| no EMA | 63.57 / 45.39 / 27.47 | **77.53** / 58.90 / 32.27 |
+| + index-EMA | 78.37 / 64.98 / 33.87 | 78.27 / 63.02 / 33.20 |
+| delta (EMA − none) | **+14.80** / +19.59 / +6.40 | **+0.74~** / +4.12 / +0.93 |
+
+entR@5 recovered by 13.97 points on its own, from below the 68.53 base to above it, and the EMA
+advantage on that metric collapsed from +14.80 to +0.74 — **inside the 2.40 floor**. So the
+"contraction" was a dip the arm climbed out of, and the 1126-distinct-documents reading was a
+snapshot of that dip rather than evidence of a stable failure mode. **The +19.59 headline is
+withdrawn.**
+
+What survives at the endpoint is smaller and on different metrics: ansR@5 +4.12 and acc +0.93, both
+outside their floors (1.91, 0.61). So index-EMA does still help the *anchored* recipe on answer
+recall and accuracy — but by roughly a quarter of what the mid-training snapshot suggested, and not
+on entity recall at all.
+
+**Lesson recorded against my own practice:** I read a mechanism off a single mid-training checkpoint
+and gave it a causal story that fit. The endpoint of the same run refuted it. A single checkpoint
+cannot distinguish a contraction from a dip, and the contraction signature (distinct-document count)
+does not either, because it is equally consistent with both.
 
 ### Scheme 2 — selected-candidate + pool-EMA + rarity + hard negatives. NOT SEPARATELY EXECUTED, because it is already scheme 1's implementation.
 

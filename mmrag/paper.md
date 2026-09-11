@@ -661,6 +661,23 @@ the eval index, while ours is a 184,660-row training carve-out evaluated against
 train/eval index gap they do not have. They have offered to reproduce our gap by re-scoring their
 live endpoints against the full 1M (~70 GPU-min per checkpoint), to be run only if the projects split.
 
+**TWO MATCHED PAIRS AT 6k QUERIES, both null.** Full periodic refresh (A) vs partial write-back (C),
+identical otherwise, endpoint at 1500 steps, eval on corpus_small:
+
+| training pool | A: full refresh | C: partial write-back | delta (C−A) |
+|---|---|---|---|
+| InfoSeek 810k | 76.23 / 64.12 / 34.47 | 75.17 / 64.65 / 34.67 | −1.07 / +0.53 / +0.20 |
+| diverse 42k | 76.07 / 65.14 / 33.73 | 77.30 / 65.59 / 33.20 | +1.23 / +0.45 / −0.53 |
+
+**Every one of the six deltas is inside its floor, and entR@5 flips sign between pools.** So at this
+budget the refresh *operation* — full-and-periodic versus partial-and-accumulating — is not
+distinguishable on multimodal data, on either training pool. That is a second, independent failure
+of the text side's mediator here, now with the pool varied as well.
+
+Note both pools land in the same place: all four arms sit 76–77 entR@5 and 64–66 ansR@5, i.e. 7.5–8.8
+points of entR@5 above the 68.53 base, regardless of refresh scheme or training-pool composition.
+The recipe is robust to both knobs and the knobs are not where the remaining headroom is.
+
 **Reading.** On the anchor-free recipe index-EMA is null-to-negative: nothing callable against the
 same-hardware control on the homogeneous index, and it *costs* 2.80 entR@5 on the mixed index.
 The apparent +19.59 on the anchored arm is **not an EMA gain** — it is EMA preventing a collapse

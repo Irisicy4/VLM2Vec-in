@@ -2090,3 +2090,59 @@ year). `sec_mm_rag.tex` existed in that repo but was never \input, so it had nev
 failed on an undefined \varnothing; it is now included and the document builds at 37 pages with all 66
 citations resolving. Two undefined refs remain (app:mech, app:rl_budget), both text-side appendices,
 left to that side rather than invented.
+
+### 2026-09-12 (paper fork, cont.): depth profile = mechanism; R@1 overread and corrected
+**CORRECTION to my own line from an hour ago.** I wrote "at entR@1 the sign flips" with SFT ahead.
+The point estimate does favour SFT but both intervals span zero (v3: −0.71 [−3.45,+2.03];
+v2: −0.87 [−2.68,+0.95]). **It is a TIE, not a supervised win.** Caught by the parent session. This
+is the third time in one day that a point estimate got described as a direction without its interval.
+
+**NEW RESULT — entity recall by depth, and it supplies a mechanism.** Same seeds, v2 − SFT:
+| depth | v2 − SFT | Welch CI | separation |
+|---|---|---|---|
+| R@1 | −0.87 | [−2.68, +0.95] | overlapping |
+| R@5 | +4.63 | [+3.31, +5.94] | COMPLETE |
+| R@10 | +4.57 | [+2.88, +6.26] | COMPLETE |
+| R@20 | +3.79 | [+2.30, +5.29] | COMPLETE |
+
+Zero at rank 1, opens to +4.6 by rank 5, decays slowly. **Reading: the action is a list.** PL-GRPO
+draws an ordered slate by Gumbel-top-k and the reward is computed on the whole slate, so the gradient
+shapes the body of the ranking; a contrastive objective on relevance labels optimises the top-1
+margin directly and matches it there. The R@1 tie is the one depth where the two objectives optimise
+the same quantity. Also explains why acc tracks R@5 not R@1 — the reader is handed 5 passages.
+Caveat stated in the paper: 1 dataset, 1 backbone, text-side depth sweep not yet run. Requested from
+h200-rag; if their arm shows the same flat-at-1/wide-at-5 shape it is cross-modal.
+
+**v2's annotation-free property verified to the code by the parent**, not just the cell name:
+`infonce_loss` takes candidate 0 as positive; `cands = chosen if no_force_gold else [gold] + chosen`;
+plgrpo asserts no_force_gold on entry; `git log -S` puts that assert in the same commit that
+introduced plgrpo (a3b734e, 2026-08-10). So no plgrpo run has ever seen a labelled positive. Stated
+in the paper as a runtime assertion present since the estimator was introduced, which is stronger
+than a recorded flag — the v2 run dirs are not on this box, only their result json.
+
+**TEXT-SIDE APPENDICES WRITTEN** (content from h200-rag's eval logs), resolving the last two
+undefined refs. app:mech carries a cross-project convergence worth its own line:
+
+| reader with gold / without | text | image+text |
+|---|---|---|
+| correct / wrong (usable) | 36.9% | 32.3% |
+| correct / correct (saturated) | 21.4% | 18.1% |
+| wrong / wrong (noise) | 39.2% | 48.5% |
+| wrong / correct | 2.6% | 1.1% |
+
+Measured independently, different modalities, readers and corpora, landing within a few points on
+every cell. **This is the strongest evidence either project has that reward starvation is a property
+of indirect feedback rather than of a dataset.** Their 30B swap reproduces our prediction exactly
+(usable share FALLS 36.9→30.6). Their filter result (+2.75 mean over 4 seeds, frozen 1M @10k) is the
+Q4 lever this project never launched.
+
+**Their budget curve settles the scaling question on their side:** Rel-SFT is flat from its FIRST
+checkpoint (62.8 at 640 labelled rows, 63.7 at 6.4k, declining to 60.6 by 51.2k — 80x more annotation
+buys nothing and eventually costs 3 points), while RL rises monotonically to 25k queries. At the
+ceiling they tie (+0.35, CI [−1.57,+2.27]). So the asymmetry is the SHAPE, not the level: RL needs
+~13k unlabelled queries to reach what SFT reaches with 640 labelled rows.
+
+**Their anchored axis does not exist** — every live-index cell of theirs runs contrastive_coef 0, and
+the gold-positive anchor in their earlier record predates this program. So our pure-vs-anchored metric
+split has no text-side analogue to confirm or deny, and no cross-project claim about "the anchor"
+should be made without naming which anchor.

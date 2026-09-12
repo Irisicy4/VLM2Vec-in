@@ -108,10 +108,31 @@ replaces the earlier "RL beats SFT on every column", which was an artifact of co
 | **acc** | **+1.87** | **[+0.36, +3.37] excludes 0** | [−0.47, +4.20] spans 0 | **p=0.050** | **complete separation** |
 
 Both retrieval deltas are also below their re-derived floors (2.03 / 2.32), so they agree with the
-CIs: not callable. At **entR@1 the sign flips** — SFT 60.13 ± 0.67 against v3-pure 59.42 ± 1.57,
-**−0.71 for RL**, not callable. So "beats SFT on every retrieval column" was wrong twice over: the
-SFT bar was understated, and on the one column where SFT is genuinely ahead the old table had it
-behind (59.13 vs 59.42).
+CIs: not callable. At **entR@1 all three trained arms tie** — SFT 60.13 ± 0.67, v3-pure
+59.42 ± 1.57, v2 59.27 ± 1.18; the deltas are −0.71 (CI [−3.45, +2.03]) and −0.87 (CI [−2.68,
++0.95]), both spanning zero. **Not an SFT win** — an earlier draft of this line called it a sign
+flip favouring SFT, which overreads a point estimate. So "beats SFT on every retrieval column" was
+wrong twice over: the SFT bar was understated, and the column it implied a win on is a tie.
+
+**The depth profile is the mechanism, and it is the cleanest structural result here.** Same seeds,
+four depths, v2 − SFT:
+
+| depth | SFT | v3-pure | v2 | v2 − SFT | Welch CI | seeds |
+|---|---|---|---|---|---|---|
+| R@1 | 60.13 ± 0.67 | 59.42 ± 1.57 | 59.27 ± 1.18 | −0.87 | [−2.68, +0.95] | overlapping |
+| **R@5** | 75.16 ± 0.58 | 76.09 ± 1.02 | **79.78 ± 0.77** | **+4.63** | [+3.31, +5.94] | **complete** |
+| **R@10** | 80.92 ± 0.80 | 82.23 ± 0.72 | **85.49 ± 0.52** | **+4.57** | [+2.88, +6.26] | **complete** |
+| **R@20** | 85.72 ± 0.77 | 87.16 ± 0.37 | **89.52 ± 0.61** | **+3.79** | [+2.30, +5.29] | **complete** |
+
+Zero at rank 1, +4.6 by rank 5, decaying slowly after. **This is what a list-valued action
+predicts**: the action is an ordered slate drawn by Gumbel-top-k and the reward is computed on the
+whole slate handed to the reader, so the gradient shapes the *body* of the ranking. A contrastive
+objective on relevance labels optimises the top-1 margin directly and matches it exactly there. The
+R@1 tie is therefore not a failure to separate — it is the one depth where the two objectives
+optimise the same thing. It also explains why accuracy tracks R@5 and not R@1: the reader gets five
+passages, so a better slate is worth more than a better single guess. **Open:** the matching depth
+sweep on the text side has not been run; if their in-order-sweep arm shows the same flat-at-1,
+wide-at-5 shape it becomes a cross-modality mechanism rather than a property of this setup.
 
 **The anchored arm DOES beat SFT on retrieval, callably — this was underplayed.** v2 is equally
 annotation-free: the candidate pool is the policy's own top-K and the anchor's contrastive positive

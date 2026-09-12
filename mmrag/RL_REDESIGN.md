@@ -2545,3 +2545,39 @@ neither of us has proposed one.** The nearest thing that worked today was cheap:
 own falsifiable prediction in the same breath as the mechanism, then run it against existing logs
 before publishing. Both of today's mechanism retractions were caught that way, one before publication
 and one after.
+
+### 2026-09-12 (paper fork, cont. 7): a WRONG RETRACTION refused, and a composite column of my own
+**The parent asked me to delete the 0.80% cell as a number they never ran. I checked the published
+figure before deleting and refused: it is not theirs.** It sits in the covering-sweep column and is
+h200-rag's Sweep125 on text ("0.80 % Sweep125 +3.0 at 1k, 2k pending"); the random column on that row
+is an em-dash. No 0.25/0.5/0.8% random arm was ever attributed to the multimodal side. **A wrong
+retraction is as much a defect as a wrong assertion**, and the cross-project confirmation rule cuts
+both ways — it caught a correction here, not a claim.
+
+**But checking it found a REAL defect of mine, same class as the composite results row caught earlier
+today.** The rate table's "random slice" column mixed projects: 0.10% was the multimodal arm, 0.20%
+and 0.40% were the text side's. One column, two systems. **I was corrected for exactly this at
+11:00 and reproduced it in a different table by 16:00.** Fixed by splitting into "random · text" and
+"random · image+text" so every cell names its disk and the gaps show as gaps.
+
+**Multimodal random family, stated correctly now:** two cells, one result.
+| rate | cell | status |
+|---|---|---|
+| 0.10% | fullcorp-rand10 | holds, 77.07 vs control 78.47 = −1.40, inside the 2.03 floor |
+| 0.20% | fullcorp-rand10p50 | **training, no result** — the direct MM test of the rate at which the text sweep died at 3k |
+Until that lands the bottom of the MM column is **unmeasured, not agreement**. Figure says so.
+
+**Refinement accepted on the random-family identification argument:** only the MAXIMUM age is held
+constant across random arms; mean age still falls as rate rises. So rate is identified against
+worst-case staleness but NOT against average staleness. Bounds my claim rather than weakening it.
+
+**Handoff now carries the standing rule** (parent wrote it up at EMA_HANDOFF.md f55e2b7): state a
+mechanism's falsifiable prediction in the same breath as the mechanism, then run it against existing
+logs before publishing. Both worked examples are today's: the diversity mechanism died when
+zero-reward steps got RARER instead of commoner; the contraction mechanism died when the filtered
+arm's spread fell FASTER instead of flattening. Neither cost compute. It is a rule, not a guard.
+Three more added by the parent: check an instrument's SIGN against a known value before building on it
+(base cosine 0.257 would have caught my contraction error at a glance, and I had the number in front
+of me); confirm any number attributed to the other project with that project before it enters prose
+(three misattributions crossed today, in both directions, because neither side can read the other's
+disk); and the two scheduling traps.

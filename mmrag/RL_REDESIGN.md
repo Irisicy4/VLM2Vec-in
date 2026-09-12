@@ -3212,3 +3212,46 @@ multi-alias numeric cases are **years with ±1 tolerance encoded as the aliases*
 leniency. Range answers are plausibly part artefact but are only **3% of the pool**. So the grader's
 contribution to the hopeless mass is small and **the Q5 metric defect does not account for the Q4
 ceiling.** Recorded because the sections are adjacent and a reader would otherwise assume the link.
+
+### 2026-09-12: COLLAPSE DIAGNOSED — stale is harmless, MIXED is fatal, and the DOC tower drives it
+h200-rag's consolidated diagnosis, all on collapsed rolling cells. Arithmetic re-derived here.
+
+**1. Query towers intact, three cells.** Against a base-encoded 1M index, collapsed vs pre-collapse:
+Sweep1000 0.536→0.530, Sweep500 0.522→0.532, Rand250 0.476→0.484. The 15–20 pt falls are entirely in
+the shipped index. **Optimiser exonerated:** policy weights move a steady 0.8–1.2%/1k queries on every
+arm *including frozen*, with **no burst at collapse**.
+
+**2. Self-consistent re-encode does NOT reproduce the collapse.** Checkpoint encodes the 50k carve-out
+with its own doc tower and retrieves with its own query tower: 4k 0.626 → 5k **0.586**, a −4.0 fall
+against the −20 on the shipped index. So a catastrophically degraded document function is **excluded**.
+The −4.0 is real and doc-side (paired: 22 lost / 2 gained, z −4.1; doc-side 17/3, p=0.003; query-side
+6/0 fragile) and **does not reach accuracy** (cEM z −1.1). Different corpora, so **not a subtraction**:
+*most of the collapse is mixed-age incoherence, with a small doc-side drift surviving underneath.*
+
+**3. STALE IS FINE; MIXED IS NOT.** The collapsed 5k query tower reading the **coherent** index its own
+predecessor shipped 250 steps earlier scores **0.614** — healthy. So age alone breaks nothing. The
+failure needs the *mixture* of ages up to 999 steps. EMA-vs-policy write offset is **disfavoured**: the
+KL twin where the policy itself writes is *worse* (−5.2 at 2k).
+
+**4. THE DRIVER — the doc space moves far more than the query space** (2×2 on the carve-out, R@5):
+
+| | base docs | trained docs |
+|---|---|---|
+| **base queries** | 0.660 | **0.312** |
+| **trained queries** | **0.763** | 0.606 |
+
+Query tower **+10.3** read against base docs; base queries **−34.8** trying to read trained docs. The
+LoRA changed *document* encoding far more than query encoding, so rows written at different steps land
+in mutually incoherent spaces. **Mixed-age incoherence with a measured driver.**
+*Note this INVERTS the standing multimodal observation* (query tower moves hard at 0.2212→0.0594 mean
+pairwise cosine, doc side barely moves in the probes). Plausible reconciliation: their cells train the
+doc tower over 25k+ queries on 1M rows; ours run 2–6k queries on a carve-out. Not yet tested.
+
+**5. Timing + the candidate fix, UNVERIFIED.** Each schedule first fell ~250 steps after its index was
+fully rewritten at least once (3 exact hits). "First checkpoint after" already falsified by Sweep125
+(+3.0 at 1k). Fix implied: **full re-encode every ≤250 steps** — at 1M that is 5 passes per 1250-step
+run, **14–34% overhead, CHEAPER than the 51% our surviving carve-out recipe already pays.**
+`dmix1MFull250` training since 10:39. **Pre-registered:** no collapse through 5k AND ≥0.561 at 5k ⇒ the
+rolling family was **mis-scheduled** and the recipe is "full refresh, period ≤250"; collapse anyway ⇒
+**1M scale**, not coherence, is the problem. First checkpoint 6–8 h out. **The figure does NOT claim
+the fix works.**

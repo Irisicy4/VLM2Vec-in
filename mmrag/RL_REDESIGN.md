@@ -2908,3 +2908,50 @@ encoder itself degraded, which a full re-encode PROPAGATES. Base-encoded docs by
 so (a) and (b) look identical. Arm requested: one full re-encode with the collapsed checkpoint's OWN
 encoder, both sides same checkpoint. Recovers → the rolling schedule is salvageable with one added
 operation; stays at 0.374 → the rolling family is dead on this corpus, not mis-scheduled.
+
+### 2026-09-12: the narrative INVERTS — the carve-out with full refresh is the only survivor
+Both peers converge on this and the figure now says it (v18). Stated in the user's own framing,
+because it answers the question they actually asked:
+
+> *"try train on full corpus and random reembed a percentage every XX steps. only if this really
+> doesnt work we finalize on the select small pool at beginning strategy"*
+
+**On the text side it really does not work.** Every rolling variant reverses — covering or random,
+fast or slow. **The fallback is the answer.** The only dynamic index in either project's record with
+no reversal is a **small fixed carve-out fully re-encoded on a period**, which is the recipe this work
+started from and the one behind every headline number here.
+
+0.10% arm at 5k: 0.374. That is **−20.6 from its own 4k peak (0.580)**, **−18.7 vs frozen (0.561)**,
+and **−1.2 below the untrained base (0.386)**. Verified: 0.580−0.374=0.206; 0.561−0.374=0.187;
+0.386−0.374=0.012.
+
+**MY SENTENCE WAS WRONG IN KIND, not just degree.** "Among covering schedules, slower and staler is
+better" — which I adopted from the parent and published — is a claim about **time-to-collapse** that I
+wrote as if it were about **survival**. Replaced with: *rate sets when a rolling schedule dies, not
+whether; no covering rolling full-corpus schedule in either record survives to 5k.*
+
+**Cost and survival coincide.** The refresh-cost measurement (half the wall clock at 186k, ~95% at 2M)
+means a full re-encode is affordable ONLY on a small index — and a small fully-re-encoded index is
+also the only one that holds. Cheap, effective and surviving are one configuration. Worth stating
+because the usual expectation is a tradeoff.
+
+**MULTIMODAL IS UNTESTED IN THE COLLAPSE ZONE, NOT IN AGREEMENT.** My only full-corpus point is the
+0.10% random arm at 3k, which holds — and their 0.10% cell was still RISING at 3k and 4k before dying
+at 5k. So my point sits above the horizon where the failure appears. `fullcorp-rand10p50` (0.20%) is at
+1,800 of the 5,000 queries needed, ~13 h out at current contention. Do not write multimodal as
+replicating this.
+
+**COSINE FALSIFICATION UPGRADED — the decisive evidence is WITHIN one arm.** Across the interval where
+that arm's retrieval fell 20 points, its query cosine ran 0.087 → 0.077, **the same slope it had while
+retrieval was rising**. That is stronger than the between-cell falsification that killed my mechanism:
+the instrument is uninformative across the very event it was proposed to predict. Figure states it
+that way now.
+
+**OPEN, with both branches stated because they are opposite engineering conclusions.** Two tests
+running: (1) collapsed/pre-collapse checkpoints scored against a **base-encoded** index — separates
+"index broke" from "model broke"; (2) **a single full re-encode with the collapsed checkpoint's own
+encoder** (the parent asked them to add this; their original design could not separate it).
+- **Recovers ⇒** mixed-age incoherence; one periodic full refresh repairs a rolling schedule, and the
+  rolling family becomes usable with one added operation.
+- **Does not recover ⇒** the encoder degraded and no refresh policy saves the rolling family.
+The paper must not pick a branch before this lands.

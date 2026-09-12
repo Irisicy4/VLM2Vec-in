@@ -2146,3 +2146,57 @@ ceiling they tie (+0.35, CI [−1.57,+2.27]). So the asymmetry is the SHAPE, not
 the gold-positive anchor in their earlier record predates this program. So our pure-vs-anchored metric
 split has no text-side analogue to confirm or deny, and no cross-project claim about "the anchor"
 should be made without naming which anchor.
+
+### 2026-09-12 (paper fork, cont. 2): the cross-project taxonomy is NOT a close replication
+**CORRECTION, caught by the parent before it shipped.** I wrote the text/multimodal reader taxonomy
+up as two independent measurements "landing within a few points on every cell". Arithmetic says
+otherwise. Binomial SE of the difference (text n=60,000 training queries, MM n=1,500 eval queries):
+
+| cell | img+text | text | diff | z | 95% CI |
+|---|---|---|---|---|---|
+| usable | 32.3% | 36.9% | +4.6 | 3.8 | [+2.2, +7.0] |
+| saturated | 18.1% | 21.4% | +3.3 | 3.3 | [+1.3, +5.3] |
+| **noise** | 48.5% | 39.2% | **−9.3** | **7.1** | [−11.9, −6.7] |
+| harms | 1.1% | 2.6% | +1.5 | 5.4 | [+1.0, +2.0] |
+
+**All four differ beyond sampling error**, and the noise bucket — the one the starvation argument
+leans on hardest — differs at 7.1 SE. Worse, **the two are different populations**: mine is a
+frozen-base pass over the held-out EVAL set, theirs partitions the TRAINING stream. A side-by-side
+table implying one measurement is misleading regardless of the statistics.
+
+**What actually replicates, written that way in the paper:** the ORDERING (noise > usable >
+saturated > harms≈0) and the REGIME (~2/5 of rows yield no usable reward, ~1/5 need no retrieval,
+~1/3 carry reward variance). Two independent settings landing in the same regime supports
+"starvation is structural to indirect feedback"; it does NOT support quoting either column's values
+as the other's. Bucket sizes are setting-specific and must be measured per deployment.
+
+**CREDIT CORRECTION — the 30B prediction was NOT confirmed cross-modality.** paper.md:956-960
+registered that swapping *our* reader for a 30B would shrink the useful training set. That is a
+multimodal prediction and **we never ran it**. Their 36.9→30.6 swap confirms the mechanism in *their*
+setting, i.e. their result reproducing their own mechanism. The paper now says: registered from their
+earlier data, confirmed by them on text, **multimodal reader swap unrun**, multimodal numbers merely
+consistent.
+
+**STATED PLAINLY IN THE PAPER: the reward-variance filter is untested on multimodal.** Their result
+is +2.75 R@5 over a matched random control at 4 seeds (on top of +4 to +7 at 2 seeds earlier). It is
+the highest-value open experiment either project has identified and leaving it implicit would let a
+reader assume we ran it. The MM taxonomy sizes the population it would act on (32.3% usable, 48.5%
+noise); no filtered MM run exists.
+
+**DEPTH SWEEP — text side does NOT replicate our shape.** Their RL−SFT gap is separated at rank 1 and
+flat from R@5 outward at both sizes, because their supervised comparator is below base at EVERY depth
+(8B: −3.4 at R@1 through −9.9 at R@15), so that difference measures the comparator. Against BASE at
+4B the shape does appear: +0.8 at rank 1 → +2.2 at rank 5, flat after. Magnitude +1.4 rank1→rank5
+against our +5.5. Recorded in the paper as a consistent-sign replication at one backbone, explicitly
+NOT a second independent demonstration. At 8B their RL−base is ~0 at every depth.
+
+**R@1 DROPPED FROM THE PAPER'S INFOSEEK TABLES** at the user's instruction: this is a retriever
+feeding 5 passages to a reader, not a reranker, so R@1 is not the operating point. The full R@1
+numbers stay here in the ledger (SFT 60.13 ± 0.67 / v3-pure 59.42 ± 1.57 / v2 59.27 ± 1.18 — a tie,
+all intervals spanning zero). E-VQA keeps its R@1 column, where v3-pure leads.
+
+**PROCESS FIX.** Three direction-without-interval errors in one day is a pattern, not three slips, and
+the shape is always a delta computed in one place and written down in another. seed_stats.py already
+refuses to print a delta without its interval; `paper_tables.py` now has `margin()`, the only path
+that renders a difference, returning delta + CI + callable verdict + separation as one inseparable
+string. Mechanical, not attentional.

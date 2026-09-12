@@ -506,6 +506,34 @@ def main():
                     advantages = (R - R.mean(1, keepdim=True)) / (R.std(1, keepdim=True) + 1e-6)
                 value_target = R.new_zeros(args.batch_size)
                 rewards = R
+                if args.reward_gate_noctx:
+                    # Q4 FILTER ON THE PL PATH. This gate previously existed ONLY in the final
+                    # `else:` reward branch, which plgrpo never enters — so the flag was silently
+                    # INERT for the winning recipe (v3-pure and v2 are both plgrpo), and the one
+                    # recorded +0.94 ansR@5 trial can only have been a grpo-family run. That is why
+                    # the Q4 lever was never tested on the recipe that matters: a code gap, not an
+                    # oversight. Semantics are copied from the non-plgrpo branch so the two paths
+                    # gate identically: keep a query only if its BEST sampled list beats what the
+                    # reader scores with no context at all.
+                    noctx = [{"image": imgs[b], "image_id": r["image_id"], "question": r["question"],
+                              "context": "", "answer": r.get("answer_aliases") or r["answer"]}
+                             for b, r in enumerate(batch)]
+                    r_no = torch.tensor(reader.score_judge(noctx, n_rollouts=args.reader_rollouts,
+                                                           temperature=args.reader_temperature),
+                                        dtype=torch.float32, device=args.device)
+                    keep = (R.max(dim=1).values > r_no).float()
+                    noctx_keep_rate = keep.mean().item()
+                    advantages = advantages * keep.unsqueeze(1)
+                    # Does the gate actually detect pool quality, or only query difficulty? A gate
+                    # that keeps gold-free pools at the same rate as gold-bearing ones is measuring
+                    # the latter. Same diagnostic the non-plgrpo branch records.
+                    _g = torch.tensor(gold_in_pool, dtype=torch.float32, device=R.device)
+                    extra_metrics.update({
+                        "gate/noctx_keep_given_gold":
+                            (keep * _g).sum().item() / max(_g.sum().item(), 1e-9),
+                        "gate/noctx_keep_given_no_gold":
+                            (keep * (1 - _g)).sum().item() / max((1 - _g).sum().item(), 1e-9),
+                        "gate/noctx_r_no_mean": r_no.mean().item()})
             elif args.reward == "ragacc":
                 # downstream RAG accuracy as the reward: sample a k-slate per query from the
                 # current policy, reader answers over the JOINT slate context; the scalar reward

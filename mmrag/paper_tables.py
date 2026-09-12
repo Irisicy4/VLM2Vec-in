@@ -38,6 +38,27 @@ def agg(stems, keys):
         out[k] = (mu, sd, n, xs)
     return out
 
+def margin(A, B, k):
+    """The ONLY way this module renders a difference. Returns delta, interval and separation as one
+    inseparable string, so a bare point estimate cannot reach prose.
+
+    Every direction-without-its-interval error in this project (three in one day, 2026-09-12) had the
+    same shape: a delta computed in one place and written down in another, losing its interval in
+    between. seed_stats.py closed that hole for its own output; this closes it for table bodies.
+    """
+    (ma, sa, na, xa), (mb, sb, nb, xb) = A[k], B[k]
+    if ma is None or mb is None:
+        return "---"
+    d = ma - mb
+    if not sa or not sb or na < 2 or nb < 2:
+        return f"{d:+.2f} (one leg is 1 seed: NO INTERVAL, not callable)"
+    sp = math.sqrt(((na-1)*sa*sa + (nb-1)*sb*sb)/(na+nb-2))
+    half = TCRIT[na+nb-2]*sp*math.sqrt(1/na+1/nb)
+    sep = "complete separation" if min(xa) > max(xb) or max(xa) < min(xb) else "overlapping"
+    call = "callable" if abs(d) > half else "NOT callable"
+    return f"{d:+.2f} [{d-half:+.2f}, {d+half:+.2f}] {call}, {sep}"
+
+
 def cell(t, bold=False):
     mu, sd, n, _ = t
     if mu is None: return "---"

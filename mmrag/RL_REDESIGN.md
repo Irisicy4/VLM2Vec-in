@@ -2384,3 +2384,45 @@ Best rolling arm at 4k = 0.580, against frozen parity 0.549, Rel-SFT ceiling 0.6
 NON-rolling RL arm 0.6435. So **+3.1 over freezing, −5.0 vs supervision, −6.3 vs their better arm.**
 It is still climbing where frozen parity has flattened, so the 5k point decides whether it closes.
 Carried to the user explicitly; the paper must not say "works" unqualified.
+
+### 2026-09-12 (paper fork, cont. 5): cosine early-warning WITHDRAWN; full rate ladder
+**RETRACTED, one version after publishing it — query cosine is NOT a leading indicator of index
+collapse.** I put it in the figure (v11) on the parent's suggestion, sourced from h200-rag's own
+trace. h200-rag then checked it against their other cells and it fails three ways:
+- the FILTERED Sweep250's cosine falls as fast as its unfiltered twin's and sits LOWER at every
+  checkpoint, while its retrieval RISES;
+- two cells share cosine 0.082 at 3k with OPPOSITE outcomes.
+So the correlation I read off the surviving schedule does not generalise. Removed from the figure.
+**What is safe is descriptive only:** every rolling cell spreads its queries 2-3x faster than a
+frozen cell, survivor or not. **There is currently NO known training-time signal that predicts the
+collapse** — reward spread and degeneracy are flat through all of them — which is a stronger and more
+useful statement than the indicator would have been: a held-out retrieval probe is mandatory, not
+advisable. They also withdrew an age-mixture mechanism of their own; the survivor is the schedule
+with the WIDEST age spread, so a bounded age is not the mediator from that direction either.
+
+**Full ladder as they now hold it** (rate = rows/step ÷ corpus, vs a frozen index):
+| rate | form | outcome |
+|---|---|---|
+| 0.10% | in-order | +3.1 at 4k, no collapse |
+| 0.10% | random (mine, MM) | holds, −1.40 vs control, inside floor |
+| 0.20% | in-order | +4.0 / +4.6 at 2k (**2 seeds**), then −8.8 at 3k (1 seed) |
+| 0.20% | random | +1.0 / −1.8 / −4.2 |
+| 0.40% | in-order | −2.2 at 2k |
+| 0.40% | random | −8.2 at 2k |
+| 0.80% | in-order | **+3.0 at 1k**, 2k pending |
+
+**CORRECTION to my own cont.4 entry:** I dropped the "ordering helps" line as unsupported. It is
+supported, at two matched rates: in-order beats random by **+5.8 at 0.20% and +6.0 at 0.40%**, both at
+2k while alive. What is true is that ordering does not decide SURVIVAL, and that a bounded schedule
+collapses harder when it goes (−8.8 vs −4.2 at 3k). Restored in that form. Also note 0.80% is still
++3.0 at 1k, so a rate is not fatal per se — **rate sets how long a run lasts**, it is rate x duration.
+
+**REGISTERED TEST (theirs), separating rate from absolute row count.** Rate-matched twins on the
+200k corpus, which already has a 2-seed frozen-EMA stride comparator: dmix200kSweep500 = 400 rows/step
+(0.20%, 500-step period — same rate AND period as the 1M Sweep500 at 5x fewer rows) and
+dmix200kSweep1000 = 200 rows/step (0.10%). Pre-registered: **collapse at ~3k ⇒ rate/period is the knob
+and absolute rows are not; holding through 5k ⇒ absolute rows or corpus size matter and the rate axis
+is incomplete.** First points ~19:00.
+
+**Placement wording aligned to theirs:** above the frozen index at matched budget ONLY; −5.0 vs the
+Rel-SFT ceiling (0.630) and −6.4 vs frozen RL's own 25k endpoint (0.6435); 1 seed past 2k everywhere.

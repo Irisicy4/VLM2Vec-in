@@ -2291,3 +2291,56 @@ quality buys back index-refresh headroom, which would be more interesting than t
 
 **Scope note:** the paper was cut to v3-pure only at the user's instruction, so this rolling material
 lives in the shared figure and this ledger, not in the paper.
+
+### 2026-09-12: TEXT-SIDE SCHEDULE LADDER REFUTES THE "BOUNDED AGE" MEDIATOR (figure claim must change)
+h200-rag's rolling-1M program, R@5 vs frozen-1M parity (4 seeds parity; **1 seed past 2k on every
+rolling arm**), 1M multi-source corpus:
+
+| schedule | rows rewritten/step | max row age | 1k | 2k | 3k | 4k |
+|---|---|---|---|---|---|---|
+| Sweep1000 | 1,000 | 1000 steps | −1.0 | +2.0 | +3.4 | **+3.1** |
+| Sweep500 | 2,000 | 500 steps | +2.4 | +4.0 | **−8.8** | — |
+| Sweep250 | 4,000 | 250 steps | +1.4 | −2.2 | — | — |
+| Rand500 | 2,000 random | unbounded | +1.0 | −1.8 | −4.2 | — |
+| Rand250 | 4,000 random | unbounded | −1.2 | −8.2 | — | — |
+| **Sweep250 + Q4 filter** | 4,000 | 250 steps | **+5.2** | **+3.6** | — | — |
+
+**All three sweeps have a bounded ceiling, and the TIGHTER the bound the WORSE the result.** So
+boundedness is not the mediator, and the shared figure's claim ("refresh schemes with a bounded worst
+case work; the one without a ceiling fails") is wrong as written. Unboundedness is still bad — both
+random arms lose — but it is not the discriminator. Two knobs, not one: (a) does every row eventually
+get refreshed, (b) **how much of the index is rewritten per step**. Best = bounded AND low churn.
+Also, at matched rate 2,000/step, round-robin beats random at 1k/2k then collapses HARDER at 3k
+(−8.8 vs −4.2), so "bounded beats random" does not hold either, on one seed.
+
+**Their stated mechanism is backwards on its own arithmetic** ("the light schedule's index is mostly
+one age"): 1,000 rows/step over a 1,000-step cycle leaves ages uniform on [0,1000] — the WIDEST
+spread and the OLDEST mean. The most mixed-age schedule is the one that survives. Also: they credited
+me with a "mixed-age co-drift mechanism" that appears in NONE of my documents. Attribution declined.
+
+**Mechanism that does fit — non-stationarity, not age.** Reward std and degeneracy are FLAT through
+every collapse while held-out retrieval dies. That is the signature of the train index tracking a
+drifting encoder: train-time retrieval stays healthy by construction, and evaluation, which encodes
+once with the final model, is where a contracted geometry becomes visible. **Every training-side
+metric is structurally blind to this failure.** Higher churn = tighter encoder/index coupling =
+faster contraction.
+
+**They already hold the leading indicator, and it is not a reward metric.** Query mean pairwise
+cosine: Sweep1000 0.154→0.113→0.082→**0.087** (stops falling between 3k and 4k — the arm that stopped
+contracting is the arm that stopped degrading); Sweep500 0.138→0.094→0.068, still falling when it
+broke. Available hundreds of steps before held-out retrieval moves.
+
+**Their filter does not add points, it PREVENTS the collapse.** Same schedule (Sweep250): 1k +1.4→+5.2,
+2k −2.2→+3.6. Worth +3.8 and +5.8, far above its standalone +2.75, so schedule and filter interact.
+Unifying candidate, from our own gate measurement today: gold-free pools generate reward uncorrelated
+with relevance, which is the drift driver; the gate removes them (keep 0.49 with gold vs 0.12–0.16
+without). **Pre-registered test, from logs they already have: on Sweep250Filt the query cosine spread
+should FLATTEN where unfiltered Sweep250's keeps falling.** If it falls just as fast while retrieval
+holds, the contraction mechanism is wrong and it gets retracted.
+
+**Honesty item that must reach the user.** Best rolling arm at 4k is 0.580 against their Rel-SFT
+ceiling 0.630 and against the 0.6435 RL number in the shared figure (their 12.8k-row setting). So the
+rolling full-corpus program is **−5.0 vs supervision and −6.4 vs their own non-rolling RL arm**. It
+beats a frozen index and loses to both of their better arms. Sweep1000 is still climbing at 4k while
+frozen parity flattens, so its 5k point decides it, but "the full-corpus idea works" is true only
+relative to freezing.

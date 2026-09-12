@@ -3168,3 +3168,47 @@ That is not a modality difference — the hopeless mass sits in specific InfoSee
 (exact measurements, extreme-value attributes) that the text corpus's questions simply do not contain.
 The 52.8 vs 39.2 comparison is **confounded by question-type mix**, and must be stated as a dataset
 property rather than a modality property.
+
+### 2026-09-12: modality reading of 52.8 vs 39.2 WITHDRAWN; the filter selects QUESTION TYPE
+**RETRACTED, 20 minutes after I published it.** I wrote that the hopeless share, 52.8% multimodal vs
+39.2% text, was "the single number that best explains why reward starvation is worse here than there".
+**It is not a modality effect.** Cross-tabulating the 20,000 decisions against question stem puts the
+hopeless mass in specific **InfoSeek schema archetypes** — exact physical measurements and
+extreme-value attributes ("what is the oldest age", "what is the litter size", "how many days does
+gestation take") — and the text corpus contains **no such archetype at all**. The comparison is
+**confounded by question-type mix** and is now a dataset property in the paper, not a modality one.
+What survives: the absolute statement, that on this stream a majority of rows can only return a
+uniform all-wrong group, which bounds the ceiling from the reward side.
+
+**THE MORE INTERESTING RESULT — the offline filter is a QUESTION-TYPE filter, not a difficulty
+filter.** Keep rate across 31 stems covering 55% of the pool spans **0.5% to 70.9%**, across-stem
+**SD 18.7 on a mean of 31.4**:
+
+| stripped | keep | kept | keep |
+|---|---|---|---|
+| "what is the oldest age" | 0.5% | "in which year was this" | 70.9% |
+| "what is the litter size" | 1.3% | "who is the discoverer of" | 70.1% |
+| "how many days does the" | 2.0% | "what is this object named" | 57.6% |
+| "what is the highest observed" | 7.0% | "what is the basionym of" | 55.4% |
+
+By archetype the filtered pool is **depleted of measurement** (11.9% → 6.0%) and **enriched in
+person** (9.7% → 17.6%) and **year** (3.8% → 8.0%). A pure difficulty filter would not reorder
+question types this strongly.
+
+**PRE-REGISTERED before either cell has stepped:** the filter's margin will be **non-uniform across
+archetypes** — positive on types it over-represents, flat or negative on types it strips.
+**Disconfirming branch: a uniform margin**, which would mean it works by removing dead gradient rather
+than by distribution shift. **That benign reading is what the text side's +2.75 result implicitly
+assumes.** Both evals store per-question predictions, so the slice costs no compute.
+**If it fires, part of the gain from the strongest lever either project has is a train/eval
+distribution shift, not a data-quality effect**, and it would shrink or invert on an eval set weighted
+toward measurement questions. This is a real caveat and it is now in the paper before the result.
+
+**Q5 DOES NOT EXPLAIN Q4 — a hypothesis that died on its own check.** The hopeless class is heavily
+enriched in grader-hostile formats: **range answers 95.2% hopeless, bare numeric 78.2%, numeric WITH
+aliases 20.1%** — a 58-point gap inside one answer type, which looks like pure cover-EM strictness.
+Reading the rows refutes it: bare-numeric cases are **precise physical measurements** (genuinely hard),
+multi-alias numeric cases are **years with ±1 tolerance encoded as the aliases**. Difficulty, not
+leniency. Range answers are plausibly part artefact but are only **3% of the pool**. So the grader's
+contribution to the hopeless mass is small and **the Q5 metric defect does not account for the Q4
+ceiling.** Recorded because the sections are adjacent and a reader would otherwise assume the link.

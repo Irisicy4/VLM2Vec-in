@@ -271,6 +271,17 @@ has no such cell — its only random-refresh arms are 0.100%/step (holds, −1.4
 floor) and 0.200%/step (running, no result). Cross-project numbers are the easiest to get wrong
 because neither party can check the other's disk.
 
+**The requirement runs in BOTH directions, and this is the part that was missed when the rule was
+first written.** On its first real use the rule caught a bad *correction*, not a bad claim: a demand
+to delete a "0.80% cell" from the published figure, on the grounds that the multimodal side had no
+such arm. The cell was real — it was the text side's Sweep125, 8,000 rows per step over a million
+rows, +3.0 at 1k — and it sat in the covering-sweep column, attributed to nobody on this side. A
+correct number was nearly deleted from a published figure by the person who had just proposed the
+rule, who did not apply it to himself. **A retraction reads as the cautious move and therefore gets
+less scrutiny than an assertion, which is exactly backwards: a demand to REMOVE a number needs the
+same confirmation as a claim to add one.** A wrong retraction is as much a defect as a wrong
+assertion.
+
 ### 5. Two scheduling traps that have each cost a run more than once
 
 - **`checkpoint-1500` and `checkpoint-3000` never exist.** The loop is `range(max_steps)`, so the last

@@ -3124,3 +3124,47 @@ harmful gradient — the only route by which this can help, and there is no inde
 2. `range(max_steps)` checkpoint numbering — final adapter lands in the run root, not a checkpoint dir.
 3. A refresh boundary is indistinguishable from a stall by elapsed time alone. Four false alarms in
    one day, zero real failures. Require a utilisation figure before believing a stall report.
+
+### 2026-09-12 10:15: THE Q4 FILTER IS A QUESTION-TYPE FILTER, NOT A DIFFICULTY FILTER — pre-registered consequence
+Cross-tabulating the 20,000 filter decisions against question stem (31 stems with n>=150, covering 55%
+of the pool): **keep rate spans 0.5% to 70.9%, across-stem SD 18.7 points on a mean of 31.4.**
+
+| stripped (lowest keep) | keep | concentrated (highest keep) | keep |
+|---|---|---|---|
+| "what is the oldest age…" | **0.5%** | "in which year was this…" | **70.9%** |
+| "what is the litter size…" | 1.3% | "who is the discoverer or…" | 70.1% |
+| "what type of cuisine is…" | 1.9% | "what is this object named…" | 57.6% |
+| "how many days does the…" | 2.0% | "what is the basionym of…" | 55.4% |
+| "what is the highest observed…" | 7.0% | "who is the owner of…" | 49.7% |
+
+By archetype, the filtered pool is **depleted of measurement questions (11.9% → 6.0% of the pool, keep
+rate 17.0%)** and **enriched in person (9.7% → 17.6%, keep 61.7%) and year (3.8% → 8.0%, keep 71.1%)**.
+So the filter does not merely remove hard rows, it **reshapes the question distribution**.
+
+**PRE-REGISTERED, before `q4pool-filt` / `q4pool-rand` have taken a single step:** whatever the overall
+margin, it will be **non-uniform across question archetypes** — the filtered arm gaining on the types
+it over-represents (year, person, discoverer, basionym) and flat-or-losing on the types it strips
+(exact measurements, extreme-value attributes). Testable from the per-question `predictions` block both
+evals already store, sliced by question stem. **Disconfirming branch:** a uniform margin across
+archetypes would mean the filter works by removing dead gradient rather than by distribution shift,
+which is the benign reading and the one the text side's +2.75 implicitly assumes.
+Practical risk if the prediction fires: the gain is partly a train/eval distribution shift rather than
+a data-quality effect, and it would shrink or invert on an eval set weighted toward measurements.
+
+**A hypothesis of mine that DIED on its own check, before it left this file in any strong form.** I
+suspected much of the 52.8% "hopeless" was the documented cover-EM defect (the Q5 entry: 21.9% scored 0
+by construction, 37.6% false-negative vs a 30B judge), because the hopeless class is enormously
+enriched in grader-hostile formats: RANGE answers 95.2% hopeless, numeric-single 78.2%, against
+numeric-**multi-alias** 20.1%. A 58-point gap within one answer type looked like pure grader strictness.
+**Inspecting the rows refutes it.** numeric-single is precise physical measurement ("thermal conductivity
+in W/m", "wingspan in metres" = 0.32, "weight in grams" = 973); numeric-multi is *years with a ±1
+tolerance encoded as the aliases* ('1325','1326','1327'). Different question difficulty, not different
+grader leniency. RANGE golds ('270.0-300.0') are plausibly part artefact but are only 3.0% of the pool,
+so at most ~3pp. **Estimated grader contribution to the 52.8%: small. Hypothesis withdrawn.**
+
+**Correction owed on a claim already sent to the paper peer.** I told them 52.8% hopeless vs the text
+side's 39.2% was "the single number that best explains why reward starvation is worse here than there".
+That is not a modality difference — the hopeless mass sits in specific InfoSeek *schema* archetypes
+(exact measurements, extreme-value attributes) that the text corpus's questions simply do not contain.
+The 52.8 vs 39.2 comparison is **confounded by question-type mix**, and must be stated as a dataset
+property rather than a modality property.

@@ -2581,3 +2581,42 @@ Three more added by the parent: check an instrument's SIGN against a known value
 of me); confirm any number attributed to the other project with that project before it enters prose
 (three misattributions crossed today, in both directions, because neither side can read the other's
 disk); and the two scheduling traps.
+
+### 2026-09-12: REGISTERED PREDICTION RESOLVED — mix2m-partialwb did NOT turn over (disconfirmed)
+The pre-registered pair from SWEEP.md finally has both points. **The disconfirming branch fired.**
+
+| mix2m-partialwb (`--index_ema 0.5 --index_refresh_extra 0`, 0.91x coverage) | entR@5 | ansR@5 | acc |
+|---|---|---|---|
+| 3k queries (ck750) | 75.97 | 65.18 | 34.80 |
+| 6k queries (endpoint) | 76.23 | 63.27 | 35.13 |
+| **3k → 6k drift** | **+0.27** | −1.92 | +0.33 |
+
+**Registered text:** *"the partial arm turns over by more than 2.40 below its own 3k point."*
+**Result: +0.27. It did not turn over at all.** Not against the registered 2.40 threshold, not against
+the re-derived 2.03 floor. Accuracy rose. Registered disconfirming branch was: *"if it drifts inside
+the floor too, the operation is not the variable on multimodal data."*
+
+**And the control went the other way.** `mix2m-v3pure` (full periodic re-encode /100 steps) drifted
+**−2.20** entR@5 over the same 3k→6k span. The two arms **converge exactly at 6k** (76.23 both). So
+the partial write-back is the *more stable* of the pair here, the opposite of what the text-side
+record predicted.
+
+**Why the prediction was wrong, and it is the rate axis again.** We registered *coverage* as the
+variable. Placing this arm on the rate axis: 112 rows/step on a 184,660-row index = 0.0607%/step raw,
+and α=0.5 halves how far each touched row moves, so **0.0303%/step effective — the slowest schedule
+either project has run**, against 0.10% (holds), 0.20% (collapses at 3k) and 0.40% (collapses by 2k).
+It is the slowest cell and the only one that does not decline at all. Its control re-encodes 100% of
+the index every 100 steps, ~1.00%/step averaged, and declines. **Consistent with "slower is better";
+inconsistent with the coverage story we registered.**
+
+**Caveats.** 1 seed on the partial arm, 2 on the control at 3k. Partial sits −2.50 entR@5 *below* the
+control at 3k (outside the 2.03 floor but 1 seed), so it starts lower and stays flat while the control
+starts higher and falls to meet it. "More stable" is not "better" — at 6k they are equal on entR@5,
+and the partial arm is ahead on acc (35.13 vs 34.47) and behind on ansR@5 (63.27 vs 64.12).
+
+**Answers the user's standing question** ("try train on full corpus and random reembed a percentage
+every XX steps; only if this really doesn't work we finalize on the select small pool at beginning
+strategy"): **the full-corpus path does not need the small-pool carve-out.** The 0.10% random
+full-corpus arm holds within the floor of its carve-out control, and the slowest blended arm is flat
+where the full-refresh control declines. The carve-out is not required; the rewrite rate is what needs
+to be low.

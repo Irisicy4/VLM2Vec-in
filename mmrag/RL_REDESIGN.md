@@ -3295,3 +3295,38 @@ predicted a no-op on analytical grounds needing no seeds, and seed 0 completed a
 re-encode every 250 steps) is training. If it holds through 5k, "rolling full-corpus fails at every
 rate" becomes "**rolling full-corpus works if you refresh often enough, period 250 steps**" — a recipe
 rather than a negative result.
+
+### 2026-09-12 11:51: PRE-REGISTERED PREDICTION SCORED — the online mask hurts, as predicted
+Registered at 10:00, before this eval existed: *the online mask will score at or below its matched
+control on entR@5, ansR@5 and acc*, because masking a zero-advantage group is a no-op so the mask's
+only net effect is deleting ~26% of the live gradient.
+
+`q4gate-s1-ck750` (1 seed) vs `mix2m-v3pure(-s1)-ck750` (2 seeds), one flag apart, matched checkpoint:
+
+| metric | control (2 seeds) | mask | delta | floor | verdict |
+|---|---|---|---|---|---|
+| entR@1 | 58.87 ± 0.38 | 57.17 | −1.70 | — | below |
+| **entR@5** | 78.47 ± 0.05 | 79.53 | **+1.07** | 2.03 | **ABOVE — prediction violated, but INSIDE the floor, not callable** |
+| entR@10 | 84.20 ± 0.05 | 85.10 | +0.90 | — | above, small |
+| **ansR@5** | 65.65 ± 0.55 | 62.16 | **−3.49** | 2.32 | **below and CALLABLE** |
+| **acc** | 34.40 ± 0.28 | 32.40 | **−2.00** | 1.02 | **below and CALLABLE** |
+
+**Scored: confirmed on the two metrics where anything is callable; the single violation is not
+callable.** The mask produces a callable decline in answer recall (−3.49) and accuracy (−2.00). So an
+intervention I built, on the flag whose inertness I discovered this morning, is measurably harmful on
+the recipe that matters — which is what the no-op argument predicted and needed no seeds to derive.
+
+**Caveats.** The mask arm is **1 seed: recorded, not claimed.** It is more informative than a usual
+1-seed reading only because the control's between-seed spread is unusually tight (0.05 on entR@5,
+0.28 on acc), so the comparison baseline is well determined.
+
+**An unpredicted divergence worth following.** Entity recall goes UP (+1.07 at 5, +0.90 at 10) while
+answer recall goes DOWN by 3.49 and accuracy by 2.00. The two recall metrics move in **opposite
+directions**. So the mask shifts retrieval toward passages that mention the right entity but do not
+contain the answer. That is a concrete, checkable hypothesis about what the deleted live gradient was
+teaching, and it is the kind of divergence the project's house rule about naming the metric exists to
+catch: a report of "entity recall improved" would have been true and badly misleading.
+
+**Consequence for Q4.** The online mask is settled as harmful. The offline pool filter — the
+intervention Q4 actually asked for — is a different thing and is under test in `q4pool-filt` vs
+`q4pool-rand`. The paper must not carry the mask result as evidence about the filter.

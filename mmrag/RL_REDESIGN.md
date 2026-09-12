@@ -3369,3 +3369,44 @@ here transfers to it.
 
 **Most consequential open cell on this side:** `frozen-idx` (the `--refresh_steps 0` control of our own
 headline recipe) at 34 steps and running.
+
+### 2026-09-12 14:00: USER DIRECTION CHANGE — architecture FIXED, data mix is now the variable
+Relayed by h200-rag. Sequence: 12:10 finalized on the live carve-out; **13:35 rejected "select a small
+pool at the start" — because the policy must work as the FULL EMBEDDING MODEL**; 13:45 asked for
+full-corpus rolling with large chunks (50k rows); **14:00 settled: "use the one size that just works on
+one data mix, I'm more interested in changing the data mix and seeing the impact on in/out-of-domain
+evals."**
+
+**New programme:** architecture fixed (50k live carve-out, both towers, full refresh /100 steps, KL
+reference). **The data mix is the variable.** Deliverable is a table of mixes × evals: per-source dmix
+(in-mix vs out-of-mix), BEIR (5 domains, self-encoded), HotpotQA retrieval + reader cEM. Mixes:
+natural 11-source, four single-source (trivia/nq/msmarco/musique), web-QA group, reading/science group,
+source-balanced, reward-filtered. Four training, rest queued, second seeds behind.
+
+**THE CRITERION IS THE IMPORTANT PART AND IT REFRAMES THE WHOLE INDEX SECTION.** "The policy must work
+as the full embedding model" means the shipping configuration is the **diagonal** of the cross-tower
+table — trained queries against trained documents — because deployment is *encode a corpus with it,
+then query that corpus with it*.
+
+**Under that criterion the rolling family does not collapse late, it FAILS OUTRIGHT.** Self-encoded on
+the carve-out the rolling policy reads **0.626 / 0.586 against base 0.660** — **worse than not training
+at all as an embedding model**, even at checkpoints that looked healthy on their own live index. Its
+query tower on base docs reads 0.766. So training produced *a good query encoder yoked to an index only
+it can read*, which is not a deployable retriever. That is a sharper and more decision-relevant reading
+of the 2×2 than "the index broke", and it is the user's own criterion, not ours.
+
+**First OOD row for the fixed recipe — a clean null.** BEIR, 5 domains, self-encoded: within **±0.011
+of base on every domain, mean 0.439 vs 0.439**. The carve-out policy neither gains nor loses out of
+domain. Worth stating plainly: the in-domain gains do not transfer, and they do not cost anything
+either.
+
+**Figure restructured (v22):** the deployability criterion now opens the index section; the rolling
+ladder and its diagnosis are kept explicitly as *the recorded negative that justified fixing the
+architecture*; two full-corpus cells remain as background open questions — Full250 (1M, full re-encode
+/250 steps) and **Chunk50k (50,000 rows every 12 steps — same cost as the fastest failing schedule but
+only 20 distinct writer states in the index instead of 250**, which is a direct test of the
+mixed-age-incoherence account).
+
+**Mechanism cells STOPPED to fund the mixes** (Sweep2000, Sweep125, Sweep1000 s1, Sweep1000+filter), so
+**the ~250-step timing rule and the anchor question get no further points from that side.** Anything
+this project wants on those axes must come from here or stay open.

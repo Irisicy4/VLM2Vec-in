@@ -2955,3 +2955,40 @@ encoder** (the parent asked them to add this; their original design could not se
   rolling family becomes usable with one added operation.
 - **Does not recover ⇒** the encoder degraded and no refresh policy saves the rolling family.
 The paper must not pick a branch before this lands.
+
+### 2026-09-12: DISCRIMINATOR 1 LANDED — the query tower is intact; the shipped INDEX is what collapsed
+h200-rag scored collapsed and pre-collapse checkpoints against a **base-encoded** 1M index instead of
+their own shipped one. Same 500-query stride. Arithmetic re-derived here.
+
+| checkpoint | own rolling index | base-encoded index | own − base |
+|---|---|---|---|
+| Sweep1000 s0 @4k (healthy) | 58.0 | 53.6 | **+4.4** |
+| Sweep1000 s0 @5k (COLLAPSED) | 37.4 | 53.0 | −15.6 |
+| Sweep500 s0 @2k (healthy) | 54.8 | 52.2 | **+2.6** |
+| Sweep500 s0 @3k (COLLAPSED) | 43.8 | 53.2 | −9.4 |
+
+**Against base documents the collapsed checkpoint retrieves within a point of its healthy
+predecessor** (53.0 vs 53.6; 53.2 vs 52.2), at about frozen parity. **The query tower is undamaged
+across the collapse.** What fails is the index the run shipped, not the model that produced it. This
+also kills any remaining temptation to describe the failure as the policy degrading.
+
+**A positive result the collapse had been hiding:** while coherent, the rolling index is **worth
++4.4 and +2.6** over what the *identical* query tower gets from base-encoded documents. The live index
+is doing real work right up until it stops. So the rolling family is not worthless — it is
+mis-scheduled or index-fragile, which is a different and more fixable problem than "does not help".
+
+**NARROWED, still open — both remaining branches are about the INDEX, not the retriever.** The
+self-consistent re-encode (one full pass with the collapsed checkpoint's OWN encoder, paired per query
+on the same 500) decides:
+- **recovers ⇒** mixed-age incoherence. One periodic full refresh repairs a rolling schedule; the
+  family is **mis-scheduled, not dead**, and becomes usable with one added operation.
+- **does not recover ⇒** the **document tower** degraded while the query tower did not. No refresh
+  policy saves it.
+Peer asked me to hold the mechanism sentence until this lands; figure states both branches and picks
+neither. Due within the hour.
+
+**Note the asymmetry this already establishes**, whichever branch fires: query tower fine, document
+side implicated. That is consistent with the long-standing observation on this project that RL moves
+the query tower hard (mean pairwise cosine 0.2212 → 0.0594) while the doc side barely moves in the
+probes — and with `train_rl.py`'s model-EMA path detaching the doc gradient, which was noted months ago
+as making that arm structurally the text side's frozen control.

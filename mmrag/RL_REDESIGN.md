@@ -2785,3 +2785,41 @@ watcher's output was a sampling artefact: it fired at the instant the encode rel
 card 5 read 2 GiB free a minute later. **Four infrastructure false alarms today against zero real
 failures** — a "stalled" report is not credible from me without a per-process SM-utilisation figure
 (`nvidia-smi pmon -s u`), which settles it in seconds and is what I should have reached for first.
+
+### 2026-09-12: index refresh COST measured — half the wall clock, and it closes the design argument
+The figure had been asserting that repeatedly re-encoding a large corpus is "often unaffordable" with
+no number behind it. Now measured (parent, 9 consecutive full re-encodes on one cell; arithmetic
+re-derived independently here and it checks out):
+
+- **185,839 passages in 825 s** (nine timings 816–845 s, stable) = **225 passages/s**.
+- The cell: **900 steps in 4.08 h, of which 9 refreshes = 2.06 h → 51% of wall clock is re-encoding,
+  not training.** Half the compute of the winning recipe goes on keeping the index current.
+- Encode is one pass with no reuse, so it is **linear in index size** while training is not:
+
+| index | one refresh | ×15 | share of a 1500-step run |
+|---|---|---|---|
+| 186k | 0.23 h | 3.4 h | ~50% |
+| 422k | 0.52 h | 7.8 h | ~70% |
+| 2M | 2.47 h | **37.0 h** | **~95%** |
+
+At 2M the training is ~2 h and the refreshing ~37 h.
+
+**Why this matters beyond cost.** It closes the scheduling argument from the other side. "Among
+covering schedules, slower and staler is better" now has a cost dimension pointing the SAME way: the
+schedules that survive are the cheap ones, and the fast ones both cost more and collapse sooner. Cost
+and quality are usually in tension in systems work; here they are not, so a practitioner picking the
+affordable schedule is picking the one that works. The bounded-slice form is not merely cheaper than
+full re-encoding — beyond a certain index size it is the only feasible form.
+
+**HOW TO QUOTE IT (carried into the figure).** The **ratio** is the defensible number because it is
+internal to one run. The **absolute rate is not portable**: a second cell on a busier card ran the
+same operation in 2,727–3,350 s, i.e. 55–68 passages/s, **4.1x slower**. Figure quotes the wall-clock
+share and gives the throughput only as an order of magnitude with the contention caveat.
+
+**Infrastructure note for anyone reading the parent's status reports.** Four "stalled cell" alarms
+today, zero real failures. Causes in order: a refresh boundary at step 800 (full re-encode, multi-minute
+by design) read as a stall because elapsed time was compared against the average step rate without
+checking whether the step count landed on a refresh boundary; and a cold initial encode of 3,350 s
+against a watcher threshold of 40 minutes. **Any "stalled" report should be treated as unverified
+until it quotes a utilisation figure**, and the refresh-boundary trap belongs in the handoff next to
+the checkpoint-numbering one.

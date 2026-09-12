@@ -2482,3 +2482,19 @@ paying startup twice. Lesson: the restart decision was sound on statistics (pure
 consumption, so identical) and wrong on scheduling — I did not check the card's occupancy before
 killing a run that was already 155 steps in. `wait_launch.sh` exists precisely for this and the
 wrapper's retry path bypasses it.
+
+### 2026-09-12: Q4 GATE IS A POOL-QUALITY DETECTOR — the one claim of mine still standing, now with an interval
+Paired per-step difference (keep | gold in pool) − (keep | no gold in pool), from the plgrpo gate:
+
+| run | mean | 95% CI | steps + / − / 0 | first half | second half |
+|---|---|---|---|---|---|
+| q4gate-s1 | **+0.3764** | [+0.347, +0.405] | 73.8 / 9.1 / 17.1 % | +0.354 | +0.399 |
+| q4gate-s0 (pre-restart, 155 steps) | **+0.3258** | [+0.255, +0.397] | 71.6 / 13.5 / 14.8 % | +0.370 | +0.282 |
+
+Between-run spread 0.0505. **Caveat that must travel with the CI: steps inside one run are NOT
+independent** — the same model is evolving — so the per-step SE understates the true uncertainty and
+the CI bounds within-run precision only. The robust statement is the sign count: positive on ~72–74%
+of steps against ~9–14% negative, roughly 8:1, in both runs. No time trend in a consistent direction.
+So the gate selects on whether the retrieved pool contains a gold passage, not merely on query
+difficulty. It does NOT yet say the filter helps, and it does not say the 59% discard is free — that
+is the join metric, still pending.

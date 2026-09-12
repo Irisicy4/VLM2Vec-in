@@ -108,7 +108,41 @@ replaces the earlier "RL beats SFT on every column", which was an artifact of co
 | **acc** | **+1.87** | **[+0.36, +3.37] excludes 0** | [−0.47, +4.20] spans 0 | **p=0.050** | **complete separation** |
 
 Both retrieval deltas are also below their re-derived floors (2.03 / 2.32), so they agree with the
-CIs: not callable.
+CIs: not callable. At **entR@1 the sign flips** — SFT 60.13 ± 0.67 against v3-pure 59.42 ± 1.57,
+**−0.71 for RL**, not callable. So "beats SFT on every retrieval column" was wrong twice over: the
+SFT bar was understated, and on the one column where SFT is genuinely ahead the old table had it
+behind (59.13 vs 59.42).
+
+**The anchored arm DOES beat SFT on retrieval, callably — this was underplayed.** v2 is equally
+annotation-free: the candidate pool is the policy's own top-K and the anchor's contrastive positive
+is the policy's own top-1, never an annotated passage.
+
+| v2 − SFT | delta | Student (dof=4) | Welch | seeds | verdict |
+|---|---|---|---|---|---|
+| **entR@5** | **+4.63** | **[+3.25, +6.01]** | **[+3.31, +5.94]** | 4 vs 3, **complete separation** | **callable** |
+| **entR@10** | **+4.57** | **[+3.30, +5.84]** | **[+2.88, +6.26]** | complete separation | **callable** |
+| ansR@5 | +2.52 | [−0.90, +5.94] | [−0.70, +5.74] | overlapping | not callable |
+| acc | +0.76 | [−0.79, +2.31] | [−0.99, +2.51] | overlapping | not callable |
+| entR@1 | −0.87 | [−2.84, +1.11] | [−2.68, +0.95] | overlapping | not callable |
+
+This is the **largest and statistically cleanest win over relevance supervision in the campaign** —
+bigger than the accuracy margin, one more seed, and callable under both dof conventions rather than
+one. It was obscured because the v2 row had been published with its weakest seed dropped and
+compared against the understated SFT retrieval bar.
+
+**But no single configuration wins both, and that is the honest headline.** v3-pure wins accuracy
+and ties retrieval; v2 wins retrieval and ties accuracy. Each ties exactly where the other wins:
+
+| v3-pure − v2 | delta | Student (dof=4) | seeds | verdict |
+|---|---|---|---|---|
+| **acc** | **+1.11** | **[+0.01, +2.21]** | complete separation | **callable** |
+| **entR@5** | **−3.69** | **[−5.42, −1.97]** | complete separation | **callable** |
+| entR@10 | −3.26 | [−4.44, −2.07] | complete separation | callable |
+| ansR@5 | −1.02 | [−4.23, +2.18] | overlapping | not callable |
+
+**Do not count "wins" across the two arms as if they were one method.** A tally of three wins over
+supervision is a union over configurations, not a property of a recipe. State which arm wins which
+metric, or state nothing.
 
 **The accuracy margin is real but sits exactly at the resolution of a 3-seed design, and the verdict
 depends on the dof convention.** Equal-variance Student (dof=4) excludes zero; Welch does not,

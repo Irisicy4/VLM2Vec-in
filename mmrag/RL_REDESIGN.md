@@ -2029,3 +2029,64 @@ was already in flight from `orchestrate.sh` when this was written.
 **Shared figure republished** with ± on every seeded cell and the claim box rewritten to "exactly one
 margin over the supervised arm survives: answer accuracy on image + text". Text-side per-seed values
 requested from tth100-vlm2vec (offline, queued); their cells carry "SD pending" and are not called.
+
+### 2026-09-12 (paper fork): v2's retrieval win recovered; TWO presentation defects shipped and fixed
+Writing the paper from the per-seed files surfaced a result the ledger had been under-reporting, and
+in presenting it I shipped two errors of the same class I had just corrected. Both are recorded here
+because the standing rule is that corrections get written down rather than quietly overwritten.
+
+**RECOVERED — the anchored arm beats relevance-SFT on retrieval, callably.** v2 − SFT = **+4.63
+entR@5** (Student [+3.25,+6.01], Welch [+3.31,+5.94], dof 5.0) and **+4.57 entR@10**, both with
+COMPLETE seed separation, 4 seeds vs 3. This is the largest and cleanest win over relevance
+supervision in the campaign — larger than the +1.87 accuracy margin, with one more seed, and callable
+under BOTH dof conventions where the accuracy margin is callable under only one. It was hidden by two
+things at once: the v2 row was published with its weakest seed dropped, and it was compared against
+the understated SFT retrieval bar (73.63 instead of 75.16). v2 is annotation-free — pure policy pools,
+the anchor's positive is the policy's own top-1.
+
+**Also new: entR@1 SIGN FLIP.** SFT 60.13 ± 0.67 vs v3-pure 59.42 ± 1.57 = −0.71 for RL. The old
+table showed SFT at 59.13, i.e. behind. "Beats SFT on every retrieval column" was wrong in two
+independent ways.
+
+**And: no configuration wins both.** v3-pure − v2 = +1.11 acc / −3.69 entR@5, both callable with
+complete separation. Each arm ties exactly where the other wins. A tally of "three wins over
+supervision" is a UNION OVER CONFIGURATIONS, not a property of a method, and must not be quoted.
+
+**DEFECT 1 (shipped ~20 min, fixed) — a composite row in the shared figure.** I published a single
+"indirect reward" row carrying v2's retrieval (79.78, 4 seeds) beside v3-pure's accuracy (34.71,
+3 seeds) under one heading. That row describes a configuration that does not exist. Disclosing it in
+the caption did not fix it: a reader takes two numbers in one row as one system. Caught by the parent
+session. Fixed by splitting into two per-configuration blocks, each carrying all its own metrics so
+the reader sees each arm tie where the other wins. Same error class as the estimator mixing corrected
+earlier the same day — one row, one system, one estimator.
+
+**DEFECT 2 (same publish, fixed) — an inconsistent rule for a broken comparator.** On the text-side
+in-domain cell I discounted the +10.87 retrieval margin because the supervised arm sits below its own
+untrained base, then counted +3.55 accuracy from that SAME comparator as a win. The supervised arm is
+below base on BOTH metrics (58.65 vs 69.3 retrieval; 73.00 vs 75.6 accuracy), so one rule has to apply
+to both. That cell now referees nothing; the only defensible reading is RL vs base, **+0.95 accuracy**,
+base at 1 seed so no interval. Also caught by the parent session.
+
+**Text-side numbers received (h200-rag), including a correction of their own.** Their multi-source
+"+1.3 over supervised" compared RL's seed mean to SFT at ONE checkpoint rather than per-seed best;
+scored with RL's own estimator it is **+0.35, 95% CI [−1.57, +2.27], rank-sum p=0.69 — a tie.** What
+survives on that row is the shape (RL monotone to 25k queries, SFT peaks by 6.4k rows then declines),
+not the level. Their in-domain cEM margin is +3.55 [+2.52,+4.58] with complete separation, but see
+DEFECT 2: it comes from the comparator that is below its own base. Their floor is not a pooled SD but
+a config-identity replicate bound (two runs of one recipe at one seed diverging up to 3.2 R@5), and
+they do not pool across eval sets.
+
+**DISTRIBUTION DEFECT — the shared artifact's link is pinned to an old version.** The live page
+carries every correction; anyone holding the share link sees a pinned earlier version, which still
+shows the retracted "+2.46, clean" reading. Neither session can unpin it — there is no such action in
+the tool, it is set from the page's share menu. This is a defect in distribution, not in the numbers:
+the correction was made and published and the audience did not receive it. Standing note: any shared
+artifact needs its pin re-pointed after a correction. Carried to the user as an action item.
+
+**Paper destination.** The user named it mid-session: the Overleaf-backed repo Irisicy4/Overleaf_Indirect,
+a LaTeX paper titled "Indirect Feedback for Reinforcement Learning" with three experiments (captioning,
+RAG, skills). Migrated to the ICLR 2027 style (the .sty files are byte-identical to 2026 apart from the
+year). `sec_mm_rag.tex` existed in that repo but was never \input, so it had never been compiled and
+failed on an undefined \varnothing; it is now included and the document builds at 37 pages with all 66
+citations resolving. Two undefined refs remain (app:mech, app:rl_budget), both text-side appendices,
+left to that side rather than invented.

@@ -2620,3 +2620,43 @@ strategy"): **the full-corpus path does not need the small-pool carve-out.** The
 full-corpus arm holds within the floor of its carve-out control, and the slowest blended arm is flat
 where the full-refresh control declines. The carve-out is not required; the rewrite rate is what needs
 to be low.
+
+### 2026-09-12 07:20: OPERATIONAL AUDIT — four false alarms of mine, two real findings
+**My false alarms, all from asserting before measuring.** Recording them because the pattern is the
+same one the day's scientific retractions had, transplanted into operations:
+1. "CPU unchanged => hung" — the CPU time HAD advanced (1291→1301); I mislabelled my own output.
+2. "q4gate-s1 stalled" — it sat at step 800 with `refresh_steps 100`, so step 800 fires a full
+   re-encode of the ~422k-row index. A scheduled multi-minute pause, not a failure. I compared
+   elapsed time against an average step rate without checking for a refresh boundary.
+3. "duplicate fullcorp-rand10p50 trainer" — a PID that exited between two commands.
+4. "three trainers on runs/fullcorp-rand10" — `pgrep -af | grep -oE "runs/[a-z0-9-]+" | uniq -c`
+   counts MATCHES PER LINE, not processes; one command line contains the path three times. Exact
+   match on `--output_dir <path> ` shows one process, and its metrics are clean (105 rows,
+   105 distinct steps).
+
+**Real finding 1 — throughput has collapsed ~4x and it is contention.** Measured by sampling line
+counts over 120 s, not by file timestamps (`os.path.getctime` on Linux is inode-change time, which a
+running writer updates constantly — that was how I first got 0.0 h spans):
+mix2m-v3pure-s1 60 s/step · fullcorp-rand10p50 60 · fullcorp-rand10 120 · idx10k-full / q4gate-s0 /
+q4gate-s1 no step in 120 s. q4gate-s1 averaged **15.7 s/step over its first 800 steps**, so the box
+is ~4x slower now: six trainers plus eval encodes over four cards, with an unrelated job holding
+87 GiB on card 7.
+
+**Real finding 2 — `idx10k-full` is in TERMINAL reward starvation.** Steps 1150 and 1175 log
+`loss=0.0000 pg=0.0000 nce=0.0000`. With `contrastive_coef 0`, an exactly zero total loss means every
+group is degenerate and the policy gradient is identically zero: the degeneracy fraction has reached
+**1.0**, not the 0.5–0.68 we have been quantifying. It has been burning a card while learning nothing.
+A policy-gradient term pinned at exactly 0 for hundreds of steps is a stronger and cheaper starvation
+signal than the degeneracy fraction, and worth watching for directly.
+
+**Card-split violation, fixed.** Two of my cells were on h200-rag's cards (agreement: 5+7 mine, 4+6
+theirs). `fullcorp-rand10` on card 6 is **killed** — wrapper first so its retry loop could not
+relaunch, then the trainer, explicit PIDs — freeing 44 GiB. It was a same-seed same-flag re-run of a
+number already on disk and was 46 h from finishing. `fullcorp-rand10p50` (the registered 0.20%/step
+test, ck750 ~5 h out) is still on their card 4; left to them to rule on rather than killed unilaterally.
+
+**PROVENANCE CAVEAT on a number already reported.** `results/fullcorp-rand10-ck750` (entR@5 77.07,
+written 01:51) has **no matching checkpoint on disk**: the run dir holds only args.json and
+metrics.jsonl, and the cell restarted from step 0 at 01:59. The measurement is real and stays quotable,
+but it is **not reproducible from the current tree**, and with the re-run now killed it will not become
+reproducible. Anyone citing 77.07 should cite it as measured-and-archived, not as re-derivable.

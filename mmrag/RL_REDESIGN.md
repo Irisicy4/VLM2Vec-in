@@ -3044,3 +3044,35 @@ gold passage in hand.
 expected by chance). Size-matching matters: comparing the filtered pool to the 810k pool would confound
 composition with pool size, since 6,000 draws over 6.8k rows is ~1 epoch with repetition and over 810k
 is none. This is the comparison the text side's +2.75 used.
+
+### 2026-09-12 10:03: ORCHESTRATOR BUG — a slow eval gets relaunched until it hits the concurrency cap
+`orchestrate.sh` launches an eval when the result file is absent, guarded only by
+`n_evals() < MAXEVAL` (total concurrent evals). The result file does not appear until the eval
+**finishes** (~15+ min for a 186k-row encode plus retrieval), while the loop's own `sleep 90` is far
+shorter. So the next cycle sees the same missing file and launches the same eval again. **The
+total-concurrency guard does not catch this: two duplicates of ONE cell satisfy it perfectly.**
+
+Caught by finding two `encode_corpus` processes with the *same* `--cache corpus_mix2m-v3pure-s1.pt`
+target, started 09:13 and 09:19 — both writing one path, and the second launch's `rm -f` on that cache
+deleting whatever the first had written. Over 24 h it duplicated 2 endpoint evals
+(`mix2m-v3pure-s1`, `mix2m-modelema-ctrl`), so the waste is modest, but it was consuming BOTH eval
+slots and starving the pre-registered `q4gate` ck750 test and the `q4pool` pair behind it.
+Killed the younger duplicate (kept the further-along one): **card 5 went from 8 to 56 GiB free.**
+
+**My own `watch_q4gate.sh` had the identical defect** — I wrote it this morning by mirroring
+orchestrate.sh's launch logic, including the bug. Fixed with a per-cell running check before the
+concurrency guard:
+
+```
+pgrep -f "run_eval.sh [0-9]* $1 " >/dev/null 2>&1 && return
+pgrep -f "corpus_$1\.pt"          >/dev/null 2>&1 && return
+```
+
+Both buggy watcher instances stopped; one fixed watcher now covers all four cells
+(`q4gate-s0/s1`, `q4pool-filt/rand`). `orchestrate.sh` is left running unpatched — editing a live bash
+script in place risks corruption since bash re-reads from a byte offset, and it has only 3 cells of
+work left. **Anyone reusing orchestrate.sh must add the per-cell check first.**
+
+Lesson for the handoff: *a "has it finished?" test is not a "is it running?" test.* Any watcher that
+polls for an output artefact needs a separate in-flight check, because the artefact's absence is true
+for the entire duration of the work.

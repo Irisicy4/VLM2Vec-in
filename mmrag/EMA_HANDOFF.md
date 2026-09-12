@@ -278,6 +278,26 @@ A single `max(abs(column))` would have caught it before it was sent. A diagnosti
 than a bad margin or a bad mechanism, because the recipient wires it into monitoring and it then
 silently reports nothing.
 
+### 3c. A "has it finished?" test is not an "is it running?" test
+
+Added 2026-09-12. Every watcher in this project polls for an output artefact and launches work when it
+is missing. The artefact is missing for the *entire duration* of the work, so without a separate
+in-flight check the watcher relaunches the same job every cycle until it hits its concurrency cap —
+and a total-concurrency guard does NOT catch it, because N duplicates of one job satisfy it perfectly.
+
+`orchestrate.sh` has this defect and duplicated two endpoint evals in 24 h, each holding ~30 GiB of a
+card on work already in flight, which starved a pre-registered test queued behind it. `watch_q4gate.sh`
+was written by mirroring that logic and inherited the bug. The fix is two lines before the
+concurrency guard:
+
+```
+pgrep -f "run_eval.sh [0-9]* $NAME " >/dev/null 2>&1 && return
+pgrep -f "corpus_$NAME\.pt"         >/dev/null 2>&1 && return
+```
+
+Symptom to look for: two processes with the same `--cache` target. Worse, the second launch's
+`rm -f` on that cache destroys what the first wrote.
+
 ### 4. A number attributed to the other project is confirmed by that project before it enters prose
 
 Three misattributions crossed between the two projects on 2026-09-12, in both directions: a

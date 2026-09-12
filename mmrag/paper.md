@@ -872,3 +872,47 @@ row, ~2 reader calls/row, so it is sharded across GPUs rather than run inline.
   Q2 mechanism directly and are the highest-leverage untried axis.
 - **Ceiling.** ~0.345-0.350 acc at 2B regardless of data, compute, estimator or anchor; the 7B rung
   reaches 0.351-0.357. Capacity is the only lever that has ever moved it.
+
+---
+
+## Definition — "full-corpus index with random partial re-embed"
+
+Two independent changes, both opt-in; neither alters the estimator.
+
+**(1) The index is the whole corpus.** `build_rl_corpus` keeps every passage of every gold-entity
+article plus `--n_distractor_articles` randomly sampled non-gold articles. Setting that count to the
+number of non-gold articles that exist (**21,143** for `corpus_small`) keeps *every* article, so the
+RL index is all **422,378** passages — **byte-identical in membership to the eval index.** Confirmed
+at startup: `RL corpus: 422378 passages`. Membership is then fixed for the run; nothing is added or
+dropped. This removes the train/eval index gap every earlier cell carried (173,755 of 422,378 = 41%,
+or 184,660 of 2,000,000 = 9.2%).
+
+**(2) The update is a uniform random slice, overwritten in place** (`train_rl.py:262-285`):
+
+| property | exact behaviour |
+|---|---|
+| init | **one full encode** of all 422,378 rows at step 0 — there is nothing to sample from yet |
+| trigger | every `--refresh_steps` optimizer steps (100, or 50 in one cell) |
+| which rows | `torch.randperm(C)[:k]` — uniform **without replacement within a period**, a **fresh independent draw each period**, so a row may be chosen twice or never |
+| how many | `k = round(refresh_frac × C)` = 42,238 rows at `--refresh_frac 0.10` |
+| how written | `corpus_emb[idxs] = new` — a **straight overwrite**. No blend, no averaging, no EMA |
+| encoder used | the **current** policy weights, under `doc_tower()` (a no-op unless model-EMA is on) |
+| untouched rows | keep whatever embedding they last had, indefinitely |
+
+**What it is NOT.** Not the stalest-first sweep (that is `--index_ema`, which additionally *blends*
+old and new and *replaces* the periodic refresh entirely). Not a blend of any kind. Not a change to
+which passages exist in the index. Not the text-side round-robin, which visits rows in order and
+therefore bounds the worst-case age.
+
+**The consequence that distinguishes it.** Independent draws bound the *mean* age but not the
+*maximum*: at 10% every 100 steps over 1500 steps there are 15 draws, so a given row is never
+refreshed with probability 0.9¹⁵ = **20.6%**. Coverage is 1.50x and cost is 633,570 doc-encodes
+against 6.34M for a true full refresh at the same period — **10x cheaper**, which is the entire
+reason to do it.
+
+**Measured, seed 0, at 3,000 queries:** entR@5 **77.07** / ansR@5 **65.63**, against 78.43 for a
+full refresh on a 184,660-row carve-out and 77.23 for the stalest-first sweep on a 173,755-row one.
+It sits inside that band, so removing the carve-out costs nothing detectable here. **This is the one
+form the text-side project finds fails** — uniform-random lands below their frozen baseline while
+their in-order sweep is clearly above it — so the multimodal result is either a modality difference
+or a budget difference, and is open.

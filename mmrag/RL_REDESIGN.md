@@ -2426,3 +2426,59 @@ is incomplete.** First points ~19:00.
 
 **Placement wording aligned to theirs:** above the frozen index at matched budget ONLY; −5.0 vs the
 Rel-SFT ceiling (0.630) and −6.4 vs frozen RL's own 25k endpoint (0.6435); 1 seed past 2k everywhere.
+
+### 2026-09-12: RETRACTED — the contraction mechanism and the "query cosine as early warning" claim
+I pre-registered: *on Sweep250Filt the query cosine spread should FLATTEN where unfiltered Sweep250's
+keeps falling; if it falls just as fast while retrieval holds, the contraction mechanism is wrong and
+gets retracted.* h200-rag ran it on logs they already held. **The disconfirming branch fired.**
+
+| cell | R@5 / mean pairwise query cosine | outcome |
+|---|---|---|
+| Sweep250 s0 | 0.490 / 0.149 → 0.486 / 0.101 | turns over |
+| Sweep250 + filter s0 | 0.528 / 0.114 → 0.544 / **0.080** | rises |
+| Sweep500 s0 | 0.138 → 0.094 → 0.068 | collapses |
+| Sweep1000 s0 | 0.154 → 0.113 → 0.082 → 0.087 | survives |
+| Rand500 s0 | 0.135 → 0.099 → **0.082** | −4.2 at 3k |
+
+The filtered arm's spread falls as fast as the unfiltered one's and sits LOWER at every checkpoint —
+the lowest of any cell at 2k — while its retrieval RISES. Rand500 and Sweep1000 share 0.082 at 3k
+with opposite outcomes. So the level neither orders the cells nor predicts collapse. **There is
+currently NO train-time diagnostic for this failure mode.** Reward std and degeneracy stay flat
+through every collapse, and now the cosine is out too.
+
+**Also retracted: my direction was backwards.** Falling mean pairwise query cosine is the queries
+spreading APART; contraction would drive it toward 1.0 (base 0.257, frozen 0.19–0.21 → 0.16–0.18).
+I wrote "contracted geometry", which is the opposite of what the instrument measures. Every rolling
+cell spreads 2–3x faster than frozen whether it lives or dies, so spreading is a CONSEQUENCE of
+rolling, not a symptom of collapse. I should have checked the sign against the base value before
+proposing the mechanism.
+
+**What survives:** only the non-stationarity reading — train-side metrics are blind because the index
+is re-matched to a drifting encoder while eval encodes once. That is now a hypothesis with no
+instrument, which is a weaker position than the one I claimed.
+
+### 2026-09-12: THE "RATE vs MAX AGE" DISPUTE IS VACUOUS — they are algebraic inverses
+For any covering round-robin sweep, rate = r/C and cycle length = C/r, so **period = 1/rate exactly**.
+"0.40% of the index per step dies first" and "a 250-step age bound dies first" are ONE statement in
+two vocabularies. My 07:00 entry framed them as rival mediators; that framing was wrong, and the
+earlier "bounded age" claim was not refuted so much as re-expressed.
+**The single honest statement: among schedules that COVER the index, slower and staler is better.**
+Outside that axis sits the random family, which fails to cover at all and loses at every rate.
+Consequence for experiment design: h200-rag's rate-vs-ABSOLUTE-ROWS test is well posed (0.20% at 400
+rows/step on 200k vs 2,000 rows/step on 1M holds rate and period fixed, varies rows 5x). But
+rate-vs-period is **unanswerable by construction** and must not be listed as an open question.
+Their rate ladder, 1 seed per cell: 0.10% holds through 4k · 0.20% dies at 3k · 0.40% by 2k.
+
+**Unexplained, and no measurement yet speaks to it: WHY slower wins.** Hypothesis only — the rewrite
+rate sets how fast the objective's own scoring surface moves, so there is an effective stability limit
+as a learning rate has one. Testable prediction: the 0.40% cell survives at half the learning rate if
+the two trade against one stability budget. Not queued.
+
+### 2026-09-12: OPERATIONAL — restarting seed 0 cost the diagnostic seed
+Restarting `q4gate-s0` to pick up the join metric put it back on card 5, which by then held five
+processes (2 training cells, 2 orchestrator corpus-encodes, plus itself) with 3 GiB free. It sat at
+0 steps for 25+ min. Alive (CPU advancing) but not stepping. Letting the encodes drain rather than
+paying startup twice. Lesson: the restart decision was sound on statistics (pure logging, no RNG
+consumption, so identical) and wrong on scheduling — I did not check the card's occupancy before
+killing a run that was already 155 steps in. `wait_launch.sh` exists precisely for this and the
+wrapper's retry path bypasses it.

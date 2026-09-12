@@ -2200,3 +2200,49 @@ the shape is always a delta computed in one place and written down in another. s
 refuses to print a delta without its interval; `paper_tables.py` now has `margin()`, the only path
 that renders a difference, returning delta + CI + callable verdict + separation as one inseparable
 string. Mechanical, not attentional.
+
+### 2026-09-12: Q4 GATE WAS INERT ON plgrpo — code gap, not an oversight; now implemented + launched
+`--reward_gate_noctx` (the Q4 no-context utility filter, the strongest lever either project has
+found) lived ONLY inside the final `else:` reward branch of train_rl.py. plgrpo takes the first
+branch, so **the flag was silently inert for v3-pure and v2** — the entire winning family. The one
+recorded trial (+0.94 ansR@5, 1 seed, "right direction") can therefore only have been a grpo-family
+run. That is why the lever was never tested on the recipe that matters, and "never launched" in the
+earlier ledger understated it: it was not runnable.
+Implemented on the plgrpo path with semantics copied verbatim from the other branch (keep a query iff
+its best sampled list beats the reader with no context), plus the keep-given-gold vs
+keep-given-no-gold contingency so we can tell a pool-quality detector from a query-difficulty one.
+Launched `q4gate-s0` (GPU 5) and `q4gate-s1` (GPU 7) against the existing 2-seed `mix2m-v3pure`
+ck750 control, one flag apart. Text side reports +2.75 R@5 at 4 seeds for the same idea.
+
+### 2026-09-12: DEPTH PROFILE — the "decays past R@5" reading is a CEILING ARTEFACT (retracted)
+v2−SFT on raw recall: +4.63 @5, +4.57 @10, +3.79 @20. Read as "widest at the operating depth,
+decaying past it". **That reverses sign on a ceiling-free scale.** v2 is at 89.52 @20, so a raw
+increment must compress. On miss rate (1−R):
+
+| depth | raw margin | miss ratio v2/SFT | log-miss advantage | residual miss removed |
+|---|---|---|---|---|
+| @1 | −0.87 | 1.022 | +0.021 ± 0.048 spans 0 | −2.2% |
+| @5 | +4.63 | 0.814 | −0.206 ± 0.064 EXCL | +18.6% |
+| @10 | +4.57 | 0.760 | −0.274 ± 0.075 EXCL | +24.0% |
+| @20 | +3.79 | 0.734 | −0.309 ± 0.110 EXCL | +26.6% |
+
+The advantage **widens monotonically with depth**. Also tested the within-run form (R@5 − R@20 per
+seed, paired inside each run): v2−SFT +0.83, CI [+0.20, +1.47], which looks like real narrowing and
+is the same ceiling compression — v2 simply has less room left at 20.
+**The real shape is a discontinuity, not a peak:** nothing at rank 1 on *either* scale, then a step
+to +18.6%, then monotone widening. The rank-1 null survives the ceiling correction, which is what
+makes it diagnostic.
+**Mechanism, read off the loss rather than fitted to the curve:** the plgrpo branch scores each
+unique sampled doc once and sets the list reward to the **mean over positions** — per-document
+credit, no position weighting, pl_k 4. Rank *within* the slate carries exactly zero gradient signal
+by construction, so the objective shapes slate membership and not slate order. Rank 1 is the one
+quantity a position-uniform slate reward does not privilege; supervised contrastive training
+optimises that margin directly and matches it there.
+**Open tension with the user's instruction** to drop R@1 from the paper (sound for reporting: the
+system feeds 5 passages, R@5 is the operating point). R@1 here is mechanism evidence, not a
+performance metric. Recommendation sent: keep R@5 as the reported operating point and retain R@1
+only inside the mechanism discussion, labelled diagnostic. If it comes out entirely, the mechanism
+must be stated as a hypothesis, because a monotone curve with no inflection is much weaker evidence.
+**Text-side replication is weak, not supporting:** appears at 4B at ~1/4 magnitude, flat at every
+depth at 8B, and their 4B opens at +0.8 at rank 1 rather than showing the rank-1 null. So it does not
+reproduce the feature the argument rests on.

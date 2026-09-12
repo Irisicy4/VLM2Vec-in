@@ -1972,3 +1972,60 @@ a clean offset.
 **Honest summary of this cell:** index-EMA on the 810k pool is worth on the order of 1 to 2 points
 of answer recall, is not separable from noise against its only matched control, and does not change
 the slope. It does not deliver a recipe that keeps improving.
+
+### 2026-09-12: INTERVALS ON EVERY SEEDED CELL — two estimator defects found, floors re-derived
+Task was to put SD/CI on every result that has seeds. Doing it mechanically from the raw per-seed
+json (new `mmrag/seed_stats.py`, now the single source for every ± in paper.md) surfaced two defects
+in the headline table that hand-typed intervals had hidden, plus an invalid floor derivation.
+
+**DEFECT 1 — the relevance-SFT row was not one estimator.** Its acc (32.85) was the 3-seed mean over
+each seed's best checkpoint, exactly as the row label said. Its two RETRIEVAL columns (73.63 / 59.67)
+came from `sft-lr1e4-h0-repro`, a different **single-seed single-checkpoint** run whose own acc is
+31.00. Scored with the row's declared estimator (per-seed acc-argmax over ck450-1200), all three
+columns are:
+  s0 ck750 75.17/62.04/33.00 · s1 ck1050 75.73/63.27/33.67 · s2 ck1050 74.57/60.57/31.87
+  → **75.16 ± 0.58 / 61.96 ± 1.35 / 32.84 ± 0.91**, raising the SFT retrieval bar +1.53 / +2.29.
+
+**CONSEQUENCE — "RL beats SFT on every column" is RETRACTED.** v3-pure − SFT, matched 3 seeds:
+| metric | delta | Student dof=4 | Welch | exact rank-sum | seeds |
+|---|---|---|---|---|---|
+| entR@5 | +0.93 | [−0.95, +2.82] spans 0 | [−1.23, +3.10] spans 0 | p=0.100 | overlapping |
+| ansR@5 | +1.50 | [−1.14, +4.14] spans 0 | [−1.14, +4.14] spans 0 | p=0.100 | overlapping |
+| acc | +1.87 | **[+0.36, +3.37] excl 0** | [−0.47, +4.20] spans 0 | **p=0.050** | **complete separation** |
+Both retrieval deltas are also inside the re-derived floors. **Accuracy is the only surviving column.**
+The acc verdict flips on the dof convention (Welch drops dof to 2.3 because SFT's SD is 4x RL's),
+so the claim rests on complete rank separation (p=0.050, the 3v3 minimum) and per-query McNemar
+(2 of 3 seeds), not on the between-seed t. The "+1.86 = 3.5 SE" framing overstated what n=3 resolves;
+the margin is pinned no better than roughly +0.4 to +3.4 acc.
+
+**DEFECT 2 — the v2 row dropped a seed.** 80.13/65.46/33.82 was the mean of seeds 0/2/3;
+`plgrpo-gme2b-nogold-s1` (weakest on all three metrics) was on disk and outside the mean with no
+stated criterion. All 4 in: **79.78 ± 0.77 / 64.48 ± 1.96 / 33.60 ± 0.70**. Anchor verdict narrows:
++3.69 entR@5 clears the floor, +1.02 ansR@5 does not, −1.11 acc is now marginal (was comfortable
+against the old 0.61 floor).
+
+**FLOORS RE-DERIVED — the old ones pooled across EVAL SETS, which is invalid.** E-VQA is n=2701 /
+n_ans=2696; InfoSeek is n=3000 / n_ans=2450. Different measurements. InfoSeek only, 9 families,
+dof=15: **entR@5 2.03 · ansR@5 2.32 · acc 1.02** (was 2.40 / 1.91 / 0.61, from 4 families).
+E-VQA separately, 1 family dof=2: 2.43 / 7.10 / 2.54 — its ansR@5 SD is 3.55, the largest in the
+campaign, so **out-of-domain answer recall is not measurable at 3 seeds**. `compare_ema.py` updated.
+Claims that move: the −2.20 entR@5 control drift (mix2m-v3pure 3k→6k) now CLEARS 2.03 and is a
+callable decline; the cross-cluster index-EMA row's +2.50/+2.40 now clear theirs but that row is
+retracted for being cross-site anyway. The same-hardware index-EMA row stays inside under both.
+Everything else re-checked and unchanged.
+
+**Also corrected:** the E-VQA v3-pure numbers in paper.md (81.34/72.18/45.87) were **seed 0 alone**,
+best of three on two of three metrics. 3-seed means: 80.23 ± 1.21 / 68.48 ± 3.55 / 44.67 ± 1.27.
+
+**Caveat the intervals exposed:** SFT seeds 1 and 2 both peak at ck1050, the LAST checkpoint
+evaluated for them (seed 0 has ck1200 and peaks at ck750). The per-seed-best estimator is truncated
+for 2 of 3 SFT seeds, so the SFT bar may still rise, which would shrink the acc margin.
+
+**Registered-threshold note.** The `mix2m-partialwb` prediction ("turns over by more than 2.40 below
+its own 3k point") keeps its 2.40 as registered; moving a pre-registered bound after re-deriving the
+floor is the failure the registration exists to prevent. Both readings will be reported. Its 3k eval
+was already in flight from `orchestrate.sh` when this was written.
+
+**Shared figure republished** with ± on every seeded cell and the claim box rewritten to "exactly one
+margin over the supervised arm survives: answer accuracy on image + text". Text-side per-seed values
+requested from tth100-vlm2vec (offline, queued); their cells carry "SD pending" and are not called.

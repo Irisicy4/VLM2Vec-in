@@ -16,10 +16,21 @@ Qwen2.5-VL-**7B** reader (n=1500). Train and eval readers deliberately differ.
 
 **Metrics.** entR@5 = entity recall@5 · ansR@5 = answer recall@5 · acc = VQA cover-EM accuracy.
 
-**Seed noise floors** (2x pooled between-seed SD over every multi-seed family on disk;
-n=4/3/2/2 families): **entR@5 2.40 · ansR@5 1.91 · acc 0.61**. A single-seed gap below these is
-not callable. These supersede an earlier bound taken from one two-seed pair, which overstated the
-entR@5 floor 1.8x and understated acc 2x.
+**Seed noise floors** (2x pooled between-seed SD, dof-weighted, over **every** multi-seed
+InfoSeek family on disk — 9 families, dof=15): **entR@5 2.03 · ansR@5 2.32 · acc 1.02**.
+A single-seed gap below these is not callable. Recomputed 2026-09-12 by `seed_stats.py`; the
+previous 2.40 / 1.91 / 0.61 pooled only 4 families and, critically, pooled across **eval sets**.
+E-VQA (n=2701, n_ans=2696) is a different measurement from InfoSeek (n=3000, n_ans=2450) and
+now carries its own floors: **entR@5 2.43 · ansR@5 7.10 · acc 2.54** (1 family, dof=2 — the
+ansR@5 figure is a warning, not a usable threshold). The acc floor **rose from 0.61 to 1.02**;
+every acc delta quoted in this document between those two values has been re-checked and is
+marked not callable below.
+
+> **Every ± in this document is produced by `mmrag/seed_stats.py`, which reads the raw per-seed
+> json.** A family declares its estimator once and all three metrics use it, because the hand-typed
+> intervals this replaces let one row take accuracy from a 3-seed estimator and its two retrieval
+> columns from an unrelated single-seed run (see the corrected main table). n=2 families print a
+> range, never a CI: at dof=1 the t multiplier is 12.71 and the interval exceeds the metric's scale.
 
 ---
 
@@ -65,25 +76,89 @@ measurable — see "dynamic-schedule variants" below.
 
 GME-Qwen2-VL-2B, InfoSeek, 500 steps (~2k query draws).
 
+All ± are between-seed SD. Mean ± SD, then the 95% CI on the mean in brackets.
+
 | arm | entR@5 | ansR@5 | acc | seeds |
 |---|---|---|---|---|
-| frozen base (zero-shot) | 68.53 | 54.94 | 30.80 | 1 |
-| relevance-SFT (annotated) | 73.63 | 59.67 | 32.85 ± 0.90 | 3, per-seed best ckpt |
-| **v3-pure — no-gold RL, no anchor** | **76.09** | **63.46** | **34.71 ± 0.19** | 3 |
-| v2 — same + contrastive anchor | 80.13 | 65.46 | 33.82 ± 0.60 | 3 |
+| frozen base (zero-shot) | 68.53 | 54.94 | 30.80 | **1 — recorded, not claimed** |
+| relevance-SFT (annotated) | 75.16 ± 0.58 [±1.45] | 61.96 ± 1.35 [±3.35] | 32.84 ± 0.91 [±2.26] | 3, per-seed best ckpt |
+| **v3-pure — no-gold RL, no anchor** | **76.09 ± 1.02** [±2.54] | **63.46 ± 0.95** [±2.35] | **34.71 ± 0.23** [±0.58] | 3 |
+| v2 — same + contrastive anchor | 79.78 ± 0.77 [±1.23] | 64.48 ± 1.96 [±3.12] | 33.60 ± 0.70 [±1.11] | 4 |
 
-**RL beats SFT on every column.** acc margin **+1.86 = 3.5 SE** with matched seed counts and the
-same estimator on both legs (SFT scored at its *best* checkpoint — the estimator that favours SFT).
-Per-seed McNemar vs SFT-best: significant in 2 of 3 seeds. Against base, every seed is significant
-(p ≤ 4.8e-05). RL − base = **+7.56 entR@5 / +8.52 ansR@5 / +3.91 acc**.
+**Two corrections made when the intervals were computed (2026-09-12).** Both changed numbers that
+had stood in this table since it was written.
 
-**The anchor is a trade, not an improvement.** Adding the contrastive term buys ~+4 entR@5 and
-+2 ansR@5 and costs ~0.9 acc. Ordering is metric-dependent: v3 > v2 > SFT > base on accuracy;
-v2 > v3 > SFT > base on recall. Neither RL arm loses to SFT on any column.
+1. *The relevance-SFT row was not one estimator.* Its accuracy, 32.85, was the 3-seed mean over
+   each seed's best checkpoint — as the row label says. Its two retrieval columns, 73.63 / 59.67,
+   came from `sft-lr1e4-h0-repro`, a **different, single-seed, single-checkpoint run** whose own
+   accuracy is 31.00. Scoring all three columns with the row's declared estimator raises the SFT
+   retrieval bar by **+1.53 entR@5 and +2.29 ansR@5**, which is where most of the apparent RL
+   retrieval margin lived.
+2. *The v2 row dropped a seed.* 80.13 / 65.46 / 33.82 was the mean of seeds 0/2/3; seed 1
+   (`plgrpo-gme2b-nogold-s1`, the weakest on all three metrics) was on disk and outside the mean,
+   with no stated exclusion criterion. All four seeds are now in.
 
-**Out of domain (E-VQA, never trained on).** base 76.31/64.84/42.07 · SFT-best 78.38/66.73/43.47 ·
-v3-pure 81.34/72.18/45.87. Over 3 seeds RL gains +2.6 ± 1.3 acc / +3.9 ± 1.2 entR@5 vs base,
-about **2x the SFT transfer** (+1.4/+2.1, 1 seed).
+**RL beats SFT on accuracy. On retrieval the two are indistinguishable at 3 seeds.** This
+replaces the earlier "RL beats SFT on every column", which was an artifact of correction 1 above.
+
+| v3-pure − SFT | delta | 95% CI (Student, dof=4) | 95% CI (Welch) | exact rank-sum | seeds |
+|---|---|---|---|---|---|
+| entR@5 | +0.93 | [−0.95, +2.82] spans 0 | [−1.23, +3.10] spans 0 | p=0.100 | overlapping |
+| ansR@5 | +1.50 | [−1.14, +4.14] spans 0 | [−1.14, +4.14] spans 0 | p=0.100 | overlapping |
+| **acc** | **+1.87** | **[+0.36, +3.37] excludes 0** | [−0.47, +4.20] spans 0 | **p=0.050** | **complete separation** |
+
+Both retrieval deltas are also below their re-derived floors (2.03 / 2.32), so they agree with the
+CIs: not callable.
+
+**The accuracy margin is real but sits exactly at the resolution of a 3-seed design, and the verdict
+depends on the dof convention.** Equal-variance Student (dof=4) excludes zero; Welch does not,
+because the SFT arm's SD is 4x the RL arm's and the Welch penalty drops dof to 2.3 — where t=4.30
+and +1.87 needs 3.4 SE. Three things carry the claim past that fragility, none of them relying on
+the between-seed SD:
+- **Complete rank separation.** Every RL seed (34.47 / 34.73 / 34.93) beats every SFT seed
+  (33.00 / 33.67 / 31.87). Exact one-sided rank-sum p = 0.050, the smallest value attainable at
+  3 vs 3, and it is assumption-free.
+- **Per-query McNemar within each seed**, which tests 1,500 paired queries instead of 3 run means:
+  significant vs SFT-best in 2 of 3 seeds.
+- **The estimator is tilted toward SFT**, which is scored at its own best checkpoint while RL is
+  scored at its endpoint.
+
+Read together: the *accuracy* ordering RL > SFT is established; the *size* of that margin is not
+pinned down better than roughly +0.4 to +3.4 accuracy points.
+
+**Against base, RL − base = +7.56 entR@5 / +8.52 ansR@5 / +3.91 acc**, and every seed is
+significant per-query (McNemar p ≤ 4.8e-05). No interval is quoted on these deltas because base is
+one seed; the margins are ~4x the corresponding floors, which is why they survive anyway.
+
+**A caveat the interval exposed.** SFT seeds 1 and 2 both peak at ck1050, the *last* checkpoint
+evaluated for them, while seed 0 has ck1200 on disk and peaks at ck750. The per-seed-best estimator
+is therefore truncated for two of three SFT seeds, and the SFT bar could still rise. That would
+shrink the accuracy margin, not grow it.
+
+**The anchor is a trade, and only one side of the trade survives the intervals.** With all four
+v2 seeds in, adding the contrastive term buys **+3.69 entR@5** (79.78 ± 0.77 vs 76.09 ± 1.02),
+which clears the 2.03 floor, and **+1.02 ansR@5**, which does not clear 2.32. It costs
+**−1.11 acc** (33.60 ± 0.70 vs 34.71 ± 0.23), just past the re-derived 1.02 floor — this delta was
+comfortably callable against the old 0.61 floor and is now marginal. So: the anchor buys entity
+recall and costs accuracy, both at the edge of what 3-4 seeds resolve, and its answer-recall gain
+is not established. Ordering is still metric-dependent: v3 > v2 on accuracy, v2 > v3 on entity
+recall. Neither RL arm loses to SFT on any column.
+
+**Out of domain (E-VQA, never trained on).** The v3-pure numbers previously shown here
+(81.34 / 72.18 / 45.87) were **seed 0 alone**, i.e. the best of the three seeds on two of three
+metrics. The 3-seed means are lower:
+
+| arm | entR@5 | ansR@5 | acc | seeds |
+|---|---|---|---|---|
+| base | 76.31 | 64.84 | 42.07 | 1 |
+| SFT-best | 78.38 | 66.73 | 43.47 | 1 |
+| v3-pure | 80.23 ± 1.21 [±3.02] | 68.48 ± 3.55 [±8.83] | 44.67 ± 1.27 [±3.16] | 3 |
+
+RL − base = **+3.92 entR@5 / +3.64 ansR@5 / +2.60 acc**, against E-VQA's own floors
+(2.43 / 7.10 / 2.54). entR@5 clears its floor; acc sits right on it; **ansR@5 does not come close** —
+its between-seed SD is 3.55, the largest in the whole campaign, so out-of-domain answer recall is
+not measurable at 3 seeds. The comparison to SFT transfer (+1.4 / +2.1, 1 seed) has no interval on
+the SFT leg and is recorded, not claimed.
 
 **Standing caveat — exposure asymmetry.** RL visits ~2,000 queries (500 steps x batch 4); SFT
 visits ~19,200 (600 x 32). RL wins on ~10x fewer query visits, and with no relevance labels.
@@ -93,7 +168,7 @@ visits ~19,200 (600 x 32). RL wins on ~10x fewer query visits, and with no relev
 | schedule | what changes | best result | vs its matched control |
 |---|---|---|---|
 | **periodic full refresh (`--refresh_steps 100`)** | full index re-encode every 100 steps | **76.09 / 63.46 / 34.71** (3 seeds) | this IS the winning recipe; beats SFT +1.86 acc |
-| index-EMA (`--index_ema 0.9`) | no periodic refresh; per-step blended write-back of the top candidates, near-boundary hard negatives and the stalest docs | 77.23 / 65.84 / 34.47 @ck750 | **+1.60 / +1.06 / +0.60 — all inside floors, not callable** |
+| index-EMA (`--index_ema 0.9`) | no periodic refresh; per-step blended write-back of the top candidates, near-boundary hard negatives and the stalest docs | 77.23 / 65.84 / 34.47 @ck750 | **+1.60 / +1.06 / +0.60 — all inside floors (2.03 / 2.32 / 1.02), not callable.** Verdict unchanged by the 2026-09-12 floor re-derivation: each delta stays inside its floor under both the old and the new values. |
 | model-EMA (`--model_ema 0.99`) | doc tower encoded with EMA'd weights | 72.47 / 60.49 / 32.20 | **UNUSABLE** — trained q(live)·d(EMA), evaluated both live |
 | frozen-index variant (`*-frozen`) | undocumented | 78.43 / 63.02 / 33.60 (v1 family, 1 seed) | **cannot be used** — the axis it varies is not recorded anywhere |
 
@@ -160,8 +235,9 @@ the largest answer-recall margin in the whole campaign), the shape is that diver
 RL-over-SFT gap on answer recall rather than closing it.
 
 **NOT ESTABLISHED — the honest statistics.** The differential is ~+2.4 on ansR@5. The single-metric
-seed floor is 1.91, and a difference-of-differences compounds that to roughly 2.70, so **+2.4 sits
-below the compounded floor**. Every leg is 1 seed except RL's InfoSeek-pool arm. What supports it
+seed floor is **2.32** (re-derived 2026-09-12 from 1.91), and a difference-of-differences compounds
+that to roughly **3.28**, so **+2.4 sits below the compounded floor** — the same verdict, with more
+margin than before. Every leg is 1 seed except RL's InfoSeek-pool arm. What supports it
 beyond the point estimate is only the *consistency of sign* — SFT is negative at 4 of 5 matched
 checkpoints — which is suggestive and not a significance test. Seeding the two diverse-pool legs is
 the cheapest way to settle it.
@@ -564,7 +640,11 @@ apart**; the only difference within a pair is the scheme.
 | 2M mixed index, v3-pure, ck750 | vs matched twin | **−2.80** | −0.08~ | +0.47~ |
 | 2M mixed index, **anchored**, ck750 | vs matched twin | **+14.80** | **+19.59** | **+6.40** |
 
-(~ = inside the seed floors 2.40 / 1.91 / 0.61.)
+(~ = inside the seed floors **as re-derived 2026-09-12: 2.03 / 2.32 / 1.02**. Two cells move under
+the new floors, both in the cross-cluster row that is already retracted for a separate reason:
+its +2.50 entR@5 now clears 2.03 and its +2.40 ansR@5 now clears 2.32. That row compares across
+sites and is not usable regardless — the same-hardware row directly above it is the valid one, and
+all three of its deltas stay inside the floors.)
 
 **CROSS-PROJECT JOINT CLAIM (text-side collaboration, 2026-09-10).** The text-side project ran the
 same knob at far lower coverage and every arm turned over. Their bracket, all vs a frozen-index
@@ -603,7 +683,11 @@ condition exactly: anchor off, index-EMA off, document tower training, live inde
 | (zero-shot base) | | 68.53 | 54.94 | 30.80 |
 | **3k → 6k** | | **−2.20** | **−1.14** | **+0.27** |
 
-All three deltas are **inside the seed floors** (2.40 / 1.91 / 0.61), and the arm finishes 7.7 points
+Under the floors in force when this was written (2.40 / 1.91 / 0.61) all three deltas were inside.
+Under the re-derived floors (**2.03 / 2.32 / 1.02**) the **−2.20 entR@5 drift now clears the 2.03
+entR@5 floor** and becomes a callable decline, while −1.14 ansR@5 and +0.27 acc move further inside
+theirs. This arm has 2 seeds at its 3k point (78.43 / 78.50, SD 0.05) but 1 seed at 6k, so the
+drift itself still has no interval and the floor is doing the work. The arm finishes 7.7 points
 of entR@5 **above** its zero-shot base. Their arms lost 5 to 11 R@5 by this point at every coverage
 they tried. **So the "doc tower training ⇒ contraction" mediator does not reproduce here**, and the
 joint claim must be narrowed: it holds on their 0.6B text setup and does not, at this budget, on
@@ -648,10 +732,18 @@ wins, and their winning cells run 13.5k while their failing ones run 1M.
 *Ours:* `mix2m-partialwb` — `--index_ema 0.5 --index_refresh_extra 0` = 112 rows/step = **0.91x
 coverage, blend 0.5**, landing inside their failing regime (their dmixDynCov: 1.06x, blend 0.5,
 −10.4/−11.2 R@5). Control is `mix2m-v3pure`, identical but full periodic refresh, which drifted
-−2.20 entR@5 from 3k→6k queries, inside the 2.40 floor. **Prediction: the partial arm turns over by
+−2.20 entR@5 from 3k→6k queries. **Prediction as registered: the partial arm turns over by
 more than 2.40 below its own 3k point.** Disconfirming branch stated: if it drifts inside the floor
 too, the operation is not the variable on multimodal data and the projects differ by model or
 modality, not schedule.
+
+> **Note on the threshold, added 2026-09-12.** The 2.40 in that prediction was the entR@5 floor at
+> registration time; the floor was later re-derived to 2.03 over 9 families instead of 4. The
+> registered threshold is **left at 2.40** — moving a pre-registered bound after the fact is the
+> failure mode the registration exists to prevent. Both readings will be reported when the arm
+> lands: whether it clears 2.40 (the registered test) and whether it clears 2.03 (the current
+> floor). Note the control's own −2.20 drift sits between the two, so under the current floor the
+> control is already declining, which weakens the contrast the prediction was built on.
 *Theirs:* a 200k multi-source subcorpus with 100% gold coverage, full re-encode /100 steps, doc
 tower training, against frozen-index twins on the **same** corpus differing only in the freeze,
 2 seeds each, 6k queries. **Prediction: live beats frozen at 6k.**
@@ -688,8 +780,13 @@ base**, and shows the documented contraction signature:
 |---|---|---|---|
 | anchored, no EMA | **1126** | **4735** | 63.57 |
 | anchored + index-EMA | 1435 | 6478 | 78.37 |
-| v3-pure, no EMA | 1538 | 6924 | 78.43 |
-| v3-pure + index-EMA | 1810 | 7809 | 75.63 |
+| v3-pure, no EMA | 1538 | 6924 | 78.43 → **78.47 ± 0.05** (2 seeds) |
+| v3-pure + index-EMA | 1810 | 7809 | 75.63 → **75.18 ± 0.64** (2 seeds) |
+
+The two v3-pure rows now have a second seed each, which makes their gap measurable rather than
+floor-screened: **−3.29 entR@5** for adding index-EMA, SE 0.45. The between-seed SDs are 0.05 and
+0.64, both far below the gap, so on this index index-EMA **costs** entity recall. The distinct-doc
+counts are single-seed and carry no interval.
 
 **RETRACTED at the 6k-query endpoint.** I reported this at ck750 as "the anchor damages retrieval
 on a diverse index and index-EMA prevents it", with the contraction signature to back it. The
@@ -910,9 +1007,13 @@ refreshed with probability 0.9¹⁵ = **20.6%**. Coverage is 1.50x and cost is 6
 against 6.34M for a true full refresh at the same period — **10x cheaper**, which is the entire
 reason to do it.
 
-**Measured, seed 0, at 3,000 queries:** entR@5 **77.07** / ansR@5 **65.63**, against 78.43 for a
-full refresh on a 184,660-row carve-out and 77.23 for the stalest-first sweep on a 173,755-row one.
-It sits inside that band, so removing the carve-out costs nothing detectable here. **This is the one
+**Measured, seed 0, at 3,000 queries:** entR@5 **77.07** / ansR@5 **65.63**, against the full-refresh
+carve-out control at **78.47 ± 0.05 entR@5 / 65.65 ± 0.55 ansR@5** (184,660 rows, now 2 seeds) and
+77.23 for the stalest-first sweep on a 173,755-row one. So −1.40 entR@5 and −0.02 ansR@5 against the
+control. The control's own between-seed SD is 0.05, but **this arm is 1 seed**, so the comparison
+still rests on the floor (2.03 / 2.32) rather than on an interval, and −1.40 is inside it.
+Removing the carve-out costs nothing detectable here. A second seed on this arm is what would turn
+the −1.40 into a real measurement, and the control's tiny SD says that would be worth the run. **This is the one
 form the text-side project finds fails** — uniform-random lands below their frozen baseline while
 their in-order sweep is clearly above it — so the multimodal result is either a modality difference
 or a budget difference, and is open.

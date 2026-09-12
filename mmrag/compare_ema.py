@@ -12,13 +12,19 @@ import argparse, json, math, os
 R = os.environ.get("MMRAG_DATA", "/raid/icy/mmrag_data") + "/results"
 METRICS = ["entR@5", "ansR@5", "acc"]
 PRIMARY = "ansR@5"
-# 2x pooled between-seed SD, from every family on disk with >=2 matched seeds
-# (plgrpo base n=4, scale-rows25k n=3, v3-rows1M n=2, plgrpo-t005 n=2):
-#   entR@5 sd 1.20 | ansR@5 sd 0.96 | acc sd 0.30  ->  2sd floors below.
-# SUPERSEDES the original {4.33, 1.51, 0.33}, which came from ONE two-seed pair at steps 250/500 —
-# that overstated the entR@5 floor 1.8x (its 3.06 sd was the seed-0 excursion) and understated
-# BOTH ansR@5 and acc, which is why the ck750 acc verdict flipped at ck1500.
-SEED_FLOOR = {"entR@5": 2.40, "ansR@5": 1.91, "acc": 0.61}
+# 2x pooled between-seed SD over every InfoSeek family on disk with >=2 matched seeds.
+# Re-derived 2026-09-12 by seed_stats.py, which is now the single source for these numbers:
+#   9 families, dof=15 -> entR@5 sd 1.017 | ansR@5 sd 1.158 | acc sd 0.511
+# Two fixes over the previous {2.40, 1.91, 0.61}:
+#   (1) that version pooled only 4 families;
+#   (2) it pooled ACROSS EVAL SETS. E-VQA (n=2701, n_ans=2696) is a different measurement from
+#       InfoSeek (n=3000, n_ans=2450) and has its own, much wider floors (2.43 / 7.10 / 2.54).
+# Net effect: the acc floor nearly doubles (0.61 -> 1.02) and entR@5 tightens (2.40 -> 2.03), so
+# some previously-callable acc deltas are no longer callable and some entR@5 deltas now are.
+# Both earlier versions {4.33, 1.51, 0.33} and {2.40, 1.91, 0.61} are superseded.
+SEED_FLOOR = {"entR@5": 2.03, "ansR@5": 2.32, "acc": 1.02}
+# InfoSeek only. For an E-VQA comparison use these instead:
+EVQA_FLOOR = {"entR@5": 2.43, "ansR@5": 7.10, "acc": 2.54}
 TCRIT = {1: 12.706, 2: 4.303, 3: 3.182, 4: 2.776, 5: 2.571, 6: 2.447, 7: 2.365}
 
 

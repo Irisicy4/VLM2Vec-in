@@ -2992,3 +2992,55 @@ side implicated. That is consistent with the long-standing observation on this p
 the query tower hard (mean pairwise cosine 0.2212 → 0.0594) while the doc side barely moves in the
 probes — and with `train_rl.py`'s model-EMA path detaching the doc gradient, which was noted months ago
 as making that arm structurally the text side's frozen control.
+
+### 2026-09-12 10:00: THE JOIN LANDS — the online mask's discard is 86% inert, and that makes it a NO-OP AT BEST
+`q4gate-s0`, 125 gated steps, the exact query-level join (not inferred from aggregates):
+
+| quantity | value |
+|---|---|
+| keep rate | 0.430 (drops 57%) |
+| dropped AND already dead | 0.492 of all queries = **86% of the drop** |
+| dropped AND live | 0.078 of all queries = **14% of the drop** |
+| keep \| live group | **0.749** |
+| keep \| dead group | **0.157** |
+
+So the gate is a genuine selector for reward variance (0.749 vs 0.157), and the Frechet bounds from the
+aggregates ([27%, 100%]) were as uninformative as predicted — the join was necessary.
+
+**But the decisive point is analytical, not empirical.** A degenerate group has within-group reward
+std 0, so its z-scored advantage is exactly 0 and its gradient contribution is exactly 0. **Masking a
+zero-advantage group is a no-op: 0 x 0 = 0.** So the 86% of the drop that was already dead changes
+nothing whatsoever. The mask's ONLY net effect is to delete the 25.1% of LIVE queries it drops
+(keep|live = 0.749). It removes nothing that was contributing and removes a quarter of what was.
+
+**PRE-REGISTERED, before any q4gate eval exists:** the online mask arms (`q4gate-s0/s1`) will score
+**at or below** their matched control (`mix2m-v3pure`, `-s1` at ck750) on entR@5, ansR@5 and acc.
+Mechanism: it deletes 25% of the live gradient and adds nothing. **Disconfirming branch:** if the mask
+BEATS the control, the live queries it drops must have been carrying *harmful* gradient — i.e. reward
+that moves the policy in the wrong direction — which is the only route by which this intervention can
+help. That would be a real finding and I have no independent evidence for it.
+This also corrects my 07:45 flag ("the mask raises degeneracy, so it is the worse intervention"): the
+degeneracy difference is not the mechanism; the deleted live gradient is.
+
+### 2026-09-12 10:00: TRAINING-STREAM TAXONOMY MEASURED — it is NOT the eval-set taxonomy
+`filter_ragbenefit.py` completed: 20,000 training rows scored with the REWARD reader, 6,789 kept.
+
+| class | training stream (n=20,000) | 95% CI | eval set (n=1500) | diff | text training stream |
+|---|---|---|---|---|---|
+| RAG-BENEFITS | **33.9%** | [33.3, 34.6] | 32.3% | +1.6 | 36.9% |
+| RAG-UNNEEDED | **11.1%** | [10.6, 11.5] | 18.1% | **−7.0 sig** | 21.4% |
+| RAG-HOPELESS | **52.8%** | [52.1, 53.5] | 48.5% | **+4.3 sig** | 39.2% |
+| RAG-HARMS | **2.1%** | [1.9, 2.3] | 1.1% | **+1.0 sig** | 2.6% |
+
+Three of four classes differ from the eval-set taxonomy beyond 1.96 SE, which **confirms the warning
+that these are different populations** and that the side-by-side table in the shared appendix needed
+its columns labelled. The training stream is HARDER than the eval set: more hopeless, far fewer
+already-answerable. And multimodal training is much harder than text training on the decisive class:
+**hopeless 52.8% vs 39.2%.** Over half of multimodal training queries cannot be answered even with the
+gold passage in hand.
+
+**Q4 pair launched, one flag apart, both 6,789 rows from the SAME 20,000 scored candidates:**
+`q4pool-filt` (the kept rows) vs `q4pool-rand` (a random same-size subset, 34.4% overlap ≈ the 33.9%
+expected by chance). Size-matching matters: comparing the filtered pool to the 810k pool would confound
+composition with pool size, since 6,000 draws over 6.8k rows is ~1 epoch with repetition and over 810k
+is none. This is the comparison the text side's +2.75 used.

@@ -212,3 +212,71 @@ No margins without matched seeds and matched estimator.
   on a dev box (the entry script guards this; leave the guard alone).
 - Ledger every result (including nulls and confounds) in `mmrag/RL_REDESIGN.md`; the results page
   with per-row reproduce commands is `mmrag/docs/vqa_retriever_loop.html` — add rows there too.
+
+---
+
+## Standing rules added 2026-09-12, after five retractions in one day
+
+Both projects retracted five claims on 2026-09-12. Every one had the same shape: **a direction or a
+mediator asserted before its arithmetic was checked.** Two guards came out of that day. The first is
+mechanical and already in place. The second is a rule, not a guard, and it is here because it is the
+thing that actually worked.
+
+### 1. No margin reaches prose except through a function that renders its interval with it
+
+`mmrag/seed_stats.py` is the only source for a ± on this project, and it refuses to print a delta
+without its interval and its separation verdict. `paper_tables.py` has a `margin()` that returns
+delta, interval, callable verdict and separation as one inseparable string. The failure this prevents
+is specific and it happened repeatedly: a delta computed in one place and written down in another,
+losing its interval in the gap. Attention does not fix that. A function that cannot return the number
+alone does.
+
+Corollary, from the defect that started the day: **one family declares its estimator once and all its
+metrics use it.** The relevance-SFT row took accuracy from a 3-seed per-seed-best estimator and its
+two retrieval columns from an unrelated single-seed run, manufacturing a retrieval margin that did not
+exist. A row is one system, one estimator, or it is not a row.
+
+### 2. State a mechanism's falsifiable prediction in the same breath as the mechanism, then run it
+against logs that already exist
+
+This is the rule. It has no enforcement and depends on remembering, but it is free, because the logs
+are usually already on disk. On 2026-09-12 it killed two mechanisms, one before publication and one
+after:
+
+- *"Diversity worsens degeneracy because off-domain displacement creates all-zero groups."* Its own
+  prediction was that zero-reward steps would become more common. They became **rarer** (0.039 →
+  0.024) and reward level was flat. Dead, from data already collected.
+- *"High rewrite rate collapses runs by contracting the embedding geometry, and query cosine spread is
+  the early warning."* Registered disconfirming branch: *if the filtered arm's spread falls just as
+  fast while retrieval holds, the mechanism is wrong.* It fell **faster** and sat lowest of any cell
+  while retrieval rose, and two cells with opposite outcomes shared the same value. Dead.
+
+A mechanism offered without its disconfirming branch is not yet a claim, and on this project it should
+not be written down as one.
+
+### 3. Check the sign of an instrument against a known value before building on it
+
+Falling mean pairwise query cosine was published as evidence of a *contracted* geometry. It is the
+opposite: contraction drives that statistic toward 1.0. One glance at the base value (0.257, with
+frozen runs falling to 0.16–0.18) would have caught it. Both projects made this error on the same
+trace, in the same direction, on the same day.
+
+### 4. A number attributed to the other project is confirmed by that project before it enters prose
+
+Three misattributions crossed between the two projects on 2026-09-12, in both directions: a
+"mixed-age co-drift mechanism" credited to a project whose documents never contained the phrase; a
+registered reader-swap prediction described as confirmed when the confirming run was on the other
+side and the predicted run was never made; and a "0.80% cell" credited to the multimodal side, which
+has no such cell — its only random-refresh arms are 0.100%/step (holds, −1.40 vs control, inside the
+floor) and 0.200%/step (running, no result). Cross-project numbers are the easiest to get wrong
+because neither party can check the other's disk.
+
+### 5. Two scheduling traps that have each cost a run more than once
+
+- **`checkpoint-1500` and `checkpoint-3000` never exist.** The loop is `range(max_steps)`, so the last
+  save is at 1250 or 2750 and the final adapter goes to the run root. Watchers that wait for them exit
+  without evaluating. Verify a checkpoint path exists before building a watcher on it.
+- **Never restart a run without checking its card's occupancy.** `wait_launch.sh` exists for this, and
+  a wrapper's own retry loop bypasses it. On 2026-09-12 a run 155 steps in was killed for a logging
+  improvement and went back onto a card that had filled behind it, costing the seed that carried the
+  diagnostic. The statistics of the restart were sound; the scheduling was not checked at all.

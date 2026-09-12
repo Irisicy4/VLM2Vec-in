@@ -2865,3 +2865,46 @@ checkpoints of Sweep1000 s0 (5k, 4k) and Sweep500 s0 (3k, 2k) scored against the
 index** instead of their own shipped index. If the collapsed towers retrieve at pre-collapse level
 against base-encoded docs, the failure is the **shipped mixed-age index**; if they fall there too, the
 **towers moved**. That separates the two candidate mechanisms cleanly and costs no training.
+
+### 2026-09-12 07:55: ROLLING FULL-CORPUS FAILS AT EVERY RATE — rate sets WHEN, not WHETHER
+h200-rag's slowest schedule collapsed too. `dmix1MSweep1000 s0` (0.10%/step) at 5k queries:
+**R@5 0.374**, against its own 4k peak 0.580 (−20.6), frozen parity 0.561 (−18.7), and the untrained
+base 0.386 (**−1.2, i.e. below base**).
+
+| rate | dies at |
+|---|---|
+| 0.40 %/step | by 2k |
+| 0.20 %/step | 3k |
+| 0.10 %/step | 5k |
+
+**My "among covering schedules, slower and staler is better" was a claim about time-to-collapse
+written as if it were about survival, and the paper peer adopted it on my say-so.** Replacement:
+*rate sets when a rolling schedule dies, not whether; no covering rolling full-corpus schedule in
+either project's record survives to 5k.* The positive half: **the only dynamic index in either record
+with no reversal is a small carve-out with a full periodic re-encode** — the winning recipe.
+
+**This inverts the answer to the user's own framing.** They asked to train on the full corpus with
+partial re-embedding and to "finalize on the select small pool at beginning strategy" only if that
+really did not work. On text it really does not: every rolling variant reverses and the carve-out
+survives. Note this also explains why the survivor is the cheap one — see the refresh-cost entry:
+the carve-out is both the only thing that holds AND the only index affordable to refresh fully.
+
+**Multimodal is UNTESTED in the collapse zone, not in agreement.** My only full-corpus point is
+`fullcorp-rand10-ck750` (0.10% random) at 3k = holds; their 0.10% cell was also still rising at 3k.
+`fullcorp-rand10p50` (0.20%) is at 1,800 of the 5,000 queries needed, ~13 h out at current contention.
+Do not write multimodal as replicating this.
+
+**Their diagnostic negative is now stronger than the one that killed my mechanism:** query cosine ran
+0.087 → 0.077 across the interval where retrieval fell 20 points — the same slope it had while
+*rising*. That is a within-cell falsification across the event the instrument was meant to predict,
+not merely a between-cell one.
+
+**OPEN, and it decides the section: does the MODEL or the INDEX break?** They are scoring collapsed
+checkpoints against the base frozen index. That test is valid — their frozen arm (base-encoded docs,
+trained query encoder) rises 0.476→0.561, so cross-space mismatch is not fatal in their setup, which
+rules out the confound I nearly raised. But it **cannot separate two "index broke" stories with
+opposite remedies**: (a) mixed-age incoherence, which a full re-encode REPAIRS, vs (b) the document
+encoder itself degraded, which a full re-encode PROPAGATES. Base-encoded docs bypass the doc encoder,
+so (a) and (b) look identical. Arm requested: one full re-encode with the collapsed checkpoint's OWN
+encoder, both sides same checkpoint. Recovers → the rolling schedule is salvageable with one added
+operation; stays at 0.374 → the rolling family is dead on this corpus, not mis-scheduled.

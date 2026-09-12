@@ -2687,3 +2687,36 @@ written 01:51) has **no matching checkpoint on disk**: the run dir holds only ar
 metrics.jsonl, and the cell restarted from step 0 at 01:59. The measurement is real and stays quotable,
 but it is **not reproducible from the current tree**, and with the re-run now killed it will not become
 reproducible. Anyone citing 77.07 should cite it as measured-and-archived, not as re-derivable.
+
+### 2026-09-12 07:35: "THE FILTER" WAS TWO DIFFERENT INTERVENTIONS — and mine is not the one Q4 asked for
+h200-rag's filter and mine have been discussed interchangeably for hours, across several messages and
+into the shared figure. They are not the same thing.
+
+| | theirs (`filter_ragbenefit.py`) | mine (`--reward_gate_noctx`) |
+|---|---|---|
+| when | **offline**, once, before training | **online**, every step, per batch |
+| what | keeps the 36.9% of queries that are gold-ok AND no-context-fail; trains on that pool | zeroes the advantages of queries whose best sampled list fails to beat no-context |
+| rollout/reader cost | paid only on kept queries | paid on **100%** of queries |
+| effective batch | 1.00x nominal | **0.40x** nominal (measured keep rate) |
+| compute per useful query | 1.00x | **2.50x** |
+
+So at matched steps theirs extracts ~2.5x more useful gradient per unit compute, and mine *also*
+shrinks the effective batch, which is an independent destabiliser. **Their +2.75 R@5 and their
+collapse rescue are therefore not predictions about my cells**, and I had been reading them as such.
+
+**And theirs is the experiment the user actually asked for.** Q4 as posed was "do a training data
+filtering of only those QA who benefit from RAG using gold sample" — an offline pool filter — and this
+document's own Q4 section costs it as "a gold-context and a no-context reader pass over each candidate
+training row". That is their script. `q4gate-s0/s1` test the online mask instead: a related
+intervention that nobody requested, wearing the same name. They are worth finishing (the mask is
+cheaper and its diagnostics inform either way) but they must be **labelled as the online mask, not as
+the Q4 filter**, and the Q4 filter remains unrun on multimodal.
+
+**Their degeneracy contrast is pool selection, not learning dynamics — settled.** From identical
+initial weights over the first 50 steps: 0.285 / 0.250 (filtered) vs 0.370 / 0.370 (unfiltered), and
+unchanged by the last 50 (0.305 / 0.250 vs 0.395 / 0.370). The gap exists before training could create
+it, so it is neither "the model produces more discriminable groups" nor kept-only arithmetic — the
+filtered POOL simply ties less. It therefore says nothing about why the filter rescues a collapsing
+schedule, and the gold-pool-quality mechanism stays untested. Note my own evidence for that mechanism
+(keep|gold 0.49 vs keep|no-gold 0.12) comes from the online mask, which is now the wrong instrument
+for a claim about their offline result.

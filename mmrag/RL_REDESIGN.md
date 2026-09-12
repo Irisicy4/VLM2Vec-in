@@ -2344,3 +2344,43 @@ rolling full-corpus program is **−5.0 vs supervision and −6.4 vs their own n
 beats a frozen index and loses to both of their better arms. Sweep1000 is still climbing at 4k while
 frozen parity flattens, so its 5k point decides it, but "the full-corpus idea works" is true only
 relative to freezing.
+
+### 2026-09-12 (paper fork, cont. 4): FRESHNESS HURTS — the age-ceiling reading is inverted, not just insufficient
+My previous entry said a bounded age is "necessary and not sufficient". That was too generous to the
+old claim. On h200-rag's round-robin ladder, **the tighter the ceiling the worse the result**:
+
+| rows/step | rate | worst-case age | outcome |
+|---|---|---|---|
+| 4,000 | 0.40% | **250 steps** (tightest) | collapses by 2k |
+| 2,000 | 0.20% | 500 steps | collapses at 3k, −8.8 |
+| 1,000 | 0.10% | **1,000 steps** (loosest) | **no collapse** through 4k, +3.1 |
+
+**The logical care that matters here:** on a round-robin ladder rate and ceiling are the same number
+inverted (rate k/C, ceiling C/k steps), so the ladder ALONE cannot separate them. **The random arms
+do** — they have no ceiling at all, and across them rate still orders the outcome (0.10% holds on MM,
+0.20% declines, 0.40% collapses). With staleness unbounded by construction, rate still does the work.
+And at matched 0.20% the BOUNDED sweep fails harder at 3k than the unbounded one (−8.8 vs −4.2),
+which is the opposite of what the age story predicts. So: **rate is the mediator; the age ceiling is
+second-order and its direction, as drawn, was backwards.** Corrected in the figure (v11). I had also
+written "ordering does help" off the 2k point; it reverses by 3k, so that line is gone too.
+
+**MECHANISM (hypothesis, not claimed).** Training signals are flat through every collapse — reward
+spread and degeneracy show nothing — while held-out retrieval dies. Structural reason: the train index
+is re-encoded by the drifting model, so train-time retrieval is healthy BY CONSTRUCTION, while eval
+encodes once with the final model and is the only place a contracted geometry shows. Every
+training-side metric is blind to it. Leading indicator they hold: query mean pairwise cosine falls
+monotonically on failing schedules and STOPS falling between 3k and 4k on the surviving one, exactly
+when degradation stops. A pre-registered falsification test is queued on their side; held as
+hypothesis until it lands.
+
+**GENUINE FINDING — filter × schedule interact.** The reward-variance filter does not add points, it
+PREVENTS the collapse: on the worst schedule +3.8 at 1k and +5.8 at 2k, converting −2.2 into +3.6,
+far above its +2.75 standalone. A filtered run tolerates a faster index than an unfiltered one. Ties
+to the parent's measurement that the gate keeps gold-bearing pools ~4x as often as gold-free ones,
+making gold-free pools the plausible drift driver.
+
+**PLACEMENT — "the full-corpus idea works" is true only against freezing, and this needs saying.**
+Best rolling arm at 4k = 0.580, against frozen parity 0.549, Rel-SFT ceiling 0.630, and their own
+NON-rolling RL arm 0.6435. So **+3.1 over freezing, −5.0 vs supervision, −6.3 vs their better arm.**
+It is still climbing where frozen parity has flattened, so the 5k point decides whether it closes.
+Carried to the user explicitly; the paper must not say "works" unqualified.

@@ -201,9 +201,12 @@ queries) and the *retrieval index* (what the policy searches).
 | RL − SFT | +0.96 | **+4.16** | +0.93 |
 
 RL still beats SFT on the same pool, and the answer-recall gap (+4.16) is the largest of the three.
-But v3-pure on the *diverse* pool scores acc 33.00 against 34.71 ± 0.19 on the InfoSeek-only pool —
-i.e. **diversity costs ~1.7 acc on an InfoSeek benchmark**, plausibly a train/test distribution
-mismatch rather than a failure of diversity. 1 seed; not claimed.
+But v3-pure on the *diverse* pool scores acc 33.00 against **34.71 ± 0.23** (3 seeds, SD; the
+earlier ± 0.19 was a rounding of the same spread) on the InfoSeek-only pool — i.e. **diversity costs
+~1.7 acc on an InfoSeek benchmark**, plausibly a train/test distribution mismatch rather than a
+failure of diversity. The diverse-pool leg is **1 seed**, so the −1.71 has no interval; it does clear
+the re-derived 1.02 acc floor, and it sits 7.4 SD below the InfoSeek-pool arm's own between-seed
+spread, which is suggestive but not a substitute for replicating it. Not claimed.
 
 **(a2) The other side of the comparison — does SFT degrade on multi-source data?**
 Same recipe, same diverse pool, same InfoSeek eval, matched checkpoints (1 seed per leg):

@@ -59,8 +59,14 @@ def archetype(q):
 
 
 def answer_form(r):
+    """Answer shape. The 'tolerance' class is the 21.9% of queries whose gold is a dict
+    {'wikidata': v, 'range': [lo, hi]} -- scored 0 by construction until rescore.py; keeping it as
+    its own slice is the only way to see whether a margin lives entirely inside the broken block."""
     a = r.get("answer_aliases") or r["answer"]
-    s = (a[0] if isinstance(a, list) and a else str(a)).strip()
+    first = a[0] if isinstance(a, list) and a else a
+    if isinstance(first, dict):
+        return "tolerance (dict gold)"
+    s = str(first).strip()
     multi = isinstance(a, list) and len(a) > 1
     if re.search(r"\d+(\.\d+)?\s*(-|–|to)\s*\d+", s):
         return "range"
@@ -81,6 +87,12 @@ def load_meta():
 
 
 def load_acc(name):
+    """Prefer the CORRECTED per-query accuracy from rescore.py; fall back to the raw file.
+    The raw one scores 21.9% of queries 0 by construction, so any slice that touches the
+    tolerance-gold block is meaningless on it."""
+    rp = os.path.join(R, f"{name}.vqa_rescored.json")
+    if os.path.exists(rp):
+        return {d["qid"]: d["acc"] for d in json.load(open(rp))["predictions"]}
     p = os.path.join(R, f"{name}.vqa_top5.json")
     if not os.path.exists(p):
         return None
@@ -99,20 +111,49 @@ def load_ret(name, k=5):
     return out
 
 
-def mcnemar(a, b, qids):
-    """Exact two-sided McNemar on the discordant pairs. a,b are qid->0/1."""
-    win = sum(1 for q in qids if a[q] > b[q])
-    lose = sum(1 for q in qids if a[q] < b[q])
-    n = win + lose
-    if n == 0:
-        return 0.0, 0, 0, 1.0
-    p = min(1.0, 2 * sum(math.comb(n, k) for k in range(0, min(win, lose) + 1)) / 2 ** n)
-    return (win - lose) / len(qids), win, lose, p
+def paired(a, b, qids):
+    """Paired test on per-query differences. Returns (mean_diff, half_CI95, p, wins, losses).
+
+    NOT McNemar. When arms are seed-AVERAGED the per-query score is fractional (0, 1/3, 2/3, 1) and
+    McNemar's binary-discordance model does not apply: counting only the DIRECTION of each
+    difference overstates the margin badly (on the headline slice it reported +3.93 where the true
+    level difference is +2.22). A paired t on the differences is valid for fractional and binary
+    scores alike, and its mean IS the level difference, so the test and the reported delta cannot
+    disagree. Sign counts are kept as a direction check only."""
+    d = [a[q] - b[q] for q in qids]
+    n = len(d)
+    if n < 2:
+        return 0.0, 0.0, 1.0, 0, 0
+    m = sum(d) / n
+    sd = math.sqrt(sum((x - m) ** 2 for x in d) / (n - 1))
+    se = sd / math.sqrt(n)
+    p = math.erfc(abs(m / se) / math.sqrt(2)) if se > 0 else 1.0
+    return m, 1.96 * se, p, sum(1 for x in d if x > 0), sum(1 for x in d if x < 0)
+
+
+def holm(pvals):
+    """Holm step-down adjusted p-values, same order as the input."""
+    m = len(pvals)
+    order = sorted(range(m), key=lambda i: pvals[i])
+    out = [1.0] * m
+    run = 0.0
+    for rank, i in enumerate(order):
+        run = min(1.0, max(run, (m - rank) * pvals[i]))
+        out[i] = run
+    return out
 
 
 def table(arms, meta, vs=None, metric="acc", min_n=40):
     load = load_acc if metric == "acc" else load_ret
-    data = {a: load(a) for a in arms}
+    def load_fam(spec):
+        ns = spec.split(",")
+        ds = [load(n) for n in ns]
+        ds = [d for d in ds if d]
+        if not ds:
+            return None
+        qs = set.intersection(*(set(d) for d in ds))
+        return {q: sum(d[q] for d in ds) / len(ds) for q in qs}
+    data = {a: load_fam(a) for a in arms}
     missing = [a for a, v in data.items() if v is None]
     data = {a: v for a, v in data.items() if v}
     if not data:
@@ -134,7 +175,7 @@ def table(arms, meta, vs=None, metric="acc", min_n=40):
                 cuts.append((f"{label}={v}", (lambda kk, vv: (lambda m: m[kk] == vv))(key, v)))
     hdr = f"  {'slice':30s} {'n':>5s}" + "".join(f"{a[:16]:>18s}" for a in data)
     if vs and ref:
-        hdr += f"{'delta':>8s}{'w/l':>9s}{'exact p':>10s}"
+        hdr += f"{'delta':>8s}{'+/-':>9s}{'paired p':>10s}"
     print(hdr)
     for label, sel in cuts:
         qs = [q for q in common if q in meta and sel(meta[q])]
@@ -146,7 +187,7 @@ def table(arms, meta, vs=None, metric="acc", min_n=40):
         if vs and ref:
             tgt = [a for a in data if a != vs]
             if tgt:
-                d, w, l, p = mcnemar(data[tgt[0]], ref, qs)
+                d, h, p, w, l = paired(data[tgt[0]], ref, qs)
                 star = "*" if p < 0.05 else " "
                 row += f"{100*d:+8.2f}{f'{w}/{l}':>9s}{p:10.4f}{star}"
         print(row)
@@ -154,7 +195,8 @@ def table(arms, meta, vs=None, metric="acc", min_n=40):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--arms", nargs="+", required=True)
+    ap.add_argument("--arms", nargs="+", required=True,
+                    help="an arm, or a comma-separated FAMILY of seeds averaged per query")
     ap.add_argument("--vs", default=None, help="baseline arm for the PAIRED McNemar column")
     ap.add_argument("--min_n", type=int, default=40, help="skip slices smaller than this")
     args = ap.parse_args()
@@ -163,10 +205,13 @@ def main():
     print(f"loaded metadata for {len(meta)} queries")
     for m in ("acc", "ret"):
         table(arms, meta, vs=args.vs, metric=m, min_n=args.min_n)
-    print("\n  * = exact two-sided McNemar p < 0.05 on the discordant pairs of that slice.")
-    print("  w/l = queries the first arm wins / loses against the baseline inside the slice.")
+    print("\n  * = paired-t p < 0.05 on the per-query differences of that slice (unadjusted).")
+    print("  Slice tests are MANY; apply Holm before believing any single slice. On the headline")
+    print("  comparison only split=val_unseen_entity survives Holm at 12 slices.")
     print("  Paired per-query tests on 1,500 queries, NOT a between-seed comparison; the two answer")
     print("  different questions and a seed-level claim still needs seeds.")
 
 
-main()
+
+if __name__ == "__main__":
+    main()

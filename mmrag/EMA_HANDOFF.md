@@ -298,6 +298,33 @@ pgrep -f "corpus_$NAME\.pt"         >/dev/null 2>&1 && return
 Symptom to look for: two processes with the same `--cache` target. Worse, the second launch's
 `rm -f` on that cache destroys what the first wrote.
 
+### 3d. GPU allocation is enforced by a venv hook, not by remembering
+
+Added 2026-09-12 on instruction that cards 0-3 are off limits. Those carry other people's jobs (a
+ray training job, another project's retrieval eval, a third party's vLLM engine). Cards 4-7 are ours,
+and within that 5 and 7 are this project's while 4 and 6 belong to the collaborating project.
+
+Every launcher (`run_cell.sh`, `run_eval.sh`, `run_q4filter.sh`) pins `CUDA_VISIBLE_DEVICES` from an
+explicit argument, so launched paths were already safe. The hazard is running a tool **directly** --
+`eval_vqa.py`, `mmeb_subset.py`, a quick probe -- where torch's default `cuda:0` is PHYSICAL card 0.
+Discipline had already failed twice on the adjacent problem (two cells placed on the collaborator's
+cards), so this is now a mechanism:
+
+`$MMRAG_DATA/venv/lib/python3.10/site-packages/mmrag_gpuguard.py`, loaded by
+`zz_mmrag_gpuguard.pth` for every interpreter in the venv.
+
+* `CUDA_VISIBLE_DEVICES` naming a disallowed card -> **`os._exit(97)`** at import.
+* `CUDA_VISIBLE_DEVICES` unset -> pinned to `""` (CPU-only) with a warning, so an unpinned GPU tool
+  fails with "no CUDA device" instead of quietly taking card 0. CPU tools are unaffected.
+* `MMRAG_GPU_ALLOW="5,7"` narrows it; `MMRAG_GPU_ALLOW=any` disables it.
+
+**A trap worth knowing: a `.pth` hook SWALLOWS exceptions.** Python prints "Remainder of file
+ignored" and the interpreter continues, so `raise` in a `.pth`-loaded module is not a refusal — the
+first version of this guard let `CUDA_VISIBLE_DEVICES=0` run to completion. `os._exit` is the only
+refusal a `.pth` can enforce. This is the same class of mistake as the memcap hook, where a venv
+`sitecustomize.py` was silently shadowed by `/usr/lib/python3.10/sitecustomize.py`: **verify a hook
+actually fires, with a test that would fail if it did not.** All five cases here were tested.
+
 ### 4. A number attributed to the other project is confirmed by that project before it enters prose
 
 Three misattributions crossed between the two projects on 2026-09-12, in both directions: a

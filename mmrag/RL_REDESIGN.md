@@ -3455,3 +3455,43 @@ My corpus is the same shape, so an **in-order** sweep here would hit the identic
 are immune by construction: the winning recipe does a FULL periodic re-encode (whole index at one
 writer state) and `fullcorp-rand*` draws uniformly at random (order-blind). Nothing on this side ran an
 in-order partial sweep, which is now a good thing rather than a gap.
+
+### 2026-09-12 17:00: MASK PRE-REGISTRATION CONFIRMED AT BOTH DEPTHS — and the divergence becomes callable
+`q4gate-s1` vs `mix2m-v3pure(-s1)`, one flag apart, corrected accuracy, floors 2.03 / 2.32 / 1.83:
+
+| depth | entR@5 | ansR@5 | acc |
+|---|---|---|---|
+| 3k (ck750) | +1.07 inside floor | **−3.49 callable** | **−3.17 callable** |
+| 6k (endpoint) | **+2.07 callable BETTER** | **−5.16 callable** | **−6.83 callable** |
+
+**The harm grows with training** (acc −3.17 → −6.83), which is what the mechanism predicts: the mask
+deletes ~26% of the live gradient every step, so the deficit compounds. Registered at 10:00 before any
+of these numbers existed; confirmed on the two metrics that matter at both depths.
+
+**And the metric divergence is now callable in BOTH directions at 6k**: entity recall +2.07 *better*
+while answer recall is −5.16 and accuracy −6.83 *worse*. So the mask genuinely trains the retriever to
+surface passages that mention the right entity but do not contain the answer. A single-metric report
+of "entity recall improved, callable" would be true, defensible against the noise floor, and
+completely wrong about the arm. This is the strongest instance in the campaign of why the metric must
+be named, and it is now a two-sided callable effect rather than a suggestive one.
+
+### 2026-09-12 17:00: THE Q2 PLATEAU SURVIVES THE METRIC CORRECTION — no re-analysis needed
+The corrected metric lifts every accuracy number ~8.5 points, so the plateau had to be re-tested
+rather than assumed. Least-squares trend across each series, on both metrics:
+
+| series | ORIGINAL trend | CORRECTED trend | verdict |
+|---|---|---|---|
+| pool size 12k→810k | −0.060 ± 0.993 | +0.020 ± 1.616 | flat, both |
+| query draws 2k→12k, 25k pool | −0.053 ± 0.658 | +0.040 ± 0.901 | flat, both |
+| query draws 2k→12k, 810k pool | −0.200 ± 0.635 | −0.080 ± 0.294 | flat, both |
+
+**All three span zero on both metrics, so Q2's answer is unchanged: accuracy plateaus.** The metric
+fix moves levels, not slopes.
+
+**A local observation that does NOT generalise, recorded so it is not mistaken for a reversal.** The
+`mix2m-v3pure` pair rises from 3k to 6k on corrected accuracy (+1.07 seed 0, +1.87 seed 1) while its
+entity recall falls (−2.20, −1.40). That is two seeds at one checkpoint pair, the mean rise (+1.47) is
+below the 1.83 acc floor, and the three proper series above are flat. I briefly read it as overturning
+the plateau; it does not. What it does show is the same accuracy-versus-retrieval decoupling the mask
+result shows, which is now the recurring shape on this project: the two move independently often
+enough that no single one of them summarises an arm.

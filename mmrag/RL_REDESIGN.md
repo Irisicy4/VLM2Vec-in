@@ -3330,3 +3330,42 @@ catch: a report of "entity recall improved" would have been true and badly misle
 **Consequence for Q4.** The online mask is settled as harmful. The offline pool filter — the
 intervention Q4 actually asked for — is a different thing and is under test in `q4pool-filt` vs
 `q4pool-rand`. The paper must not carry the mask result as evidence about the filter.
+
+### 2026-09-12: PRE-REGISTERED PREDICTION CONFIRMED — the online mask is measurably harmful
+Registered at 10:00, before the eval existed: *the online mask scores at or below its matched control
+on all three metrics*, on the analytical ground that masking a zero-advantage group is a no-op, so its
+only net effect is deleting ~25% of the live gradient.
+
+`q4gate-s1-ck750` vs `mix2m-v3pure(-s1)-ck750`, one flag apart, matched checkpoint:
+
+| metric | control | masked | delta | verdict |
+|---|---|---|---|---|
+| entR@1 | 58.87 ± 0.38 | 57.17 | −1.70 | below |
+| entR@5 | 78.47 ± 0.05 | 79.53 | **+1.07** | **prediction VIOLATED**, but inside the 2.03 floor |
+| entR@10 | 84.20 ± 0.05 | 85.10 | +0.90 | above, not callable |
+| ansR@5 | 65.65 ± 0.55 | 62.16 | **−3.49** | **below, CALLABLE** (floor 2.32) |
+| acc | 34.40 ± 0.28 | 32.40 | **−2.00** | **below, CALLABLE** (floor 1.02) |
+
+**Confirmed on both metrics where anything is callable; the single violation is not callable.**
+Written up as a **negative result on an intervention we built**, with the registration timestamp —
+a pre-registered negative is worth more in a paper than a post-hoc account of the same numbers.
+
+**SEED HONESTY.** The masked arm is **1 seed → recorded, not claimed.** It is more informative than a
+usual 1-seed reading *only* because the control's between-seed spread is unusually tight (0.05 on
+entR@5, 0.28 on acc), which pins the baseline. The caption says exactly that rather than implying two.
+
+**THE DIVERGENCE — best illustration in the campaign of the metric-naming house rule.**
+Entity recall **UP** (+1.07 @5, +0.90 @10) while answer recall **DOWN 3.49** and accuracy **DOWN 2.00**,
+on the same arm. The mask shifts retrieval toward passages that mention the right entity but **do not
+contain the answer**. A report saying "entity recall improved" would have been **literally true and
+badly misleading** about an arm that degrades both answers and answer-bearing retrieval. This is now
+the worked example in the paper for why every claim names its metric — a real case from our own data,
+not a hypothetical.
+
+**BOUNDARY, stated because we conflated these for hours:** this settles the **online mask** only. The
+**offline pool filter** — the intervention Q4 actually argues for, validated on text at +2.75 — is
+under test in a filtered-vs-size-matched-random pair and has **no multimodal result yet**. Nothing
+here transfers to it.
+
+**Most consequential open cell on this side:** `frozen-idx` (the `--refresh_steps 0` control of our own
+headline recipe) at 34 steps and running.

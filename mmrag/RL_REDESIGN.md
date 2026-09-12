@@ -2720,3 +2720,35 @@ filtered POOL simply ties less. It therefore says nothing about why the filter r
 schedule, and the gold-pool-quality mechanism stays untested. Note my own evidence for that mechanism
 (keep|gold 0.49 vs keep|no-gold 0.12) comes from the online mask, which is now the wrong instrument
 for a claim about their offline result.
+
+### 2026-09-12 07:45: DEGENERACY IS INDEPENDENT WITHIN A BATCH — full-distribution test, both modalities
+At batch 4 the logged `reward/group_degenerate_frac` takes only 5 values, so that column IS the
+distribution of how many of the 4 queries tied. Goodness-of-fit against Binomial(4, p̄) over all five
+bins uses every step instead of two tails:
+
+| cell | n steps | mean degeneracy | chi-square (4 dof, crit 9.49) |
+|---|---|---|---|
+| idx10k-full | 1200 | 0.606 | **0.43** |
+| q4gate-s1 (online mask) | 847 | 0.686 | **1.80** |
+| mix2m-v3pure-s1 | 1397 | 0.591 | **1.05** |
+| fullcorp-rand10p50 | 441 | 0.607 | **1.59** |
+
+All fit; largest single-bin discrepancy anywhere is 1.2. h200-rag's cells agree (unfiltered 2.4% vs
+2.7% fully-degenerate; offline-filtered 0.6% vs 0.6%). **So the wasted gradient is spread evenly, not
+clumped into dead batches, on both modalities and on every schedule tested.** Consequence: a
+batch-level skip heuristic cannot recover much — there are few all-dead batches to skip (13% here) and
+the loss is distributed within batches, so the lever has to act per query, not per step.
+
+**Methodological note sent to h200-rag:** they computed expected counts by applying the POOLED mean to
+the pooled step count. Pooling cells with different p̄ biases that prediction — by Jensen, E[p⁴] ≥ p̄⁴
+and E[(1−p)⁴] ≥ (1−p̄)⁴, so a pooled-mean prediction UNDERSTATES both tails. Fix: compute the
+expectation per cell with that cell's own p̄, then sum expectations. Their one non-matching figure
+(unfiltered tie-free 9.6% observed vs 12.5% predicted, ~2 SE low) gets *worse* under the corrected
+expectation, so it is worth a second look as possible mild positive dependence in the all-live tail —
+invisible to the all-dead tail both of us checked first.
+
+**Flagged, not claimed:** the online-mask cell has the HIGHEST mean degeneracy of the four (0.686 vs
+0.591 on the same pool), i.e. the mask does not reduce tying and may raise it — the opposite of the
+offline pool filter (0.28). Consistent with the mask leaving the pool untouched while cutting the
+effective batch to 0.40x, so the model learns more slowly and lingers in a high-tie regime. One seed a
+side, mid-run. If it holds, the mask is the worse intervention on mechanism as well as on compute.

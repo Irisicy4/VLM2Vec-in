@@ -69,10 +69,74 @@ so the action space the policy samples from moves with the policy.
 > encoded with the EMA weights while queries stay live.
 >
 > *What has never been measured:* `--refresh_steps 0`, i.e. the same recipe with the index frozen
-> at its init embeddings. That is the control that would price the dynamism itself. That is the dynamism carried by
+> at its init embeddings. That is the control that would price the dynamism itself. **Launched
+> 2026-09-12 as `frozen-idx`** after the text-side 2x2 showed a trained query tower reading a
+> *frozen* index beating both the untrained base and a self-consistent live index. Until it lands,
+> this document must not call the periodic refresh load-bearing: it is *part of* the winning recipe,
+> which is not the same claim. That is the dynamism carried by
 every RL row below, and it is part of the recipe that beats SFT. The EMA variants (index-EMA,
 model-EMA) are *different* dynamic schedules layered on top; none of them has yet added anything
 measurable — see "dynamic-schedule variants" below.
+
+### The accuracy metric was broken for 21.9% of the benchmark — corrected 2026-09-12
+
+**The defect.** 15,414 of 71,335 InfoSeek queries (21.6%; 329 of the 1,500-query eval sample, 21.9%)
+carry a numeric gold with an explicit tolerance, stored as a dict:
+`{'wikidata': 176.0, 'range': [158.4, 193.6]}`. `answer_correct` does `_normalize(str(g))`, so the
+gold becomes the literal text `"{'wikidata': 176.0, 'range': ...}"` and is then searched for as a
+token sequence inside the reader's answer. **No answer can ever match.** A worked case from
+`v3-pure`:
+
+| gold | prediction | scored |
+|---|---|---|
+| `{'wikidata': 176.0, 'range': [158.4, 193.6]}` | `"176 metres"` | **0.0** |
+
+**Proof it is total, not partial:** across all 217 evals on disk, the number of dict-gold queries the
+original grader scored correct is **exactly 0**.
+
+**The fix needs no compute.** Every `*.vqa_top5.json` stores per-question predictions — a deliberate
+choice recorded in `eval_vqa.py` ("so metric fixes can rescore without regeneration").
+`mmrag/rescore.py` re-scores every eval: string golds keep cover-EM unchanged, dict golds are graded
+numerically against the tolerance range. Two variants are reported because the choice is a judgement
+call: **any** (accept if any number in the prediction is in range) and **first** (only the first
+number). Neither can lower a score, so every arm moves up together.
+
+### MAIN RESULT — corrected metric
+
+| arm | ORIGINAL acc (broken) | **CORRECTED acc (any)** | corrected (first) | seeds |
+|---|---|---|---|---|
+| frozen base | 30.80 | **38.40** | 38.07 | 1 |
+| relevance-SFT | 32.84 ± 0.91 | **41.22 ± 1.47** | 40.71 ± 1.40 | 3 |
+| **v3-pure — no-gold RL** | 34.71 ± 0.23 | **43.44 ± 0.34** | 43.04 ± 0.30 | 3 |
+| v2 — + contrastive anchor | 33.60 ± 0.70 | **41.42 ± 1.36** | 40.87 ± 1.35 | 4 |
+
+**v3-pure − relevance-SFT on the corrected metric: +2.22 accuracy.** The full test battery, because
+the criteria disagree and the disagreement is the finding:
+
+| test | result | verdict |
+|---|---|---|
+| **paired per-query McNemar, seed-averaged** (1,500 identical queries) | +2.22, win/lose **200/141**, exact p **1.65e-03** | **significant** |
+| paired McNemar, all 9 seed x seed pairings | 6 of 9 significant; the 3 nulls are all against SFT's *best* seed (42.73) | mostly significant |
+| complete rank separation | min v3 43.07 > max SFT 42.73 | **holds, by 0.34** |
+| vs re-derived acc floor (1.83) | +2.22 > 1.83 | **clears** |
+| between-seed Student CI (dof=4) | [−0.19, +4.64] | **spans zero** |
+
+**So the margin is established by the paired per-query test and by rank separation, and is NOT
+established by the between-seed t-test.** The limiting factor is relevance-SFT's own seed spread,
+39.80 to 42.73, which is 2.93 points wide — wider than the margin being measured.
+
+**The variance explanation, which matters more than the levels.** The accuracy noise floor doubles on
+the corrected metric: pooled between-seed SD 0.511 → **0.914**, so the 2-SD floor goes 1.02 → **1.83**.
+The reason is mechanical: 329 queries scored 0 for *every arm and every seed* under the broken grader,
+and a constant block contributes zero variance. It was deflating every between-seed SD in this
+document. **The previous headline's "+1.86 = 3.5 SE" was therefore partly an artefact of a metric that
+held 22% of the benchmark fixed at zero.** The corrected margin is larger (+2.22) and less certain at
+the seed level, which is the honest position.
+
+**What does NOT change.** The ordering (v3-pure > v2 ≈ SFT > base) is identical on both metrics and on
+both grader variants. The `first` variant moves every number down ~0.4 and changes no verdict, so the
+lenient/strict choice is not load-bearing. Every retrieval number in this document is untouched — the
+defect is in the reader metric only.
 
 GME-Qwen2-VL-2B, InfoSeek, 500 steps (~2k query draws).
 

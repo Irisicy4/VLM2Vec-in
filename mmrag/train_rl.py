@@ -528,12 +528,26 @@ def main():
                     # that keeps gold-free pools at the same rate as gold-bearing ones is measuring
                     # the latter. Same diagnostic the non-plgrpo branch records.
                     _g = torch.tensor(gold_in_pool, dtype=torch.float32, device=R.device)
+                    # Is the drop FREE or does it cost signal? A dropped query that was already
+                    # degenerate (all G lists tie -> z-scored advantage exactly 0) contributed no
+                    # gradient anyway, so dropping it costs nothing. The per-step AGGREGATES cannot
+                    # answer this: with keep 0.41 and degeneracy 0.60 the Frechet bounds on the
+                    # overlap run [32%, 100%] of the drop, and a step-level correlation between the
+                    # two rates is an ecological inference, not the query-level join. So log the
+                    # join itself. _live = this query's group had reward variance.
+                    _live = (grp_std > 0).float()
+                    _n_live, _n_dead = _live.sum(), (1 - _live).sum()
                     extra_metrics.update({
                         "gate/noctx_keep_given_gold":
                             (keep * _g).sum().item() / max(_g.sum().item(), 1e-9),
                         "gate/noctx_keep_given_no_gold":
                             (keep * (1 - _g)).sum().item() / max((1 - _g).sum().item(), 1e-9),
-                        "gate/noctx_r_no_mean": r_no.mean().item()})
+                        "gate/noctx_r_no_mean": r_no.mean().item(),
+                        # the two that settle the cost question
+                        "gate/drop_and_dead": ((1 - keep) * (1 - _live)).mean().item(),
+                        "gate/drop_and_live": ((1 - keep) * _live).mean().item(),
+                        "gate/keep_given_live": (keep * _live).sum().item() / max(_n_live.item(), 1e-9),
+                        "gate/keep_given_dead": (keep * (1 - _live)).sum().item() / max(_n_dead.item(), 1e-9)})
             elif args.reward == "ragacc":
                 # downstream RAG accuracy as the reward: sample a k-slate per query from the
                 # current policy, reader answers over the JOINT slate context; the scalar reward

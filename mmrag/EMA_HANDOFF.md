@@ -261,6 +261,23 @@ opposite: contraction drives that statistic toward 1.0. One glance at the base v
 frozen runs falling to 0.16–0.18) would have caught it. Both projects made this error on the same
 trace, in the same direction, on the same day.
 
+### 3b. Before offering an INSTRUMENT to anyone, check its dynamic range on data where the answer is known
+
+Added 2026-09-12 after the day's sixth retraction, and the second one propagated to a colleague as
+advice. `loss` and `loss/policy` were offered as a starvation diagnostic ("a policy-gradient term
+pinned at exactly zero"). They are **float noise**: over 1,200 steps, mean −1.67e-10 and max |.|
+1.49e-08. The cause is structural and applies to every plgrpo cell in this project — with
+`inner_epochs 1` the ratio is exactly 1 and advantages are z-scored within each group, so they sum to
+zero per group and the batch mean is ~0 whether or not anything is degenerate. The gradient is fine;
+only the reported number vanishes.
+
+**So the `loss` columns are uninformative for every plgrpo run on disk. Reading those curves is
+reading noise.**
+
+A single `max(abs(column))` would have caught it before it was sent. A diagnostic is more dangerous
+than a bad margin or a bad mechanism, because the recipient wires it into monitoring and it then
+silently reports nothing.
+
 ### 4. A number attributed to the other project is confirmed by that project before it enters prose
 
 Three misattributions crossed between the two projects on 2026-09-12, in both directions: a

@@ -2642,12 +2642,39 @@ q4gate-s1 no step in 120 s. q4gate-s1 averaged **15.7 s/step over its first 800 
 is ~4x slower now: six trainers plus eval encodes over four cards, with an unrelated job holding
 87 GiB on card 7.
 
-**Real finding 2 — `idx10k-full` is in TERMINAL reward starvation.** Steps 1150 and 1175 log
-`loss=0.0000 pg=0.0000 nce=0.0000`. With `contrastive_coef 0`, an exactly zero total loss means every
-group is degenerate and the policy gradient is identically zero: the degeneracy fraction has reached
-**1.0**, not the 0.5–0.68 we have been quantifying. It has been burning a card while learning nothing.
-A policy-gradient term pinned at exactly 0 for hundreds of steps is a stronger and cheaper starvation
-signal than the degeneracy fraction, and worth watching for directly.
+**"Real finding 2" — RETRACTED WITHIN THE HOUR, AND IT WAS PROPAGATED TO A COLLEAGUE FIRST.**
+I claimed `idx10k-full` was in terminal reward starvation because steps 1150 and 1175 logged
+`loss=0.0000 pg=0.0000 nce=0.0000`, inferred a degeneracy fraction of 1.0, and told h200-rag this was
+a stronger, cheaper starvation signal than the degeneracy fraction. **It is not a weak signal, it is
+no signal.**
+
+Measured over all 1,200 steps: `loss/policy` has mean **−1.67e-10** and max |.| **1.49e-08**. It is
+float noise around zero at EVERY step, not only the ones printing 0.0000; the 54.7% reading "exactly
+zero" is just where the floating-point sum lands on 0.0 instead of 1e-10.
+
+**The cause is structural and applies to every plgrpo run in this project.** With `inner_epochs 1` the
+PPO ratio is exactly 1 by construction, and advantages are z-scored WITHIN each group, so they sum to
+zero per group and the batch mean is ~0 regardless of degeneracy. The *gradient* is unaffected — it is
+Σ A·∇log p, which does not vanish. Only the reported loss does. **Consequence: the `loss` and
+`loss/policy` columns are uninformative for every plgrpo cell on disk. Anyone reading those curves is
+reading noise.** That is worth knowing on its own.
+
+The cell is not starved: degeneracy averages 0.606 and is FLAT across quarters (0.578 / 0.609 / 0.630
+/ 0.607), and the last logged step had a nonzero loss. h200-rag's data had already contradicted me
+(no cell pinned at zero, worst 4 of 60 steps) and I read that as a site difference instead of as the
+answer. `idx10k-full` is NOT being killed; the reason for wanting to was this retracted claim.
+
+**One real number from the check:** fully-degenerate batches (frac == 1.0) occur on **13.2%** of steps,
+against 0.606⁴ = 13.5% predicted by independence. So degeneracy is essentially **independent across
+queries within a batch** — the waste is spread, not clumped. I was about to speculate it clumped.
+
+**Running total for 2026-09-12: six of my claims retracted, two of them after being sent to a
+colleague as advice.** Every one is the same shape — a quantity read off two samples or one framing,
+asserted before its arithmetic or its structural origin was checked. The handoff rules cover margins
+and mechanisms; they did not cover *diagnostics*, and a diagnostic is the most dangerous of the three
+because a colleague wires it into monitoring. Added rule: **before offering an instrument to anyone,
+check its dynamic range on data where the answer is already known.** One `max(abs(...))` over the
+existing column would have caught this in a single line.
 
 **Card-split violation, fixed.** Two of my cells were on h200-rag's cards (agreement: 5+7 mine, 4+6
 theirs). `fullcorp-rand10` on card 6 is **killed** — wrapper first so its retry loop could not

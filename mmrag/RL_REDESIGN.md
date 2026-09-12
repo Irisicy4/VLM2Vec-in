@@ -3410,3 +3410,38 @@ mixed-age-incoherence account).
 **Mechanism cells STOPPED to fund the mixes** (Sweep2000, Sweep125, Sweep1000 s1, Sweep1000+filter), so
 **the ~250-step timing rule and the anchor question get no further points from that side.** Anything
 this project wants on those axes must come from here or stay open.
+
+### 2026-09-12 14:20: "37% OFF-DOMAIN" IS THE EVAL CORPUS, NOT THE TRAINING INDEX — Q1's premise corrected
+`build_rl_corpus` keeps **all passages of N randomly drawn distractor URLs**. BEIR documents are one
+passage per URL; Wikipedia articles are many. Computed exactly, replicating the seed-0 draw with
+`n_distractor_articles 42484` on `corpus_mix2M`:
+
+| | wiki | BEIR | BEIR share |
+|---|---|---|---|
+| URL population to draw from | 825,040 | 740,456 | 47.3% |
+| URLs actually kept | 27,734 | 20,060 | 42.0% |
+| **PASSAGES in the RL index** | **164,600** | **20,060** | **10.9%** |
+| passages per URL | 5.93 | 1.00 | |
+| corpus_mix2M itself | | | 37.0% |
+
+**So every "multi-source" cell trained on an index that is 89% Wikipedia by passage.** The 37% figure
+describes the file, and the file is the EVAL corpus; the policy never retrieved from a 37%-off-domain
+index. Q1 ("does RL work better on multi-source data") has been answered against a 10.9% treatment
+while being described as a 37% one. Any future off-domain dose-response must vary the share **in the
+index**, which means drawing distractors by passage count rather than by URL, or capping
+passages-per-URL.
+
+**And the off-domain rows were only ever DISTRACTORS.** No BEIR query was trained on and none is in
+the eval; BEIR documents appear solely as candidates that can never be correct. h200-rag reports the
+same structure on their 1M corpus and has reworded their OOD table to "unseen queries over documents
+that were candidates during training". Adopting that wording here: our "multi-source" axis is
+multi-source *distractors*, not multi-source *tasks*.
+
+**Gold-block structure: mine has it too.** 134,901 gold-entity passages, **99% inside the first decile
+of the file** (min row 0, median 67,450). h200-rag found their first block is literally every gold
+document, and traced every one of their rolling collapses to the round-robin cursor rewriting the whole
+gold block under a single writer state once per pass — which lines up with all four of their schedules.
+My corpus is the same shape, so an **in-order** sweep here would hit the identical artefact. My arms
+are immune by construction: the winning recipe does a FULL periodic re-encode (whole index at one
+writer state) and `fullcorp-rand*` draws uniformly at random (order-blind). Nothing on this side ran an
+in-order partial sweep, which is now a good thing rather than a gap.

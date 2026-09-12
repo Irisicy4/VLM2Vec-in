@@ -381,7 +381,7 @@ Source diversity in the pool neither helps nor hurts at matched draws.
 | eval index | entR@5 | ansR@5 | acc |
 |---|---|---|---|
 | corpus_small — 422k passages, 0% off-domain | 75.83 | 64.82 | 34.20 |
-| corpus_mix2M — 2M passages, 37% off-domain | 69.83 | 57.88 | 32.40 |
+| corpus_mix2M — 2M passages, 37% off-domain **in the file; the RL index is only 10.9% off-domain by passage — see the 14:20 ledger entry** | 69.83 | 57.88 | 32.40 |
 | delta | **−6.00** | **−6.94** | −1.80 |
 
 **CONFOUND BROKEN — by running the base on the same index.** The zero-shot base was then scored on

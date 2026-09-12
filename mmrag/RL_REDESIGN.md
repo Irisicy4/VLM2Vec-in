@@ -3076,3 +3076,51 @@ work left. **Anyone reusing orchestrate.sh must add the per-cell check first.**
 Lesson for the handoff: *a "has it finished?" test is not a "is it running?" test.* Any watcher that
 polls for an output artefact needs a separate in-flight check, because the artefact's absence is true
 for the entire duration of the work.
+
+### 2026-09-12: Q4 taxonomy measured on the TRAINING stream — and MM training is much harder than text
+The Q4 section had been sizing a *training-time* filter with *eval-set* numbers. Wrong population.
+Parent measured the MM training stream directly (20,000 rows, gold-context and no-context reader
+passes). Verified here against the eval-set column:
+
+| class | MM train (n=20k) | MM eval (n=1.5k) | diff | verdict |
+|---|---|---|---|---|
+| usable | 33.9% | 32.3% | +1.6 | 1.28 SE — **no difference** |
+| saturated | 11.1% | 18.1% | −7.0 | 6.87 SE — differs |
+| hopeless | 52.8% | 48.5% | +4.3 | 3.21 SE — differs |
+| harms | 2.1% | 1.1% | +1.0 | 3.48 SE — differs |
+
+**Training is HARDER than eval on multimodal**: more hopeless, far fewer already-answerable. So any
+claim about what a filter keeps or discards in training must use 33.9 / 52.8, not 32.3 / 48.5. Eval
+numbers stay only where the claim is about the achievable ceiling.
+
+**THE HEADLINE NUMBER, and it is now population-matched (train vs train).**
+**Hopeless: 52.8% multimodal vs 39.2% text — +13.6 points at 33.5 SE.** Over half of MM training
+queries cannot be answered even with the gold passage in hand. This is the best single explanation on
+record for why reward starvation is worse here than on text, and unlike the earlier comparison it is
+NOT confounded by reading one side's training stream against the other's eval set. It also bounds the
+MM ceiling from the reward side: a majority of training rows can only ever return a uniform all-wrong
+group, whatever the retriever does. (Also: usable 33.9 vs 36.9 = 7.7 SE; saturated 11.1 vs 21.4 =
+37.0 SE. Every class differs; the hopeless gap is the one that matters.)
+
+**THE TWO FILTER INTERVENTIONS ARE NOT THE SAME THING** and the paper now separates them:
+- **offline pool filter** — screens rows before training using the gold passage, policy-independent,
+  the lever validated on text (+2.75 R@5, 4 seeds). MM test running with a size-matched random control.
+- **online mask** (`--reward_gate_noctx`) — gates during training on the policy's own best candidate.
+
+**PRE-REGISTERED, before any result exists, and it rests on an IDENTITY not on evidence:**
+**a degenerate group's standardised advantage is exactly zero, so masking it is a no-op.** Measured:
+the mask's discard is **86% inert** — of the 57% of queries it drops, 86% were already degenerate. It
+*does* select for signal (keeps 75% of live groups vs 16% of dead ones), but removing zero-gradient
+rows cannot change a gradient, while the **quarter of LIVE rows it also drops is a real loss**.
+**Registered: the masked arms score at or below their matched control on all three metrics.**
+Disconfirming branch: if a masked arm wins, the live queries it discarded were carrying actively
+harmful gradient — the only route by which this can help, and there is no independent evidence for it.
+
+**REPRODUCIBILITY APPENDIX ADDED** (app:repro) for three traps that each cost real experiments:
+1. **Watchers relaunch slow evaluations.** They test whether the output file exists; it does not exist
+   until the work finishes, so any eval slower than one watcher cycle relaunches every cycle. A
+   total-concurrency guard does NOT catch it (two duplicates of one job satisfy it). Duplicated two
+   evals today and starved the pre-registered test behind them. Fix: in-flight check **per cell**.
+2. `range(max_steps)` checkpoint numbering — final adapter lands in the run root, not a checkpoint dir.
+3. A refresh boundary is indistinguishable from a stall by elapsed time alone. Four false alarms in
+   one day, zero real failures. Require a utilisation figure before believing a stall report.

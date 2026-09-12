@@ -2246,3 +2246,48 @@ must be stated as a hypothesis, because a monotone curve with no inflection is m
 **Text-side replication is weak, not supporting:** appears at 4B at ~1/4 magnitude, flat at every
 depth at 8B, and their 4B opens at +0.8 at rank 1 rather than showing the rank-1 null. So it does not
 reproduce the feature the argument rests on.
+
+### 2026-09-12 (paper fork, cont. 3): REWRITE RATE orders every index-refresh cell in both projects
+h200-rag's rolling-1M program through 4k queries. Their schedule names are **steps per full cycle**,
+so rewrite rate = C/name rows per step. Normalised as corpus fraction per optimizer step, all seven
+cells either project has run fall into one order:
+
+| rate | form | side | outcome |
+|---|---|---|---|
+| 0.10%/step | in-order (Sweep1000) | text | **holds** through 4k, +3.1 vs frozen parity |
+| 0.10%/step | random (fullcorp-rand10) | MM | **holds**, −1.40 vs control, inside floor |
+| 0.20%/step | in-order (Sweep500) | text | +4.0 at 2k then **COLLAPSES** −8.8 at 3k |
+| 0.20%/step | random (Rand500) | text | declines from 2k: +1.0 / −1.8 / −4.2 |
+| 0.40%/step | either (Sweep250 / Rand250) | text | collapses by 2k |
+
+**TWO CONSEQUENCES, both of which weaken claims this project has been making.**
+
+1. **"Random fails, in-order works" was confounded with rate.** Their Rand500 is 0.20%/step; my
+   random arm is 0.10%. Matched on rate the verdicts agree, and the cross-project "disagreement" I
+   recorded as open is dissolved. Their data DOES separate form from rate at 0.20% (Sweep500 is 5.8
+   above Rand500 at 2k) so ordering genuinely helps — but both are gone by 3k. **Rate decides
+   survival; form is second-order and visible only while the run is still alive.**
+2. **The age-ceiling story is demoted from cause to contributor.** The in-order sweep has a bounded
+   worst-case age at EVERY rate and still collapses at 0.20% and 0.40%. Bounded age is necessary and
+   demonstrably not sufficient. The quantity that must stay small is how fast the index moves under
+   the policy, not only how stale its oldest row may get. The figure's update-rule table gained a
+   rate column (k/C per step) so any scheme can be placed on the axis.
+
+**Caveat carried in the figure:** 1 seed past 2k on every text schedule, 1 seed on my arm. Seven
+cells ordering consistently across two projects is worth stating; no pair clears a seed interval.
+Written as the shape to design against, not a measured threshold.
+
+**Their diagnostic finding, the most actionable thing here:** training-side reward std and degeneracy
+stay FLAT through every collapse; only held-out retrieval and query pairwise cosine move
+(Sweep1000 0.154→0.113→0.082→0.087; Sweep500 0.138→0.094→0.068 into its collapse). **An index
+collapse is invisible from the training signals.** Anyone running this needs a held-out retrieval
+probe; the loss will not tell them.
+
+**Open, suggested to them:** Sweep1000 at 0.20% via halving the corpus rather than doubling rows,
+to separate rate from absolute row count — my 422k arm cannot do that against their 1M. Also their
+Sweep250Filt (0.528 / 0.530 at 1k, 2 seeds) sits well above Sweep250 (0.490), i.e. the reward-variance
+filter appears to rescue a schedule that is otherwise too fast. If that holds at 2k it means data
+quality buys back index-refresh headroom, which would be more interesting than the filter's headline.
+
+**Scope note:** the paper was cut to v3-pure only at the user's instruction, so this rolling material
+lives in the shared figure and this ledger, not in the paper.

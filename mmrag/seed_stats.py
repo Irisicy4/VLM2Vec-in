@@ -20,7 +20,9 @@ import json, os, math
 
 R = os.environ.get("MMRAG_DATA", "/raid/icy/mmrag_data") + "/results"
 TCRIT = {1: 12.706, 2: 4.303, 3: 3.182, 4: 2.776, 5: 2.571, 6: 2.447, 7: 2.365, 8: 2.306}
-MET = ("entR@5", "ansR@5", "acc")
+MET = ("entR@1", "entR@5", "entR@10", "entR@20", "ansR@5", "acc")
+# Depth matters: the v2-vs-SFT margin is callable at 5/10/20 and NOT at 1, which is the
+# signature of a list-sampling action optimising a slate rather than an argmax.
 
 # eval set -> family -> (per-seed stems, estimator note)
 FAM = {
@@ -45,14 +47,17 @@ FAM = {
 
 CONTRASTS = [("InfoSeek", "v3-pure (headline)", "relevance-SFT, per-seed best ck"),
              ("InfoSeek", "v3-pure (headline)", "base (frozen, zero-shot)"),
-             ("InfoSeek", "v2 +anchor", "relevance-SFT, per-seed best ck")]
+             ("InfoSeek", "v2 +anchor", "relevance-SFT, per-seed best ck"),
+             ("InfoSeek", "v3-pure (headline)", "v2 +anchor")]
 
 def read(stem):
     rp, vp = f"{R}/{stem}.retrieval.metrics.json", f"{R}/{stem}.vqa_top5.json"
     if not os.path.exists(rp):
         return None
     r = json.load(open(rp))
-    o = {"entR@5": r["entity_recall"]["5"]*100, "ansR@5": r["answer_recall"]["5"]*100, "acc": None}
+    o = {f"entR@{d}": r["entity_recall"][d]*100 for d in ("1", "5", "10", "20")}
+    o["ansR@5"] = r["answer_recall"]["5"]*100
+    o["acc"] = None
     if os.path.exists(vp):
         o["acc"] = json.load(open(vp))["acc"]*100
     return o

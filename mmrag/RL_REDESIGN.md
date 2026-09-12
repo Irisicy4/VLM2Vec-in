@@ -2752,3 +2752,36 @@ invisible to the all-dead tail both of us checked first.
 offline pool filter (0.28). Consistent with the mask leaving the pool untouched while cutting the
 effective batch to 0.40x, so the model learns more slowly and lingers in a high-tie regime. One seed a
 side, mid-run. If it holds, the mask is the worse intervention on mechanism as well as on compute.
+
+### 2026-09-12 07:50: THE REFRESH COSTS HALF THE WALL CLOCK — the affordability claim, measured
+Nine consecutive full re-encodes on `q4gate-s1` (card shared with one other job), index 185,839
+passages: **816–845 s, mean 825 s = 225 passages/s.** Stable enough to quote as a rate.
+
+| index | one full refresh | 15 refreshes (refresh_steps 100, max_steps 1500) |
+|---|---|---|
+| 186k | 0.23 h | **3.4 h** |
+| 422k | 0.52 h | 7.8 h |
+| 2M | 2.47 h | **37.0 h** |
+
+Observed on the cell itself: 900 steps in 4.08 h wall clock, of which 9 refreshes = 2.06 h →
+**51% of wall clock is index re-encoding, not training.** The winning recipe spends half its budget
+keeping the index current, at a modest 186k index. Linear in index size (one pass, no reuse), so at
+2M the training is ~2 h and the refreshing ~37 h, i.e. ~95% of the run.
+
+**This converts the figure's asserted "often simply unaffordable" into a measurement, and it points
+the same way as the scheduling result.** "Among covering schedules, slower and staler is better" now
+has a cost dimension agreeing with it: the schedules that work are the cheap ones and the expensive
+ones both cost more AND collapse sooner. Cost and quality usually trade in systems work; here they do
+not, which is worth stating explicitly.
+
+**How to quote it:** the RATIO (half the wall clock) is internal to one run and defensible. The
+ABSOLUTE rate is one site, one card generation, under contention that varied all day — a second cell
+on a busier card took 2,727–3,350 s for the same operation, 3–4x slower. Quote the ratio, not the rate.
+
+**Correction to my own earlier report:** `q4gate-s0` was never stuck. Its log shows the cold initial
+encode took **3,350 s**, and the watcher threshold I chose was 40 min — shorter than the operation. It
+began stepping at 07:47 and the join metric is accumulating. Also, the "card5 137 GiB free" in that
+watcher's output was a sampling artefact: it fired at the instant the encode released its buffer;
+card 5 read 2 GiB free a minute later. **Four infrastructure false alarms today against zero real
+failures** — a "stalled" report is not credible from me without a per-process SM-utilisation figure
+(`nvidia-smi pmon -s u`), which settles it in seconds and is what I should have reached for first.

@@ -3255,3 +3255,43 @@ run, **14–34% overhead, CHEAPER than the 51% our surviving carve-out recipe al
 rolling family was **mis-scheduled** and the recipe is "full refresh, period ≤250"; collapse anyway ⇒
 **1M scale**, not coherence, is the problem. First checkpoint 6–8 h out. **The figure does NOT claim
 the fix works.**
+
+### 2026-09-12: OUR OWN HEADLINE WEAKENED — the periodic re-encode has never been priced
+The completed cross-tower 2×2 has a consequence for **our** recipe that neither session had flagged.
+
+| carve-out R@5, n=500 | base documents | trained documents |
+|---|---|---|
+| **base queries** | 0.660 | 0.330 |
+| **trained queries** | **0.766** ← BEST | 0.626 |
+
+Query-side effect **+10.6**; document-side effect **−33.0**; interaction −14.0. **The best cell is a
+trained query tower reading a FROZEN index** — better than the self-consistent live configuration
+(0.626) and better than no training at all (0.660). Caveat that must travel with the table: the
+base-q × trained-d cell is cross-model retrieval, poor in general, so only its size *relative to the
+other off-diagonal* supports the reading, not its absolute value.
+
+**The consequence.** Every arm in this campaign re-encodes every 100 steps, and `--refresh_steps 0`
+has **never been run** — paper.md already called it "the control that would price the dynamism
+itself" and it stayed unrun. **We have been presenting the periodic refresh as load-bearing on the
+strength of it being part of the winning configuration, not on any comparison.** The 2×2 gives a
+positive reason to think it could be neutral or harmful, not merely unproven.
+
+**Paper updated** with an explicit paragraph: the recipe contains a periodic re-encode and its
+contribution is unmeasured. Figure's index section now opens by saying the assumption that something
+must re-embed is untested on both sides. Better we write this than a reviewer ask it.
+
+**Control launched by the parent:** `frozen-idx`, identical to `mix2m-v3pure` with `--refresh_steps 0`,
+one flag apart, card 5. Also the cheapest cell available (skips 15 full re-encodes ≈ 3.4 h ≈ half the
+wall clock). To seat it they killed the online-mask seed 1 at 150 steps — defensible: the mask is
+predicted a no-op on analytical grounds needing no seeds, and seed 0 completed all 1500 steps.
+
+**Three outcomes, all stated in advance, no defended prediction among them:**
+- frozen **matches** ⇒ the refresh is free to drop and the recipe simplifies.
+- frozen **worse** ⇒ the refresh is finally priced and the mechanism story is earned, not assumed.
+- frozen **better** ⇒ multimodal agrees with their 2×2, the live index is harmful in both modalities,
+  and the paper's central "dynamic index" framing needs **rewriting, not amending**.
+
+**Scheduling section marked PROVISIONAL until ~18:00**: `dmix1MFull250` (1M, doc tower training, full
+re-encode every 250 steps) is training. If it holds through 5k, "rolling full-corpus fails at every
+rate" becomes "**rolling full-corpus works if you refresh often enough, period 250 steps**" — a recipe
+rather than a negative result.

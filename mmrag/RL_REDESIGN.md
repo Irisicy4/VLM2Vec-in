@@ -3416,15 +3416,25 @@ this project wants on those axes must come from here or stay open.
 passage per URL; Wikipedia articles are many. Computed exactly, replicating the seed-0 draw with
 `n_distractor_articles 42484` on `corpus_mix2M`:
 
-| | wiki | BEIR | BEIR share |
-|---|---|---|---|
-| URL population to draw from | 825,040 | 740,456 | 47.3% |
-| URLs actually kept | 27,734 | 20,060 | 42.0% |
-| **PASSAGES in the RL index** | **164,600** | **20,060** | **10.9%** |
-| passages per URL | 5.93 | 1.00 | |
-| corpus_mix2M itself | | | 37.0% |
+**CORRECTED 14:45 — the corpus has FIVE sources, not two, and my first pass mislabelled two of
+them.** `corpus_mix2M` was never "base wiki + BEIR": it is four blocks, and its own composition
+manifest only documented the BEIR split while calling the rest "base". Enumerated exhaustively:
 
-**So every "multi-source" cell trained on an index that is 89% Wikipedia by passage.** The 37% figure
+| source | URL scheme | URLs | passages/URL | FILE share | **RL INDEX share** |
+|---|---|---|---|---|---|
+| Wikipedia | `https://en.wikipedia.org/...` | 29,935 | **15.51** | 23.2% | **77.4%** |
+| OVEN entities | `oven://Q…` (Wikidata QIDs) | 680,296 | 1.00 | 34.0% | 10.1% |
+| BEIR (10 sets) | `beir://<set>/<id>` | 740,456 | 1.00 | 37.0% | **10.9%** |
+| OK-VQA KB | `okvqa://N` (Wikipedia-derived text) | 114,809 | 1.00 | 5.7% | 1.7% |
+
+The index is **77.4% Wikipedia, 22.6% non-Wikipedia**, and gold-entity passages alone are **73.1%**
+of it. My earlier "89% Wikipedia" was wrong: it lumped OVEN and OK-VQA in with Wikipedia because the
+classifier tested only for `beir://`. **The load-bearing number survives** — genuinely off-domain
+(BEIR) goes from 37.0% of the file to 10.9% of the index, a 3.4x dilution, entirely because Wikipedia
+articles carry 15.51 passages per URL against 1.00 for every other source and the draw counts URLs.
+
+**So every "multi-source" cell trained on an index that is 77% Wikipedia and 10.9% genuinely
+off-domain.** The 37% figure
 describes the file, and the file is the EVAL corpus; the policy never retrieved from a 37%-off-domain
 index. Q1 ("does RL work better on multi-source data") has been answered against a 10.9% treatment
 while being described as a 37% one. Any future off-domain dose-response must vary the share **in the

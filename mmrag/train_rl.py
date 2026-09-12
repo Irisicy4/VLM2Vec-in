@@ -35,20 +35,68 @@ from mmrag.rl_core import (  # noqa: E402
 )
 
 
-def build_rl_corpus(data_dir, corpus_file, rows, n_distractor_articles, seed=0):
-    """RL corpus = all passages of the train queries' gold entities + N distractor articles,
-    filtered out of the prebuilt corpus (keeps pids consistent with eval corpora)."""
+def _is_offdomain(url):
+    """Off-domain = not a Wikipedia-style article URL. In corpus_mix2M the BEIR blocks carry
+    `beir://<dataset>/<docid>`; the base carries `https://en.wikipedia.org/...`."""
+    return not str(url).startswith("http")
+
+
+def build_rl_corpus(data_dir, corpus_file, rows, n_distractor_articles, seed=0,
+                    index_offdomain_frac=-1.0, index_size=0):
+    """RL corpus = all passages of the train queries' gold entities + distractor articles,
+    filtered out of the prebuilt corpus (keeps pids consistent with eval corpora).
+
+    DEFAULT PATH (index_offdomain_frac < 0): draw `n_distractor_articles` distractor URLs at
+    random and keep ALL passages of each. Unchanged, so every existing cell reproduces.
+
+    WHY THE OPTION EXISTS. Drawing by URL does NOT control the off-domain share of the index,
+    because passages-per-URL differs enormously by source: measured on corpus_mix2M, Wikipedia
+    articles average 5.93 passages per URL and BEIR documents exactly 1.00. A seed-0 draw of
+    42,484 URLs is 42.0% off-domain BY URL and only **10.9% off-domain BY PASSAGE**, against a
+    file that is 37.0%. So every "multi-source" cell here trained on an index that was 89%
+    Wikipedia, while being described by the file's 37%. A dose-response on the file's share would
+    be plotted against the wrong x-axis.
+
+    TARGETED PATH: with index_offdomain_frac in [0,1] (and index_size passages), draw the two
+    populations separately to hit the requested share BY PASSAGE. Gold URLs are always kept in
+    full, so the achievable range is bounded by how many passages the golds already contribute;
+    the achieved composition is returned in the log line rather than assumed.
+    """
     gold_urls = {r["entity_url"] for r in rows}
     by_url = {}
     with open(os.path.join(data_dir, corpus_file)) as f:
         for line in f:
             p = json.loads(line)
             by_url.setdefault(p["url"], []).append(p)
-    distract = sorted(u for u in by_url if u not in gold_urls)
-    random.Random(seed).shuffle(distract)
-    keep = gold_urls | set(distract[:n_distractor_articles])
-    corpus = [p for u in keep if u in by_url for p in by_url[u]]
-    return corpus
+    if index_offdomain_frac < 0:
+        distract = sorted(u for u in by_url if u not in gold_urls)
+        random.Random(seed).shuffle(distract)
+        keep = gold_urls | set(distract[:n_distractor_articles])
+        return [p for u in keep if u in by_url for p in by_url[u]]
+
+    gold_pass = [p for u in gold_urls if u in by_url for p in by_url[u]]
+    target = index_size if index_size else len(gold_pass) * 2
+    want_off = int(round(index_offdomain_frac * target))
+    want_on = max(0, target - want_off - len(gold_pass))
+    rng = random.Random(seed)
+    on_urls = sorted(u for u in by_url if u not in gold_urls and not _is_offdomain(u))
+    off_urls = sorted(u for u in by_url if u not in gold_urls and _is_offdomain(u))
+    rng.shuffle(on_urls)
+    rng.shuffle(off_urls)
+    out = list(gold_pass)
+    for urls, budget in ((off_urls, want_off), (on_urls, want_on)):
+        got = 0
+        for u in urls:
+            if got >= budget:
+                break
+            ps = by_url[u]
+            out.extend(ps)
+            got += len(ps)
+    n_off = sum(1 for p in out if _is_offdomain(p["url"]))
+    print(f"[rl-corpus] targeted composition: {len(out)} passages, off-domain {n_off} "
+          f"({100.0*n_off/max(len(out),1):.1f}%, requested {100*index_offdomain_frac:.1f}%), "
+          f"gold {len(gold_pass)}", flush=True)
+    return out
 
 
 def main():
@@ -152,6 +200,13 @@ def main():
     ap.add_argument("--reader_batch_size", type=int, default=16)
     # corpus
     ap.add_argument("--n_distractor_articles", type=int, default=3000)
+    ap.add_argument("--index_offdomain_frac", type=float, default=-1.0,
+                    help="target OFF-DOMAIN share of the RL index BY PASSAGE. <0 (default) keeps "
+                         "the original draw-by-URL behaviour, which does NOT control this share: "
+                         "on corpus_mix2M a 42%%-off-domain URL draw yields a 10.9%%-off-domain "
+                         "index because BEIR docs are 1.00 passage/URL and wiki articles 5.93.")
+    ap.add_argument("--index_size", type=int, default=0,
+                    help="target RL-index size in passages; only used with --index_offdomain_frac")
     ap.add_argument("--refresh_steps", type=int, default=100)
     ap.add_argument("--refresh_frac", type=float, default=1.0,
                     help="fraction of the RL index re-encoded at each periodic refresh. 1.0 (default) "
@@ -214,7 +269,9 @@ def main():
     if len(rows) < args.batch_size:
         sys.exit(f"SKIP: only {len(rows)} usable rows (image archives missing?) — nothing to train on")
 
-    corpus = build_rl_corpus(D, args.corpus, rows, args.n_distractor_articles, args.seed)
+    corpus = build_rl_corpus(D, args.corpus, rows, args.n_distractor_articles, args.seed,
+                             index_offdomain_frac=args.index_offdomain_frac,
+                             index_size=args.index_size)
     corpus_texts = [p["text"] for p in corpus]
     text2url = {p["text"]: p["url"] for p in corpus}   # for the goldrel benchmark reward
     print(f"RL corpus: {len(corpus)} passages", flush=True)

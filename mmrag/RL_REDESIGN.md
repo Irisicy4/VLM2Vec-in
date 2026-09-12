@@ -2823,3 +2823,45 @@ checking whether the step count landed on a refresh boundary; and a cold initial
 against a watcher threshold of 40 minutes. **Any "stalled" report should be treated as unverified
 until it quotes a utilisation figure**, and the refresh-boundary trap belongs in the handoff next to
 the checkpoint-numbering one.
+
+### 2026-09-12: THE SURVIVOR COLLAPSED AT 5k — rate sets WHEN, not WHETHER. My carve-out claim withdrawn.
+h200-rag's dmix1MSweep1000 s0, the 0.10% schedule I had been calling the survivor, **collapsed at 5k:
+R@5 0.374, −18.7 vs frozen 0.561 and BELOW the untrained base 0.386**, from 0.580 at 4k. Same
+one-checkpoint shape as Sweep500 at 3k and Rand250 at 2k. R@30 0.522 vs base 0.564.
+
+| rate | reversal point (text, 1 seed past 2k) |
+|---|---|
+| 0.40% | at or below frozen by 2k |
+| 0.20% | 3k |
+| 0.10% | **5k** |
+
+**"Rate sets how long a run lasts" — which I wrote for the 0.80% cell — is now the statement for the
+whole ladder. No rolling full-corpus schedule reaches 5k above frozen.** Their pre-registered verdict
+goes to the **carve-out** (fixed index, full re-encode, no reversal to 6k).
+
+**WITHDRAWN — my own over-claim to the user.** I told the user "the full-corpus path does not need the
+small-pool carve-out." Checking my disk before repeating it:
+- `fullcorp-rand10` (full corpus 422,378 rows, 0.10%) has **exactly ONE evaluated point, ck750 = 3k**.
+  The text 0.10% arm was still +3.1 at 4k and died at 5k, so **a 3k reading is taken at precisely the
+  horizon where their schedule also looked healthy.** My point is uninformative about the horizon that
+  matters. The run is also only at 108 steps after a restart.
+- `fullcorp-rand10p50` (0.20%) at 520 steps, no result.
+- `mix2m-partialwb`, the only MM rolling arm past 5k, is **a carve-out** (184,660 of 2M = 9.2%), not a
+  full-corpus arm, and runs at 0.03%/step — 3x slower than the slowest text schedule. Flat to 6k is
+  better described as **not having reached its reversal** than as surviving.
+
+So the multimodal full-corpus evidence is **one point at 3k**, and the arm that reached 6k is neither
+full-corpus nor at a comparable rate. The claim goes back to open pending (a) a ≥5k point on
+fullcorp-rand10 and (b) fullcorp-rand10p50's first result.
+
+**Also new from them:** Sweep1000 s1 at 1k = 0.520 (+4.4) where s0 read −1.0 — a **5.4-point seed
+spread at 1k**, so early points order schedules poorly and any 1k-based ranking is unreliable.
+Sweep250Filt s1 at 2k = 0.522, so the filter on the 0.40% schedule is **+3.6 at 2k on two seeds a
+side** (0.544/0.522 vs 0.486/0.508) — turning a loss into a gain. On the 0.20% schedule the filter is
++1.0, neutral. The filter remains the only intervention shown to change a schedule's fate.
+
+**Discriminating test running (theirs), and it is the right one.** Collapsed and pre-collapse
+checkpoints of Sweep1000 s0 (5k, 4k) and Sweep500 s0 (3k, 2k) scored against the **base frozen 1M
+index** instead of their own shipped index. If the collapsed towers retrieve at pre-collapse level
+against base-encoded docs, the failure is the **shipped mixed-age index**; if they fall there too, the
+**towers moved**. That separates the two candidate mechanisms cleanly and costs no training.

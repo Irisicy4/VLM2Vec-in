@@ -2498,3 +2498,50 @@ of steps against ~9–14% negative, roughly 8:1, in both runs. No time trend in 
 So the gate selects on whether the retrieved pool contains a gold passage, not merely on query
 difficulty. It does NOT yet say the filter helps, and it does not say the 59% discard is free — that
 is the join metric, still pending.
+
+### 2026-09-12 (paper fork, cont. 6): rate and staleness are ONE variable — my two-knob framing was wrong
+**Verified algebraically before accepting it.** For any covering round-robin sweep of k rows/step over
+C rows: rate = k/C, cycle = C/k steps, so **period = 1/rate exactly** (checked at k=1000/2000/4000/8000,
+identical to machine precision). "0.40%/step dies first" and "a 250-step staleness bound dies first"
+are ONE statement in two vocabularies. I had presented them as rival mediators in cont.3 and cont.4;
+they cannot be rivals. **No experiment inside the sweep family can separate them, so rate-vs-period
+must NOT be listed as an open question — it is ill-posed by construction.**
+
+**What my "the random family separates them" argument actually establishes.** It is not wrong, but it
+is narrower than I wrote. Within the random family the ceiling is fixed at unbounded and rate still
+orders outcomes (0.10% holds on MM, 0.20% declines, 0.40% −8.2 at 2k), so rate has an effect with the
+ceiling held constant. That supports "rate matters"; it does not license treating rate and period as
+separable inside the sweep family, which is where the ladder lives.
+
+**The single sentence the figure now carries** (simpler than what it replaced and covering all cells):
+*Among refresh schedules that cover the index, slower and staler is better. Coverage is a second axis
+worth points but not survival.* Supporting nuance kept because the parent's version drops it: the
+random slice at the LOWEST rate tested **holds** on multimodal, so absence of coverage is not
+automatically fatal — it loses at the two higher rates tested on text. And the fastest sweep (0.80%)
+is still +3.0 at 1k, so **rate sets how long a run lasts** rather than being fatal per se.
+
+**SECOND RETRACTION, mine this time, and the instrument was backwards.** I published (v11) the
+falling-query-cosine trace as evidence of a "contracted geometry". Falling mean pairwise cosine is
+queries spreading APART; contraction would drive it toward 1.0. Base 0.257, frozen runs fall to
+0.16–0.18, and EVERY rolling cell spreads faster than frozen whether it lives or dies. So spreading is
+a consequence of rolling, not a symptom of collapse. Every use of "contracted" removed from the figure.
+This is on top of the cosine-as-early-warning withdrawal in cont.5 — same trace, two separate errors:
+the direction of the instrument, and its diagnostic value.
+
+**Net: there is NO train-time diagnostic for this failure mode.** Reward std flat, degeneracy flat,
+cosine neither ordering nor predicting. A held-out retrieval probe is mandatory. If the paper ever
+claims a diagnostic exists, that is a bug.
+
+**Only hypothesis on the table for WHY slower wins**, clearly labelled as such, nothing measured
+speaking to it: the rewrite rate sets how fast the objective's own scoring surface moves under the
+policy, so there may be a stability limit as a learning rate has one. **Falsifiable prediction: the
+fastest schedule survives at half the learning rate.** Not run.
+
+**Pattern across the session, worth recording as such.** Between the two sessions this is five
+retractions today, all the same shape: a direction or a mediator asserted before the arithmetic was
+checked. The numbers side now has a mechanical guard (`margin()` in paper_tables.py refuses to render
+a delta without its interval and separation verdict). **The mechanism side has no equivalent guard and
+neither of us has proposed one.** The nearest thing that worked today was cheap: state the mechanism's
+own falsifiable prediction in the same breath as the mechanism, then run it against existing logs
+before publishing. Both of today's mechanism retractions were caught that way, one before publication
+and one after.

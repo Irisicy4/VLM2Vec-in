@@ -3672,3 +3672,43 @@ needed no new data recipe.
 
 Caveats: 1 seed per arm on the 2M evals, and the trained arms differ in recipe (index-EMA, full
 refresh, 10k index), so this is a property of "trained vs not", not of any one recipe.
+
+### 2026-09-13 12:15: PREDICTION 1 DISCONFIRMED — the periodic refresh is NOT harmful; it buys convergence speed
+Registered at 09:05 before any number was read: *frozen-idx beats mix2m-v3pure on entR@5 by a callable
+margin.* **It does not.** `frozen-idx` (1 seed, `--refresh_steps 0`) vs `mix2m-v3pure(-s1)` (2 seeds),
+one flag apart, both self-consistent:
+
+| depth | entR@5 | ansR@5 | acc* |
+|---|---|---|---|
+| 3k (ck750) | +0.37 inside floor | **−4.22 live BETTER, callable** | **−3.63 live BETTER, callable** |
+| 6k (endpoint) | +0.80 inside floor | +0.14 inside floor | −1.03 inside floor |
+
+**So the periodic full re-encode is worth about +3.6 accuracy and +4.2 answer recall at 3,000 queries
+and nothing measurable by 6,000.** It is a convergence-speed benefit, not a final-quality one: the
+frozen arm catches up. That is the opposite of harmful, and it is the first time this component has been
+priced at all.
+
+**This closes the standing gap.** `paper.md` recorded `--refresh_steps 0` as "what has never been
+measured … the control that would price the dynamism itself". Measured. The honest statement for the
+paper: *the periodic refresh is part of the winning recipe and accelerates it; at the 6k budget the
+recipe reaches the same place without it.* It should NOT be called load-bearing for the final result,
+and it should not be dropped either — at the 2k-draw budget the headline actually uses, the 3k reading
+says it is helping.
+
+**Both cross-modality predictions from the text side's document-tower finding are now disconfirmed, in
+the same direction.** They measure that live-index training costs 7–9 points on the document side and
+that no live-index variant is a better full embedding model than their frozen-index cell. Here:
+Prediction 2 failed (the live arm does not gain on base-encoded docs; it loses), and Prediction 1 failed
+(the frozen arm does not beat the live one; it is worse mid-training and equal at the end).
+**On a 2B multimodal encoder, training the document tower against a live index is neutral-to-helpful.**
+Two registered predictions, both failing the same way, is stronger evidence of a real modality
+difference than either failure alone.
+
+**Caveat:** `frozen-idx` is 1 seed against a 2-seed control, so the ck750 margins are callable against
+the floor but not seed-backed. A second frozen seed is the cheap confirmation.
+
+**Cross-project convergence worth recording on the one point where we agree.** Their headline
+self-consistent read is frozen-index RL at **+29.5 R@5 over base on their full 1M corpus**; mine is
+every trained arm at **+53 to +55 entR@5 over base on the 2M corpus**. Both projects independently find
+that the dominant effect of annotation-free RL is the gain on a large corpus, not the in-domain margin
+over supervision. That is the finding to lead with, and neither paper currently does.

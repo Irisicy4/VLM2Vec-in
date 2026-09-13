@@ -68,8 +68,12 @@ so the action space the policy samples from moves with the policy.
 > also runs inside `doc_tower()`, a no-op unless model-EMA is on, in which case documents are
 > encoded with the EMA weights while queries stay live.
 >
-> *What has never been measured:* `--refresh_steps 0`, i.e. the same recipe with the index frozen
-> at its init embeddings. That is the control that would price the dynamism itself. **Launched
+> *MEASURED 2026-09-13 — `frozen-idx`, `--refresh_steps 0`, one flag from `mix2m-v3pure`.* The
+> periodic refresh is worth **+3.63 acc and +4.22 ansR@5 at 3k queries** (both callable) and
+> **nothing measurable at 6k** (all three inside floors). So it buys **convergence speed, not final
+> quality** — the frozen arm catches up. It is therefore *not* load-bearing for the endpoint result
+> and *is* helping at the draw budget the headline uses. 1 seed vs a 2-seed control. This closes the
+> gap below, which previously read "never been measured". **Launched
 > 2026-09-12 as `frozen-idx`** after the text-side 2x2 showed a trained query tower reading a
 > *frozen* index beating both the untrained base and a self-consistent live index. Until it lands,
 > this document must not call the periodic refresh load-bearing: it is *part of* the winning recipe,

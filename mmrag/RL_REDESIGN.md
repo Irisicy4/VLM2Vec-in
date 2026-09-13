@@ -3612,3 +3612,63 @@ of live-index training.
 **Why this matters beyond replication.** If Prediction 1 fires, the periodic full re-encode that this
 project has carried in every RL row since the beginning is actively **harmful**, and the headline recipe
 should drop it. That is a larger change to the paper than anything in the tuning survey.
+
+### 2026-09-13 09:15: Q4 OFFLINE POOL FILTER — NULL ON MULTIMODAL
+The experiment Q4 actually asked for, finally run. `q4pool-filt` vs `q4pool-rand`: both 6,789 rows
+drawn from the same 20,000 scored candidates, so **composition is the only variable and pool size is
+held fixed**. Filtered − random:
+
+| depth | entR@5 | ansR@5 | acc* | vs floors 2.03 / 2.32 / 1.83 |
+|---|---|---|---|---|
+| 3k (ck750) | +0.73 | +0.37 | +0.47 | all inside |
+| 6k (endpoint) | +0.50 | +1.22 | +0.33 | all inside |
+
+**Null at both depths on every metric, 1 seed a side.** The text side gets +2.75 R@5 from the same
+intervention at 4 seeds, so this is a genuine cross-modality difference, not a null result from a
+botched implementation — the filter did select (keep-given-gold 0.49 vs 0.12, and it reshapes the
+question-type distribution strongly). It simply does not convert into retrieval or accuracy here.
+
+Consistent with the Q4 ceiling argument: the multimodal training stream is 52.8% RAG-hopeless against
+the text side's 39.2%, so removing the hopeless rows leaves a pool whose remaining headroom is smaller.
+**Q4's answer on multimodal: indirect RL does not need downstream data quality in this form — filtering
+to the queries retrieval can help does not improve it.**
+
+### 2026-09-13 09:15: PREDICTION 2 DISCONFIRMED — the eval-protocol effect does not replicate
+Registered: on the base-docs protocol the **live** arm should gain a lot and the **frozen** arm stay
+flat (their pattern: live −8.7/−7.4, frozen −0.6/+0.2). Base-docs minus self-consistent, ours:
+
+| arm | entR@5 | ansR@5 | acc* |
+|---|---|---|---|
+| live `mix2m-v3pure` s0 | +1.23 | +0.57 | −1.33 |
+| live `mix2m-v3pure` s1 | −0.77 | **−2.53** | **−3.27** |
+| online-mask `q4gate-s1` | **−2.50** | −1.76 | −0.07 |
+
+**The live arm does not gain on base documents; if anything it loses.** So the 7–9 point document-tower
+damage h200-rag measures from live-index training is a property of their 0.6B text encoder, not a
+general effect. On a 2B multimodal encoder the self-consistent index is as good or better. Recorded as
+a failed cross-modality replication, with the direction reversed rather than merely absent.
+
+### 2026-09-13 09:15: THE LARGEST EFFECT IN THE PROJECT — robustness to a 4.7x larger corpus
+Same arms, two eval corpora (422k `corpus_small` vs 2M `corpus_mix2M`). Eval on 2M minus eval on 422k:
+
+| arm | entR@5 | ansR@5 | acc* |
+|---|---|---|---|
+| untrained base | **−54.27** | **−44.98** | **−13.27** |
+| trained on 422k (`idx10k-full`) | −7.77 | −7.71 | −1.93 |
+| trained on 422k (`emaidx` @6k) | −7.00 | −6.41 | −1.67 |
+| trained on 2M (`mix2m-v3pure`) | −6.57 | −7.31 | −1.67 |
+
+Levels on the 2M corpus: base **14.27** entR@5 / 25.13 acc; every trained arm **67.20–69.83** / 41.47–41.93.
+
+**So indirect RL buys ~+55 entR@5 and ~+16.5 accuracy on the large heterogeneous corpus, against +7.6
+and +5.0 in domain.** The out-of-domain benefit is 7x the in-domain one on retrieval and 3x on accuracy,
+and it is the single largest effect this project has measured.
+
+**And it does not require training on the big corpus.** Arms trained on the 422k corpus lose 7.0–7.8
+points when moved to 2M; the arm trained on 2M itself loses 6.6. The difference is inside the floor, so
+**matching the training corpus to the eval corpus buys nothing measurable** — the robustness comes from
+training at all. That is a much more useful claim than the multi-source axis Q1 was chasing, and it
+needed no new data recipe.
+
+Caveats: 1 seed per arm on the 2M evals, and the trained arms differ in recipe (index-EMA, full
+refresh, 10k index), so this is a property of "trained vs not", not of any one recipe.

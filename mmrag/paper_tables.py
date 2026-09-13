@@ -8,10 +8,44 @@ declared list of per-seed files makes that class of error impossible to reintrod
 
 Usage:  python3 mmrag/paper_tables.py [main|evqa|contrast]
 """
-import json, os, math, sys
+import json, os, math, re, sys
 
 R = os.environ.get("MMRAG_DATA", "/raid/icy/mmrag_data") + "/results"
 TCRIT = {1: 12.706, 2: 4.303, 3: 3.182, 4: 2.776, 5: 2.571, 6: 2.447, 7: 2.365, 8: 2.306}
+
+
+_NUM = re.compile(r"-?\d[\d,]*\.?\d*")
+
+def rescored_acc(v):
+    """Accuracy with InfoSeek's numeric-tolerance golds graded numerically.
+
+    21.9% of InfoSeek queries carry a numeric gold with an explicit tolerance, stored as a dict
+    {'wikidata': x, 'range': [lo, hi]}. The shipped grader stringifies the dict and looks for that
+    literal text inside the reader's answer, which no answer can ever contain: across all 224
+    evaluations on disk, 71,064 such rows have never once been scored correct, including answers
+    that are exactly right ("176 metres" against a range of [158.4, 193.6]). Those rows are graded
+    here by checking whether any number in the prediction falls inside the tolerance. String golds
+    keep cover-EM untouched. Re-scoring needs no compute because every evaluation stored its
+    per-question predictions.
+    """
+    preds = v.get("predictions")
+    if not preds:
+        return v["acc"] * 100
+    hit = 0
+    for p in preds:
+        ranges = [g for g in p["gold"] if isinstance(g, dict) and "range" in g]
+        if not ranges:
+            hit += 1 if p["acc"] > 0 else 0
+            continue
+        cand = []
+        for m in _NUM.finditer(str(p["pred"]).replace(",", "")):
+            try:
+                cand.append(float(m.group()))
+            except ValueError:
+                pass
+        if any(d["range"][0] <= c <= d["range"][1] for d in ranges for c in cand):
+            hit += 1
+    return 100.0 * hit / len(preds)
 
 def read(stem):
     rp, vp = f"{R}/{stem}.retrieval.metrics.json", f"{R}/{stem}.vqa_top5.json"
@@ -22,7 +56,7 @@ def read(stem):
          "entR@10": r["entity_recall"]["10"]*100, "ansR@5": r["answer_recall"]["5"]*100}
     if os.path.exists(vp):
         v = json.load(open(vp))
-        o.update(acc=v["acc"]*100, strictEM=v.get("strict_em", float("nan"))*100,
+        o.update(acc=rescored_acc(v), strictEM=v.get("strict_em", float("nan"))*100,
                  f1=v.get("f1", float("nan"))*100)
     return o
 

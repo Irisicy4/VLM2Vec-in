@@ -3531,3 +3531,45 @@ half an hour — after which each arm costs only a query pass and a reader pass.
 `mix2m-v3pure` is the only **self-consistent** live-versus-frozen training comparison in either
 project. Combined with the base-docs protocol it gives a full 2x2 of our own: live/frozen training
 crossed with self-consistent/base-encoded eval.
+
+### 2026-09-13: WHICH TUNED COMBO SUPPORTS RL BEST — the answer is capacity, not tuning
+Ranked all 203 comparable InfoSeek arms (422k eval corpus, 1500-query sample) on the CORRECTED metric.
+
+**GME-7B + v3-pure is the only callably better combo, and it is the one where RL beats relevance
+supervision on EVERY metric:**
+
+| | acc* | entR@5 | ansR@5 |
+|---|---|---|---|
+| 7B base (1 seed) | 39.67 | 69.37 | 53.59 |
+| 7B relevance-SFT (1 seed) | 41.60 | 77.67 | 63.02 |
+| **7B RL v3-pure (2 seeds)** | **45.23 ± 0.33** | **80.63 ± 0.47** | **68.71 ± 0.43** |
+
+| margin | acc* | entR@5 | ansR@5 | all vs floors 1.83 / 2.03 / 2.32 |
+|---|---|---|---|---|
+| **7B: RL − SFT** | **+3.63** | **+2.97** | **+5.69** | **all three CLEAR** |
+| 2B: RL − SFT | +2.22 | +0.93 | +1.50 | only accuracy clears |
+| 7B: RL − base | +5.57 | +11.27 | +15.12 | |
+| 2B: RL − base | +5.04 | +7.56 | +8.52 | |
+
+So at 2B the honest claim is "beats supervision on accuracy, ties on retrieval"; **at 7B it beats
+supervision on all three.** Note *why*: RL−base is similar at both sizes (+5.57 vs +5.04), while
+SFT−base is WORSE at 7B (+1.93) than at 2B (+2.82). The 7B advantage comes from supervision scaling
+badly, not from RL scaling well.
+
+**Every 2B tuning variant is inside the noise floor of the headline.** Ranked by corrected-accuracy
+margin over v3-pure (43.44): the best are index-scheme variants (emaidx ck2250 +1.29, partialwb +1.29),
+an unlabelled `v3-b16` family (+0.89 to +1.23), cosine schedules (+0.76 to +0.96) and mixed pools
+(+0.76 to +0.83) — **none reaches the 1.83 acc floor.** The single apparent exception,
+`mix2m-v3pure-s1` at +1.96, is one seed of a pair whose sibling is +0.16, so the pair's mean gain is
++1.06, inside the floor. **The 2B tuning axes are saturated; capacity is the only lever that moves the
+result.**
+
+**Caveats.** 7B base and 7B SFT are **1 seed each**, so those margins are floor-callable but not
+seed-backed (house rule: recorded, not claimed). And whether the RL−SFT margin *grows* with capacity is
+**NOT established**: the difference between the two margins is 1.41, and the 2B SFT between-seed spread
+is 1.47. This supersedes nothing — the earlier ledger entry calling the capacity gap "FLAT" (2B +2.08 /
+7B +2.17) was computed on the broken metric; on the corrected metric it is +2.22 / +3.63, which is not
+flat but is also not resolvable at these seed counts.
+
+**Actionable:** a second and third seed of 7B relevance-SFT is the cheapest experiment that would turn
+the strongest claim in this project from floor-callable into seed-backed.

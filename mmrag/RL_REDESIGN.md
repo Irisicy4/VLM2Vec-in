@@ -3573,3 +3573,42 @@ flat but is also not resolvable at these seed counts.
 
 **Actionable:** a second and third seed of 7B relevance-SFT is the cheapest experiment that would turn
 the strongest claim in this project from floor-callable into seed-backed.
+
+### 2026-09-13 09:05: PRE-REGISTERED — does live-index training damage the document tower here too?
+Registered BEFORE reading any `frozen-idx` self-consistent number. `frozen-idx` finished 1500 steps;
+only its `-basedocs` result exists so far and I have not looked at its value.
+
+**The text-side result being tested.** h200-rag's self-consistent reads (checkpoint encodes its own
+corpus — the "policy as a full embedding model" criterion):
+
+| their arm | self-consistent | base-docs | live-training cost |
+|---|---|---|---|
+| live carve-out s0 / s1 | 0.697 / 0.7175 | 0.784 / 0.791 | **−8.7 / −7.4** |
+| frozen twin s0 / s1 | 0.7645 / 0.748 | 0.770 / 0.746 | −0.6 / +0.2 |
+| Full250 @2k (1M) | **0.358** | 0.472 | below its own base (0.386) |
+
+Their conclusion: "no live-index variant is a better full embedding model than the frozen-index RL
+cell." Training the document tower against a live index costs 7–9 points on the document side; the
+LoRA is harmless on documents when the document tower is not trained.
+
+**Our situation is the clean test, because every standard eval here is self-consistent** (verified:
+`mlx_entry_eval.sh` encodes the eval corpus with the trained checkpoint). So `frozen-idx` vs
+`mix2m-v3pure` is a same-protocol live-versus-frozen comparison, which neither project had.
+
+**PREDICTION 1 (self-consistent protocol, our standard eval):** `frozen-idx` **beats**
+`mix2m-v3pure(-s1)` on entR@5 by a **callable** margin (≥ 2.03), i.e. frozen-idx > 80.5 against the
+control's 78.43 / 78.50 at ck750. Their magnitude is +5.0 to +6.7, so a smaller-but-callable gap still
+counts as replication and anything ≤ 0 is a clean failure.
+*Disconfirming:* frozen-idx ≤ the control, or a gap inside the floor → the document-tower damage from
+live-index training does **not** replicate on multimodal, and our winning recipe's periodic refresh is
+not merely unpriced but harmless.
+
+**PREDICTION 2 (protocol contrast, both arms):** on the `-basedocs` protocol (trained query tower ×
+base-encoded index) versus self-consistent, the **live** arm should gain a lot and the **frozen** arm
+should be roughly flat — their pattern was −8.7/−7.4 for live and −0.6/+0.2 for frozen.
+*Disconfirming:* both arms flat → the protocol difference is a property of their 0.6B text encoder, not
+of live-index training.
+
+**Why this matters beyond replication.** If Prediction 1 fires, the periodic full re-encode that this
+project has carried in every RL row since the beginning is actively **harmful**, and the headline recipe
+should drop it. That is a larger change to the paper than anything in the tuning survey.

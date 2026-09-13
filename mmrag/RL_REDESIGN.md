@@ -3495,3 +3495,39 @@ below the 1.83 acc floor, and the three proper series above are flat. I briefly 
 the plateau; it does not. What it does show is the same accuracy-versus-retrieval decoupling the mask
 result shows, which is now the recurring shape on this project: the two move independently often
 enough that no single one of them summarises an arm.
+
+### 2026-09-13: EVAL PROTOCOL DIFFERS BETWEEN THE PROJECTS — our numbers were never comparable in kind
+h200-rag reports that every **live-refresh** cell of theirs (50k live carve-out, 200k live, Full250)
+was evaluated with its query tower against the **BASE-encoded** index of its corpus, not against its
+own refreshed index: their trainer ships an index inside a checkpoint only for rolling cells, and the
+evaluator silently falls back to the base index otherwise. Their rolling-cell numbers are unaffected.
+
+**Verified on our side: our evals are SELF-CONSISTENT, always.** `mlx_entry_eval.sh` line 16 runs
+`encode_corpus.py --checkpoint "$CK"` and line 17 `eval_retrieval.py --checkpoint "$CK"
+--cache_corpus "$CACHE"`, so the eval corpus is re-encoded by the **trained** checkpoint and queries
+come from the same weights. Caches are named per result, and the launchers `rm -f` the cache first, so
+there is no stale-cache path.
+
+| | query tower | eval documents encoded by |
+|---|---|---|
+| this project, every number | trained | **trained (self-consistent)** |
+| h200-rag, live-refresh cells before 2026-09-13 | trained | **base** |
+| h200-rag, rolling cells | trained | trained |
+
+**What this costs.** One claim of mine is affected: I recorded "the carve-out with its full refresh is
+the only dynamic index in the record with no reversal" as the positive half of the scheduling
+conclusion. That carve-out is a live-refresh cell, so its survival was measured with **base-encoded**
+eval documents. It remains a real result about the query tower a live index produces; it is **not**
+evidence that a live index is good to retrieve from. Requalified accordingly.
+
+**What it buys.** Their 2x2 already showed that on their setup base-encoded documents are the BETTER
+protocol (0.766 vs 0.626 self-consistent). This project has never measured that protocol at all, and
+it is the cheap deployment: encode the corpus once with the base, never re-encode, use the trained
+query tower. One base encode of corpus_small is reusable across every arm — 2.42 GB of cache and about
+half an hour — after which each arm costs only a query pass and a reader pass. Queued as
+`run_basedocs.sh`, gated on real headroom so it does not contend with the cross-eval grid.
+
+**And it elevates `frozen-idx`.** Because our evals are self-consistent, `frozen-idx` vs
+`mix2m-v3pure` is the only **self-consistent** live-versus-frozen training comparison in either
+project. Combined with the base-docs protocol it gives a full 2x2 of our own: live/frozen training
+crossed with self-consistent/base-encoded eval.

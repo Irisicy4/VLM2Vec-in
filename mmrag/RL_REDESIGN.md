@@ -3712,3 +3712,51 @@ self-consistent read is frozen-index RL at **+29.5 R@5 over base on their full 1
 every trained arm at **+53 to +55 entR@5 over base on the 2M corpus**. Both projects independently find
 that the dominant effect of annotation-free RL is the gain on a large corpus, not the in-domain margin
 over supervision. That is the finding to lead with, and neither paper currently does.
+
+### 2026-09-14: DOES A BIGGER JUDGE UNLOCK RAG GRADIENT? Yes, +7.7pp net — a quarter of the naive read
+**Never tried before:** the 30B has only ever been used to *audit* cover-EM here (the 37.6%
+false-negative entry). The training reward `reader.score_judge` is the frozen reader answering, graded
+by **cover-EM** — there is no external-judge path in the codebase. So this was open.
+
+Re-graded the stored gold-context and no-context predictions of `gme2b-zeroshot-3k-repro` (1,500 queries
+x 2 passes, 2,700 judge calls, 0 unresolved) with `Qwen/Qwen3-30B-A3B-Instruct-2507`, via new
+`mmrag/judge_rescore.py`. Dict golds are rendered with their tolerance range so the judge can use it.
+
+| class | cover-EM | JUDGE | delta |
+|---|---|---|---|
+| RAG-BENEFITS (live gradient) | 32.3% | **39.6%** | **+7.3** |
+| RAG-UNNEEDED (saturated) | 18.1% | 32.7% | +14.5 |
+| RAG-HOPELESS (dead) | 48.5% | **23.1%** | **−25.4** |
+| RAG-HARMS | 1.1% | 4.7% | +3.5 |
+
+**The naive read — "hopeless halves, 48.5 → 23.1" — is misleading, and the transition ledger says why:**
+
+| transition | queries | effect |
+|---|---|---|
+| hopeless/harms → **benefits** | 237 | **+15.8pp NEW live gradient** |
+| hopeless → unneeded | 138 | +9.2pp recovered but **SATURATED**, no variance |
+| **benefits** → unneeded/hopeless | 122 | **−8.1pp gradient DESTROYED** |
+| **NET usable-reward change** | | **+7.7 percentage points** |
+
+So of the 25.4 points of hopeless the judge recovers, only about three fifths becomes usable gradient,
+and the judge simultaneously **destroys** 8.1 points of existing gradient by crediting no-context answers
+it previously marked wrong. Net live-gradient population goes 32.3% → 39.6%, a **+24% relative**
+increase. Real, worth having, and a third of what the hopeless drop suggests.
+
+**Reader and judge are opposite interventions and must not be argued as one.** A stronger *reader* makes
+more queries answerable without retrieval, moving rows into `unneeded` and *reducing* gradient — the
+registered prediction at paper.md:956-960, which the text side measured (usable 36.9 → 30.6 on a 30B
+reader). A stronger *judge* leaves the reader alone and only widens grading. Their effects are in
+opposite directions; the 8.1pp destroyed above is the judge accidentally doing the reader's harm.
+
+**+7.7pp is a LOWER BOUND on the training-side gain.** This is the eval-set taxonomy. The training
+stream has more to recover and a smaller saturation sink: hopeless 52.8% vs 48.5%, unneeded **11.1% vs
+18.1%**. Measuring it needs fresh gold/no-context reader passes over pool rows, because
+`filter_ragbenefit.py` stored only the 0/1 decisions and not the predictions — **that is a cheap fix
+worth making before any such pass is run again.**
+
+**Cost of actually using it as the reward.** Up to 64 unique candidate docs per step (batch 4 x pl_group
+4 x pl_k 4), one judge call each. Measured throughput 3.75 calls/s at 14 workers → ~17 s/step of judge
+latency on top of ~15 s of training, so ~13 h for 1500 steps. Feasible as one background cell, not as a
+sweep. A cheaper variant: call the judge only where cover-EM returns 0 (~60% of candidates), or use it
+offline to rebuild the Q4 filter pool, which selects 39.6% instead of 33.9%.

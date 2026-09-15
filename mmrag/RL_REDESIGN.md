@@ -3760,3 +3760,36 @@ worth making before any such pass is run again.**
 latency on top of ~15 s of training, so ~13 h for 1500 steps. Feasible as one background cell, not as a
 sweep. A cheaper variant: call the judge only where cover-EM returns 0 (~60% of candidates), or use it
 offline to rebuild the Q4 filter pool, which selects 39.6% instead of 33.9%.
+
+### 2026-09-15: THE 0.20%/STEP REFRESH RATE DOES NOT COLLAPSE ON MULTIMODAL
+The registered multimodal test of the rate at which the text-side schedule died. `fullcorp-rand10p50`
+vs `fullcorp-rand10`, **one flag apart** (`refresh_steps` 50 vs 100, so 0.20% vs 0.10% of the index per
+step), same pool, same `corpus_small`, same 21,143-article carve-out, random slices both.
+
+| arm | rate/step | entR@5 | ansR@5 | acc* |
+|---|---|---|---|---|
+| `fullcorp-rand10-ck750` | 0.10% | 77.07 | 65.63 | — |
+| `fullcorp-rand10p50-ck750` | 0.20% | 74.97 | 64.49 | 43.40 |
+| `fullcorp-rand10p50` (endpoint) | 0.20% | **77.47** | 65.84 | 43.80 |
+
+**At 3k queries doubling the rate costs −2.10 entR@5 (callable, just) and −1.14 ansR@5 (inside floor).
+Then the arm RISES: 74.97 → 77.47 from 3k to 6k, +2.50, callable.** No collapse, no turnover; it ends
+above the 0.10% arm's own 3k value.
+
+**The text side at the same nominal rate collapses.** Their 0.20% in-order sweep fell −8.8 and −9.2
+against frozen parity at 3k on two seeds, and their 0.20% *random* arm declined to −4.2 at 3k. Mine
+declines 2.1 and then recovers.
+
+**So this is the third independent cross-modality divergence, all in the same direction** — the
+multimodal side tolerates index dynamism that breaks the text side:
+1. Prediction 1 failed: the frozen index does not beat the live one here (live is better mid-training).
+2. Prediction 2 failed: the live arm does not gain on base-encoded documents; it loses.
+3. This: the rate that collapses their schedule costs ~2 points here and recovers.
+
+Three registered or matched tests failing the same way is much stronger than any one of them.
+
+**Caveats.** 1 seed. There is **no full-refresh control at this index size** — `v3pure-1M-s3000-loc`
+and `emaidx-1M-s3000` use `n_distractor_articles` 3000 against these arms' 21,143, so they are not
+matched and the earlier comparison of `fullcorp-rand10` against `mix2m-v3pure` (different corpus *and*
+different carve-out) should not be used. The only clean statement available is the within-family rate
+contrast above, which is what is reported.

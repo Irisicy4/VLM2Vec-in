@@ -3793,3 +3793,45 @@ and `emaidx-1M-s3000` use `n_distractor_articles` 3000 against these arms' 21,14
 matched and the earlier comparison of `fullcorp-rand10` against `mix2m-v3pure` (different corpus *and*
 different carve-out) should not be used. The only clean statement available is the within-family rate
 contrast above, which is what is reported.
+
+### 2026-09-15: "LARGEST EFFECT" OVERSTATED — the 54-point collapse is HAYSTACK SIZE, not domain shift
+Challenged on whether the big-corpus robustness is really about the indirect reward or just about
+fine-tuning on this task format. **The challenge is right and the framing has to change.**
+
+**The decisive number was already on disk.** E-VQA is a genuinely different dataset — different images,
+different questions, its own corpus. The untrained base there:
+
+| setting | untrained base, entR@5 |
+|---|---|
+| InfoSeek, 422k corpus (in domain) | 68.53 |
+| InfoSeek, **2M corpus** (same task, bigger haystack) | **14.27** |
+| **E-VQA** (different dataset, its own smaller corpus) | **76.31** |
+
+The base scores *higher* on a different dataset than on its own in-domain corpus, and collapses only
+when the candidate pool grows. **So the 54-point drop measures resistance to distractor volume, not
+out-of-domain generalisation**, and calling it "the largest effect" while implying domain transfer was
+wrong. Corrected in the digest.
+
+**On REAL out-of-domain (E-VQA, n=2701) the picture is modest**, floors 2.43 / 7.10 / 2.54:
+
+| margin | entR@5 | ansR@5 | acc |
+|---|---|---|---|
+| RL − base | **+3.92 clears** | +3.65 | **+2.60 clears** |
+| supervised (best ckpt) − base | +2.07 | +1.89 | +1.40 |
+| **RL − supervised (best ckpt)** | +1.85 | +1.76 | +1.20 | **none clear** |
+| **supervised (ENDPOINT) − base** | **−5.26** | **−9.12** | **−2.73** | **all callable NEGATIVE** |
+
+**The real out-of-domain finding is stability, not level.** RL beats the untrained base callably on two
+of three metrics; RL vs supervision is *not* callable on any. But supervised training is
+**checkpoint-fragile out of domain**: its best checkpoint gains +2.07 while its endpoint *loses* 5.26
+entR@5 and 9.12 ansR@5, both callable. RL's three seeds sit at 78.93 / 80.41 / 81.34 with no such
+cliff. So supervision transfers only if you pick the right checkpoint — which needs an out-of-domain
+validation set you may not have — and the indirect reward transfers without that risk.
+
+Note E-VQA accuracies are the RAW metric; the tolerance-gold fix applies to InfoSeek golds only.
+
+**Still open, and running:** whether a SUPERVISED arm shows the same haystack robustness. No supervised
+adapter was ever staged here (all quoted supervised results are metrics-only from the original
+cluster), so `sft-local-s0` is training now purely to cross-evaluate it on 422k and 2M. If it loses ~7
+points like the RL arms, the haystack result is task adaptation and belongs to fine-tuning in general,
+not to the indirect reward.

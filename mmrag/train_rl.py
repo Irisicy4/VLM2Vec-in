@@ -200,6 +200,12 @@ def main():
     ap.add_argument("--reader_batch_size", type=int, default=16)
     # corpus
     ap.add_argument("--n_distractor_articles", type=int, default=3000)
+    ap.add_argument("--judge_every", type=int, default=0,
+                    help="use the EXTERNAL LLM judge as the reward grader on every Nth step "
+                         "(0 = never, 1 = always, 2 = alternate). The reader is unchanged; only the "
+                         "grader switches, and it switches PER STEP so every group stays internally "
+                         "comparable. Measured: ~64 judge calls/step at ~3.75 calls/s.")
+    ap.add_argument("--judge_workers", type=int, default=16)
     ap.add_argument("--index_offdomain_frac", type=float, default=-1.0,
                     help="target OFF-DOMAIN share of the RL index BY PASSAGE. <0 (default) keeps "
                          "the original draw-by-URL behaviour, which does NOT control this share: "
@@ -269,6 +275,12 @@ def main():
     if len(rows) < args.batch_size:
         sys.exit(f"SKIP: only {len(rows)} usable rows (image archives missing?) — nothing to train on")
 
+    judge_client = None
+    if args.judge_every > 0:
+        from mmrag.judge_client import JudgeClient
+        judge_client = JudgeClient(workers=args.judge_workers)
+        print(f"[judge] external grader every {args.judge_every} step(s), "
+              f"{args.judge_workers} workers", flush=True)
     corpus = build_rl_corpus(D, args.corpus, rows, args.n_distractor_articles, args.seed,
                              index_offdomain_frac=args.index_offdomain_frac,
                              index_size=args.index_size)
@@ -541,8 +553,40 @@ def main():
                                  "question": r["question"], "context": pools[b][j],
                                  "answer": ans} for j in docs)
                 if args.reward == "judge":
-                    r_doc = reader.score_judge(uniq, n_rollouts=args.reader_rollouts,
-                                               temperature=args.reader_temperature)
+                    # INTERMITTENT EXTERNAL JUDGE. The reader is unchanged; only the GRADER
+                    # alternates. cover-EM is strict, so a correct answer phrased differently scores
+                    # 0 and a query whose candidates all score 0 gives a degenerate group with
+                    # exactly zero advantage. Re-grading held-out passes with Qwen3-30B moved the
+                    # live-gradient population 32.3% -> 39.6% (net +7.7pp), so this is worth buying
+                    # on some steps.
+                    #
+                    # THE GROUP MUST STAY COMPARABLE: GRPO z-scores advantages WITHIN a group, so a
+                    # group graded by two different graders would have its advantage computed across
+                    # incommensurable scales. The switch is therefore PER STEP -- every reward in a
+                    # step comes from one grader -- which is stricter than needed (a group is one
+                    # query) and keeps the step-level metrics interpretable.
+                    use_judge = judge_client is not None and args.judge_every > 0 \
+                        and step % args.judge_every == 0
+                    if use_judge:
+                        em, preds = reader.score_judge(
+                            uniq, n_rollouts=args.reader_rollouts,
+                            temperature=args.reader_temperature, return_preds=True)
+                        for it, pr in zip(uniq, preds):
+                            it["pred"] = pr
+                        r_doc, n_bad = judge_client.score(uniq, em)
+                        flips = sum(1 for a, b in zip(r_doc, em) if a != b)
+                        extra_metrics.update({
+                            "judge/used": 1.0,
+                            "judge/n_items": float(len(uniq)),
+                            "judge/unresolved": float(n_bad),
+                            "judge/flip_rate": flips / max(len(uniq), 1),
+                            "judge/mean_em": sum(em) / max(len(em), 1),
+                            "judge/mean_judge": sum(r_doc) / max(len(r_doc), 1)})
+                    else:
+                        r_doc = reader.score_judge(uniq, n_rollouts=args.reader_rollouts,
+                                                   temperature=args.reader_temperature)
+                        if args.judge_every > 0:
+                            extra_metrics["judge/used"] = 0.0
                 else:
                     r_doc = reader.score_logit(uniq)
                 r_doc = torch.tensor(r_doc, dtype=torch.float32, device=args.device)

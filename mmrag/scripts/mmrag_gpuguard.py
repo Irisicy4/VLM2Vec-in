@@ -27,7 +27,9 @@ touches no numerics. See also mmrag_memcap.py, which caps per-process memory on 
 import os
 import sys
 
-_ALLOW_RAW = os.environ.get("MMRAG_GPU_ALLOW", "4,5,6,7")
+# Allowlist history, all on instruction: "4,5,6,7" -> "6,7" (2026-09-17) -> "4,6,7" (same day, card 4
+# temporarily re-authorised) -> "6,7" (2026-09-18, current). Cards 0-3 have never been permitted.
+_ALLOW_RAW = os.environ.get("MMRAG_GPU_ALLOW", "6,7")
 
 if _ALLOW_RAW.strip().lower() not in ("any", "all"):
     _allow = {p.strip() for p in _ALLOW_RAW.split(",") if p.strip()}

@@ -51,16 +51,31 @@ CONTRASTS = [("InfoSeek", "v3-pure (headline)", "relevance-SFT, per-seed best ck
              ("InfoSeek", "v3-pure (headline)", "v2 +anchor")]
 
 def read(stem):
-    rp, vp = f"{R}/{stem}.retrieval.metrics.json", f"{R}/{stem}.vqa_top5.json"
+    """Accuracy comes from the RESCORED file, never from vqa_top5.json.
+
+    vqa_top5.json's "acc" is the broken grader: 15,414 of 71,335 InfoSeek queries carry dict golds like
+    {'wikidata': 176.0, 'range': [158.4, 193.6]}, which answer_correct stringifies, so not one of them
+    ever scored correct across 217 evals. Those constant-zero queries do not just lower levels, they
+    deflate every error bar -- reading acc from vqa_top5 here put the pooled between-seed SD at 0.511
+    (floor 1.02) when the corrected metric gives 0.92 (floor 1.83). Since this module is the single
+    source for every +- in the paper, that understated the floor by nearly half.
+    """
+    rp = f"{R}/{stem}.retrieval.metrics.json"
+    resc, raw = f"{R}/{stem}.vqa_rescored.json", f"{R}/{stem}.vqa_top5.json"
     if not os.path.exists(rp):
         return None
     r = json.load(open(rp))
     o = {f"entR@{d}": r["entity_recall"][d]*100 for d in ("1", "5", "10", "20")}
     o["ansR@5"] = r["answer_recall"]["5"]*100
     o["acc"] = None
-    if os.path.exists(vp):
-        o["acc"] = json.load(open(vp))["acc"]*100
+    if os.path.exists(resc):
+        o["acc"] = json.load(open(resc))["acc_rescored_any"]*100
+    elif os.path.exists(raw):
+        MISSING_RESCORE.append(stem)          # counted and reported, never silently substituted
     return o
+
+
+MISSING_RESCORE = []
 
 def stat(xs):
     n = len(xs); mu = sum(xs)/n

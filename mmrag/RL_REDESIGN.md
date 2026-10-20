@@ -3835,3 +3835,58 @@ adapter was ever staged here (all quoted supervised results are metrics-only fro
 cluster), so `sft-local-s0` is training now purely to cross-evaluate it on 422k and 2M. If it loses ~7
 points like the RL arms, the haystack result is task adaptation and belongs to fine-tuning in general,
 not to the indirect reward.
+
+### Table audit of the new RAG tables (paper agent, 2026-09-15)
+Every cell of tab:mm_indexsize / mm_backbone / mm_lr / mm_consumption / mm_refresh / mm_datamix
+re-derived from results/*.{retrieval.metrics,vqa_rescored}.json (acc = acc_rescored_any) and, where
+the run is local, runs/<cell>/args.json. CLEAN: mm_refresh (frozen-idx vs mix2m-v3pure differ only
+in refresh_steps 0 vs 100 -- pool, corpus, lr, steps identical; both seeds reproduce the printed
+mean and SD to 0.01) and mm_consumption's queries-drawn block (v3-rows1M*/v3-rows25k* checkpoints).
+FIVE DEFECTS, all fixed in Overleaf_Indirect @ this date:
+1. mm_backbone VLM2Vec-Qwen2VL-2B zero-shot was vlm2vec4b-zeroshot = Phi-3.5-V (line 643), not the
+   2B. Correct 15.67 -> 0.70, delta -14.97 (was -12.07). Cross-model row, same class as the
+   composite-row error.
+2. mm_backbone Qwen2.5-VL-3B labelled 2e-5; qwen25_3b-v3pure ran at 1e-4 (line 286). The mislabel
+   made mm_backbone and mm_lr disagree on one (backbone, lr) cell.
+3. mm_lr put bgevl_l-v3pure (family default 1e-4) under the 2e-5 column. Added a 1e-4 column.
+4. mm_indexsize used three different retrievers for three rows, and its 2M row (mix2m-v3pure) was
+   TRAINED on corpus_mix2M -- it did not isolate the eval index. Rows 1/3 now both emaidx-1M-s3000
+   (trained on corpus_small, scored on both): 75.83 (+7.30) and 69.83 (+55.56), which is the pair
+   the abstract already quotes.
+5. mm_indexsize E-VQA row printed 81.34, the best of evqa-v3pure{,-s1,-s2} = 81.34/78.93/80.41,
+   as a single seed. Now 80.23 +- 1.21, delta +3.92 (was +5.04).
+Also: mm_datamix row "InfoSeek 45K / InfoSeek 422K" is div45kv3-v3pure (pool_div45k_v3 +
+corpus_div_v2 -- both columns wrong); the partial-refresh row (fullcorp-rand10p50) trained against
+corpus_small, not mixed 2M. mm_consumption's pool-size block mixes the scale-rows* and v3-rows*
+waves within one column and shows seed 0 where 2-3 seeds exist (scale-rows25k 44.13 is the top of
+78.60/79.53/78.80 acc 44.13/43.13/42.73, mean 43.33); caption now declares this, numbers left for
+the user to decide.
+
+### 2026-09-16: the 2M-index robustness gap is NOT specific to indirect reward
+Three new cross-corpus cells landed (frozen-idx-on-mix2M 09-15 21:13, sft-local-s0-on-mix2M 09-16
+04:08, q4pool-filt-on-mix2M 09-16 11:32; q4pool-rand-on-mix2M still running). The decisive one is
+the SUPERVISED arm on the 2M index, which did not exist when the +55.6 claim was written.
+Entity R@5 / answer R@5 / acc (rescored_any) on corpus_mix2M, 3000 q / 1500 q:
+  base (gme2b zero-shot)      14.27 /  9.96 / 25.13
+  relevance-SFT s0 endpoint   69.07 / 54.49 / 36.47   <- NEW
+  RL emaidx-1M-s3000          69.83 / 57.88 / 41.93
+  RL mix2m-v3pure             69.67 / 56.82 / 41.93
+  RL frozen-idx               68.63 / 56.08 / 41.00
+  RL q4pool-filt              73.83 / 60.41 / 41.60   <- NEW, best retrieval on 2M
+  RL idx10k-full              67.20 / 55.92 / 41.47
+CONSEQUENCE: the +55.56 entity-recall gap is against the UNTRAINED encoder. Supervised training
+closes it just as well (69.07 vs RL 69.83 = +0.76, INSIDE the 2.03 floor => tie). "Indirect RL
+confers robustness to a large heterogeneous index" is NOT supported; "training does" is. Degradation
+422K -> 2M: base -54.26, SFT -4.10, RL(emaidx) -6.00 -- RL degrades slightly MORE than SFT.
+WHAT SURVIVES, matched estimator (endpoint, seed 0, RL=emaidx-1M-s3000 vs SFT=sft-curve-ck1200):
+  in-domain 422K: ent +2.66 | ans +8.53 | acc +5.00
+  mixed 2M     : ent +0.76 (tie) | ans +3.39 | acc +5.46
+So the ACCURACY margin is flat across the index change (+5.00 -> +5.46) and the ANSWER-RECALL
+margin SHRINKS (+8.53 -> +3.39). The "margin grows on the big index" reading I was about to write is
+wrong in two of three metrics; only accuracy holds. Same signature as in domain: ties or near-ties
+on entity recall, leads on answer recall and accuracy.
+CAVEATS: every 2M cell is one seed on both sides; and the in-domain twin of sft-local-s0 is assumed
+to be sft-curve-ck1200 (same family, lr 1e-4, 1200 steps, seed 0, endpoint) -- same-checkpoint
+identity NOT verified by hash, the two were evaluated on different machines.
+q4pool-filt's +4.0 entity R@5 over the next-best arm on the 2M index is uncontrolled until
+q4pool-rand-on-mix2M lands.

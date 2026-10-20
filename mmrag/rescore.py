@@ -147,4 +147,6 @@ def main():
     print("  MARGINS move. Compare deltas across arms, not levels.")
 
 
-main()
+
+if __name__ == "__main__":
+    main()

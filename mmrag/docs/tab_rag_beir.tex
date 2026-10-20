@@ -1,0 +1,16 @@
+\begin{table}[H]
+\centering\small
+\caption{Zero-shot BEIR transfer by dataset (nDCG@$10$). The indirect-feedback model is the
+four-seed live-50K run; relevance-SFT averages two seeds. None of the five domains appears in
+training.}
+\label{tab:rag_beir}
+\begin{tabular}{lcccccc}
+\toprule
+model & SciFact & NFCorpus & ArguAna & FiQA & SciDocs & mean \\
+\midrule
+base encoder & $0.694$ & $0.358$ & $0.484$ & $0.429$ & $0.228$ & $0.439$ \\
+relevance-SFT & $0.527$ & $0.220$ & $0.323$ & $0.198$ & $0.123$ & $0.278$ \\
+indirect feedback & $0.702$ & $0.358$ & $0.472$ & $0.437$ & $0.225$ & $\mathbf{0.439}$ \\
+\bottomrule
+\end{tabular}
+\end{table}

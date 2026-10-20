@@ -1,0 +1,24 @@
+\begin{table}[H]
+\centering\scriptsize
+\setlength{\tabcolsep}{3.4pt}
+\caption{Text training-mixture ablation under a fixed recipe (in-domain columns are training-time probes: the trained query
+tower on the base-encoded index; self-consistent reads pending). All rows use the same 50K index, $6$K sampled queries, and
+evaluation set. BEIR is mean nDCG@$10$; HotpotQA is frozen-reader accuracy.
+The natural mixture uses four seeds; other rows use one.}
+\label{tab:rag_datamix}
+\begin{tabular}{lccccc}
+\toprule
+training mix & $R@5$ & reader cEM & out-of-mix $R@5$ & BEIR & HotpotQA \\
+\midrule
+base encoder & $66.9$ & $42.9$ & --- & $0.439$ & $34.2$ \\
+natural eleven-source mix & $77.4$ & $44.6$ & --- & $0.439$ & $34.7$ \\
+web QA & $78.0$ & $45.2$ & $69.7$ & $0.440$ & $33.2$ \\
+TriviaQA only & $77.7$ & $44.2$ & $77.4$ & $0.439$ & $36.0$ \\
+reading/science & $77.3$ & $43.7$ & $83.4$ & $0.438$ & $35.0$ \\
+balanced sources & $76.7$ & $44.7$ & --- & $0.441$ & $35.4$ \\
+MuSiQue only & $74.5$ & $42.8$ & $72.0$ & $0.439$ & $34.6$ \\
+MS MARCO only & $72.7$ & $43.4$ & $67.1$ & $0.437$ & $36.4$ \\
+NQ only & $72.5$ & $42.2$ & $71.3$ & $0.436$ & $31.8$ \\
+\bottomrule
+\end{tabular}
+\end{table}

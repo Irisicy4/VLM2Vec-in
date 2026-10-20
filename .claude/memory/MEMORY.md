@@ -1,0 +1,7 @@
+- [User works by terse directive](user-works-by-terse-directive.md) — short high-level asks, autonomous execution expected; corrections are absolute and standing.
+- [No unprompted peer messaging](no-unprompted-peer-messaging.md) — write findings to the repo and report to the user; message peer sessions only when asked.
+- [InfoSeek accuracy metric was broken](infoseek-accuracy-metric-was-broken.md) — never read acc from *.vqa_top5.json; use the rescored file. Acc floor is 1.83.
+- [Check direction before claiming](check-direction-before-claiming.md) — the eight retraction shapes from this project and the one-command check for each.
+- [2M-haystack collapse is OVEN attraction, not volume](haystack-collapse-is-oven-not-volume.md) — BEIR distractors are inert; the base chases wrong-entity OVEN summaries.
+- [SFT control: haystack robustness is fine-tuning, not the reward](sft-control-decides-haystack-claim.md) — SETTLED; only the downstream advantage survives the 2M index.
+- [Never call a trend off a short window](never-call-a-trend-off-a-short-window.md) — the judge decay reversed from z=-2.14 to z=-0.37 between 200 and 613 steps.

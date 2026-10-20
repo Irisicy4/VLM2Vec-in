@@ -1,0 +1,23 @@
+\begin{table}[H]
+\centering\small
+\caption{Zero-shot text retrieval on BEIR datasets unseen in training (nDCG@$10$). The mean
+covers the five primary domains; three further domains provide an additional transfer check.}
+\label{tab:rag_ood_text_beir}
+\begin{tabular}{lccc}
+\toprule
+dataset & base & relevance-SFT & ours \\
+\midrule
+SciFact & $0.694$ & $0.527$ & $0.702$ \\
+NFCorpus & $0.358$ & $0.220$ & $0.358$ \\
+ArguAna & $0.484$ & $0.323$ & $0.472$ \\
+FiQA & $0.429$ & $0.198$ & $0.437$ \\
+SciDocs & $0.228$ & $0.123$ & $0.225$ \\
+\midrule
+mean (five domains) & $0.439$ & $0.278$ & $0.439$ \\
+\midrule
+TREC-COVID & $0.800$ & $0.486$ & $0.856$ \\
+Touch\'e-2020 & $0.227$ & $0.191$ & $0.253$ \\
+Quora & $0.856$ & $0.020$ & $0.869$ \\
+\bottomrule
+\end{tabular}
+\end{table}

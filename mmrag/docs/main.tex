@@ -1,0 +1,111 @@
+
+\documentclass{article} % For LaTeX2e
+\usepackage{iclr2027_conference,times}
+
+% Optional math commands from https://github.com/goodfeli/dlbook_notation.
+\input{math_commands.tex}
+
+\usepackage{hyperref}
+\usepackage{url}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,calc}
+\definecolor{NavyBlue}{RGB}{20,70,140}
+\definecolor{BurntOrange}{RGB}{190,95,20}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{wrapfig}
+
+% Red "experiment status" note: succinct, layman summary of what is expected,
+% whether it is done, and the direction of the result. Remove/redefine to a
+% no-op for the camera-ready.
+\newcommand{\statusnote}[1]{\par\smallskip\noindent\fbox{\parbox{0.97\linewidth}%
+{\color{red}\small\textbf{[Experiment status]}\ #1}}\par\smallskip}
+
+
+\title{Learning Intermediate Representation with indirect end-task signal}
+
+% Authors must not appear in the submitted version. They should be hidden
+% as long as the \iclrfinalcopy macro remains commented out below.
+% Non-anonymous submissions will be rejected without review.
+
+\author{Antiquus S.~Hippocampus, Natalia Cerebro \& Amelie P. Amygdale \thanks{ Use footnote for providing further information
+about author (webpage, alternative address)---\emph{not} for acknowledging
+funding agencies.  Funding acknowledgements go at the end of the paper.} \\
+Department of Computer Science\\
+Cranberry-Lemon University\\
+Pittsburgh, PA 15213, USA \\
+\texttt{\{hippo,brain,jen\}@cs.cranberry-lemon.edu} \\
+\And
+Ji Q. Ren \& Yevgeny LeNet \\
+Department of Computational Neuroscience \\
+University of the Witwatersrand \\
+Joburg, South Africa \\
+\texttt{\{robot,net\}@wits.ac.za} \\
+\AND
+Coauthor \\
+Affiliation \\
+Address \\
+\texttt{email}
+}
+
+% The \author macro works with any number of authors. There are two commands
+% used to separate the names and addresses of multiple authors: \And and \AND.
+%
+% Using \And between authors leaves it to \LaTeX{} to determine where to break
+% the lines. Using \AND forces a linebreak at that point. So, if \LaTeX{}
+% puts 3 of 4 authors names on the first line, and the last on the second
+% line, try using \AND instead of \And before the third author name.
+
+\newcommand{\fix}{\marginpar{FIX}}
+\newcommand{\new}{\marginpar{NEW}}
+
+%\iclrfinalcopy % Uncomment for camera-ready version, but NOT for submission.
+\begin{document}
+
+
+\maketitle
+
+\begin{abstract}
+Task specific LLM post-training commonly adapts reward sourced from \emph{direct} answer annotations to the input format. Yet, annotations like rich captions and passage-relevance labels are expensive, limited in diversity, and only proxies for the outcomes users care about. We study \emph{indirect feedback}: rewarding a model by the success of a downstream task that consumes its output. In retrieval-augmented generation, a retriever is trained from reader answer correctness rather than relevance labels. At 7B, the multimodal retriever outperforms a tuned, data-matched relevance-SFT
+baseline in answer-bearing $R@5$ ($68.7\%$ vs. $63.0\%$), entity $R@5$ ($80.6\%$ vs. $77.7\%$),
+and downstream accuracy ($45.2\%$ vs. $41.6\%$); at 2B, retrieval is tied while indirect feedback
+leads in accuracy ($43.4\%$ vs. $41.2\%$). The ordering survives a $4.7\times$ larger,
+mixed-domain index: the frozen encoder collapses there ($68.5\%$ to $14.3\%$ entity recall) while
+both trained retrievers hold near $69\%$, and indirect feedback again converts retrieval into
+answers better than relevance SFT ($41.9\%$ vs. $36.5\%$ accuracy). The advantage also transfers: after InfoSeek-only training, the indirect retriever
+leads the in-domain-selected relevance-SFT checkpoint on Encyclopedic-VQA ($44.7\%$ vs. $43.5\%$ accuracy). Text-only retrieval shows the same robustness tradeoff: indirect
+feedback raises in-domain $R@5$ from $66.9\%$ to $78.7\%$ and preserves the base model's mean BEIR
+nDCG@$10$, while relevance-SFT achieves a larger in-domain gain but loses $0.16$ nDCG@$10$ out of
+domain. In image captioning, we reward captions by whether a judge can answer visual questions from
+their text without reference captions; the learned captioner outperforms direct distillation on
+modern reference-free, human-aligned metrics. Overall, indirect feedback converts abundant
+downstream outcomes into effective training signals without task-specific output annotations.
+
+\end{abstract}
+
+\input{sec_intro}
+
+\input{sec_related}
+
+% ===== Experiment 1 of 2: Captioning (indirect feedback = downstream VQA answerability vs. direct caption annotation) =====
+\input{sec_caption}
+
+% ===== Experiment 2 of 2: RAG (indirect feedback = downstream reader answer success vs. direct relevance annotation) =====
+\input{sec_mm_rag}
+
+\input{sec_conclusion}
+
+
+\bibliography{iclr2027_conference}
+\bibliographystyle{iclr2027_conference}
+
+\appendix
+\input{app_caption}
+\input{app_rag}
+
+
+\end{document}

@@ -1,0 +1,50 @@
+\begin{table}[H]
+\centering\scriptsize
+\caption{Zero-shot BEIR transfer on the eight BEIR datasets of Table~\ref{tab:rag_ood_text_beir}, the full metric series.
+Each cell is base $\rightarrow$ indirect feedback (ours, mean over four seeds); relevance-SFT (mean over two seeds) is
+the row below in italics. ``Mean'' averages the first five datasets. A bold ours value is above base by more than twice the
+seed standard deviation and by more than $0.5$ points. On ArguAna the query text is itself a corpus document and is
+retrieved first, so the $@1$ metrics are zero for every model there.}
+\label{tab:rag_beir_metrics}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lccccccccc}
+\toprule
+metric & SciFact & NFCorpus & ArguAna & FiQA & SciDocs & mean & TREC-COVID & Touch\'e-2020 & Quora \\
+\midrule
+nDCG@1 & 56.3 $\rightarrow$ \textbf{58.2} & 46.9 $\rightarrow$ 46.9 & 0.0 $\rightarrow$ 0.1 & 41.0 $\rightarrow$ 42.1 & 25.6 $\rightarrow$ 25.8 & 34.0 $\rightarrow$ 34.6 & 80.0 $\rightarrow$ 87.0 & 21.4 $\rightarrow$ \textbf{27.5} & 77.1 $\rightarrow$ \textbf{79.1} \\
+\quad \textit{relevance-SFT} & \textit{38.5} & \textit{28.1} & \textit{0.1} & \textit{19.0} & \textit{14.4} & \textit{20.0} & \textit{59.5} & \textit{26.5} & \textit{1.4} \\
+nDCG@3 & 65.7 $\rightarrow$ 66.0 & 40.9 $\rightarrow$ 41.3 & 37.2 $\rightarrow$ 35.8 & 38.2 $\rightarrow$ 38.8 & 21.3 $\rightarrow$ 21.5 & 40.6 $\rightarrow$ 40.7 & 82.5 $\rightarrow$ 87.4 & 23.2 $\rightarrow$ 26.9 & 82.2 $\rightarrow$ \textbf{83.8} \\
+\quad \textit{relevance-SFT} & \textit{46.5} & \textit{25.3} & \textit{20.2} & \textit{17.1} & \textit{11.5} & \textit{24.1} & \textit{55.4} & \textit{27.1} & \textit{1.6} \\
+nDCG@5 & 67.7 $\rightarrow$ \textbf{68.2} & 39.0 $\rightarrow$ 39.4 & 44.5 $\rightarrow$ 42.6 & 40.2 $\rightarrow$ 40.7 & 18.9 $\rightarrow$ 18.7 & 42.0 $\rightarrow$ 41.9 & 82.4 $\rightarrow$ 87.1 & 22.4 $\rightarrow$ 25.0 & 84.0 $\rightarrow$ \textbf{85.5} \\
+\quad \textit{relevance-SFT} & \textit{49.6} & \textit{23.7} & \textit{26.3} & \textit{17.8} & \textit{10.1} & \textit{25.5} & \textit{52.5} & \textit{22.3} & \textit{1.8} \\
+nDCG@10 & 69.4 $\rightarrow$ \textbf{70.2} & 35.8 $\rightarrow$ 35.8 & 48.4 $\rightarrow$ 47.2 & 42.9 $\rightarrow$ 43.7 & 22.8 $\rightarrow$ 22.5 & 43.9 $\rightarrow$ 43.9 & 80.0 $\rightarrow$ \textbf{85.6} & 22.7 $\rightarrow$ 25.3 & 85.5 $\rightarrow$ \textbf{86.9} \\
+\quad \textit{relevance-SFT} & \textit{52.7} & \textit{22.0} & \textit{32.3} & \textit{19.8} & \textit{12.3} & \textit{27.8} & \textit{48.6} & \textit{19.1} & \textit{2.0} \\
+nDCG@20 & 70.7 $\rightarrow$ \textbf{71.5} & 33.7 $\rightarrow$ 33.7 & 49.6 $\rightarrow$ 48.6 & 46.0 $\rightarrow$ 46.2 & 26.0 $\rightarrow$ 25.8 & 45.2 $\rightarrow$ 45.2 & 77.4 $\rightarrow$ \textbf{83.1} & 24.5 $\rightarrow$ 26.4 & 86.4 $\rightarrow$ \textbf{87.7} \\
+\quad \textit{relevance-SFT} & \textit{54.4} & \textit{20.8} & \textit{35.6} & \textit{21.7} & \textit{14.3} & \textit{29.4} & \textit{43.6} & \textit{19.5} & \textit{2.2} \\
+nDCG@100 & 72.2 $\rightarrow$ \textbf{73.0} & 32.9 $\rightarrow$ 32.9 & 50.1 $\rightarrow$ 49.2 & 50.0 $\rightarrow$ 50.4 & 31.7 $\rightarrow$ 31.1 & 47.4 $\rightarrow$ 47.3 & 65.9 $\rightarrow$ \textbf{71.0} & 35.3 $\rightarrow$ 36.8 & 87.1 $\rightarrow$ \textbf{88.3} \\
+\quad \textit{relevance-SFT} & \textit{56.8} & \textit{21.6} & \textit{38.1} & \textit{25.4} & \textit{18.9} & \textit{32.2} & \textit{30.1} & \textit{28.3} & \textit{2.6} \\
+R@1 & 53.2 $\rightarrow$ \textbf{54.9} & 6.1 $\rightarrow$ 6.2 & 0.0 $\rightarrow$ 0.1 & 21.4 $\rightarrow$ 21.8 & 5.2 $\rightarrow$ 5.2 & 17.2 $\rightarrow$ 17.7 & 0.2 $\rightarrow$ 0.2 & 1.9 $\rightarrow$ \textbf{2.6} & 67.1 $\rightarrow$ \textbf{68.8} \\
+\quad \textit{relevance-SFT} & \textit{36.6} & \textit{3.0} & \textit{0.1} & \textit{9.3} & \textit{2.9} & \textit{10.4} & \textit{0.1} & \textit{2.2} & \textit{1.2} \\
+R@5 & 77.2 $\rightarrow$ 77.0 & 13.6 $\rightarrow$ 13.6 & 80.3 $\rightarrow$ 77.0 & 42.9 $\rightarrow$ 42.8 & 17.0 $\rightarrow$ 16.7 & 46.2 $\rightarrow$ 45.4 & 1.2 $\rightarrow$ 1.2 & 8.6 $\rightarrow$ 9.2 & 89.6 $\rightarrow$ \textbf{90.8} \\
+\quad \textit{relevance-SFT} & \textit{59.7} & \textit{8.0} & \textit{49.4} & \textit{18.9} & \textit{9.0} & \textit{29.0} & \textit{0.7} & \textit{7.1} & \textit{2.2} \\
+R@10 & 82.0 $\rightarrow$ \textbf{82.7} & 17.1 $\rightarrow$ 17.3 & 92.4 $\rightarrow$ 91.0 & 51.1 $\rightarrow$ 51.9 & 24.1 $\rightarrow$ 23.6 & 53.3 $\rightarrow$ 53.3 & 2.2 $\rightarrow$ 2.4 & 15.3 $\rightarrow$ 17.0 & 94.1 $\rightarrow$ \textbf{94.9} \\
+\quad \textit{relevance-SFT} & \textit{68.6} & \textit{11.0} & \textit{67.6} & \textit{24.6} & \textit{13.0} & \textit{37.0} & \textit{1.2} & \textit{10.7} & \textit{2.8} \\
+R@20 & 87.2 $\rightarrow$ 87.5 & 21.7 $\rightarrow$ 21.9 & 97.1 $\rightarrow$ 96.4 & 60.5 $\rightarrow$ 59.6 & 31.6 $\rightarrow$ 31.3 & 59.6 $\rightarrow$ 59.3 & 4.2 $\rightarrow$ 4.5 & 24.0 $\rightarrow$ 24.8 & 96.8 $\rightarrow$ 97.3 \\
+\quad \textit{relevance-SFT} & \textit{74.9} & \textit{14.6} & \textit{80.6} & \textit{30.6} & \textit{17.7} & \textit{43.7} & \textit{2.1} & \textit{16.6} & \textit{3.5} \\
+R@50 & 93.0 $\rightarrow$ 92.8 & 28.2 $\rightarrow$ 28.0 & 99.0 $\rightarrow$ 98.5 & 70.8 $\rightarrow$ 69.3 & 41.9 $\rightarrow$ 40.7 & 66.6 $\rightarrow$ 65.9 & 9.4 $\rightarrow$ \textbf{10.1} & 36.8 $\rightarrow$ \textbf{37.7} & 98.7 $\rightarrow$ 98.9 \\
+\quad \textit{relevance-SFT} & \textit{82.6} & \textit{19.9} & \textit{89.7} & \textit{39.5} & \textit{25.8} & \textit{51.5} & \textit{4.2} & \textit{25.8} & \textit{4.6} \\
+R@100 & 95.3 $\rightarrow$ 95.5 & 33.6 $\rightarrow$ 33.5 & 99.5 $\rightarrow$ 99.2 & 77.3 $\rightarrow$ 77.1 & 50.0 $\rightarrow$ 48.7 & 71.2 $\rightarrow$ 70.8 & 16.7 $\rightarrow$ \textbf{18.1} & 46.9 $\rightarrow$ 47.5 & 99.4 $\rightarrow$ 99.5 \\
+\quad \textit{relevance-SFT} & \textit{88.0} & \textit{24.9} & \textit{94.1} & \textit{46.7} & \textit{32.9} & \textit{57.3} & \textit{6.6} & \textit{35.7} & \textit{5.9} \\
+P@1 & 56.3 $\rightarrow$ \textbf{58.2} & 48.3 $\rightarrow$ 48.7 & 0.0 $\rightarrow$ 0.1 & 41.0 $\rightarrow$ 42.1 & 25.6 $\rightarrow$ 25.8 & 34.3 $\rightarrow$ 35.0 & 88.0 $\rightarrow$ 91.5 & 22.4 $\rightarrow$ \textbf{30.1} & 77.1 $\rightarrow$ \textbf{79.1} \\
+\quad \textit{relevance-SFT} & \textit{38.5} & \textit{29.7} & \textit{0.1} & \textit{19.0} & \textit{14.4} & \textit{20.3} & \textit{64.0} & \textit{29.6} & \textit{1.4} \\
+P@5 & 17.3 $\rightarrow$ 17.3 & 33.4 $\rightarrow$ 34.0 & 16.1 $\rightarrow$ 15.4 & 18.8 $\rightarrow$ 19.1 & 16.7 $\rightarrow$ 16.5 & 20.5 $\rightarrow$ 20.5 & 86.8 $\rightarrow$ \textbf{90.8} & 23.7 $\rightarrow$ 25.5 & 23.8 $\rightarrow$ 24.2 \\
+\quad \textit{relevance-SFT} & \textit{13.2} & \textit{20.6} & \textit{9.9} & \textit{8.4} & \textit{8.9} & \textit{12.2} & \textit{55.0} & \textit{20.8} & \textit{0.6} \\
+P@10 & 9.4 $\rightarrow$ 9.4 & 26.5 $\rightarrow$ 26.4 & 9.2 $\rightarrow$ 9.1 & 11.7 $\rightarrow$ 12.0 & 11.9 $\rightarrow$ 11.6 & 13.7 $\rightarrow$ 13.7 & 83.6 $\rightarrow$ \textbf{89.2} & 21.4 $\rightarrow$ 23.4 & 13.1 $\rightarrow$ 13.3 \\
+\quad \textit{relevance-SFT} & \textit{7.8} & \textit{16.6} & \textit{6.8} & \textit{5.7} & \textit{6.4} & \textit{8.6} & \textit{50.4} & \textit{15.6} & \textit{0.4} \\
+MRR@10 & 65.9 $\rightarrow$ \textbf{66.9} & 56.2 $\rightarrow$ 56.8 & 34.1 $\rightarrow$ 33.0 & 51.0 $\rightarrow$ 51.7 & 37.8 $\rightarrow$ 37.7 & 49.0 $\rightarrow$ 49.2 & 92.9 $\rightarrow$ 95.3 & 41.3 $\rightarrow$ \textbf{48.1} & 84.4 $\rightarrow$ \textbf{85.9} \\
+\quad \textit{relevance-SFT} & \textit{48.6} & \textit{39.1} & \textit{21.2} & \textit{25.6} & \textit{22.8} & \textit{31.5} & \textit{74.6} & \textit{44.4} & \textit{1.9} \\
+MAP@100 & 65.4 $\rightarrow$ \textbf{66.4} & 17.0 $\rightarrow$ 17.0 & 34.5 $\rightarrow$ 33.5 & 36.5 $\rightarrow$ 37.0 & 16.3 $\rightarrow$ 16.0 & 33.9 $\rightarrow$ 34.0 & 13.5 $\rightarrow$ \textbf{15.3} & 14.6 $\rightarrow$ 15.7 & 82.0 $\rightarrow$ \textbf{83.6} \\
+\quad \textit{relevance-SFT} & \textit{47.9} & \textit{8.9} & \textit{22.4} & \textit{15.8} & \textit{8.1} & \textit{20.6} & \textit{3.6} & \textit{9.9} & \textit{1.8} \\
+\bottomrule
+\end{tabular}}
+\end{table}

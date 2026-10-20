@@ -1,0 +1,29 @@
+\begin{table}[H]
+\centering\small
+\caption{Matched live- versus frozen-index ablation for text retrieval. Self-consistent $R@5$ is the result: the trained
+model encodes both the queries and every passage of the index. Query-tower $R@5$ is a training-time probe only (the trained
+query encoder against the base-encoded index) and is reported for diagnosis, not as a result. BEIR is mean nDCG@$10$,
+self-encoded. Parentheses give seed counts. The $1$M frozen-index row is a single seed by a costed decision, so margins measured against it are comparator-limited: the four-seed detached $+$ anchor row is pinned to $\pm1.7$ ($1$ s.e.), while a single control draw carries its own unmeasured sampling spread, and the nominal $+4.9$ over it should be read with that asymmetry in mind.}
+\label{tab:rag_refresh}
+\begin{tabular}{llccc}
+\toprule
+corpus & index during training & query $R@5$ & self-consistent $R@5$ & BEIR \\
+\midrule
+50K & base encoder & $66.9$ & $66.9$ & $0.439$ \\
+50K & live (4) & $77.4 \pm 1.7$ & $70.7 \pm 1.4$ (2) & $0.439$ \\
+50K & frozen (2) & $76.0 \pm 1.3$ & $75.6 \pm 1.2$ & $0.440$ \\
+\midrule
+200K & base encoder & $50.4$ & $50.4$ & --- \\
+200K & live (2) & $65.3 \pm 0.7$ & $61.4 \pm 1.5$ & --- \\
+200K & frozen (2) & $66.9 \pm 3.3$ & $69.0 \pm 2.9$ & --- \\
+\midrule
+1M & base encoder & $36.3$ & $36.3$ & $0.439$ \\
+1M & live (2) & $57.1 \pm 5.2$ & $47.7 \pm 8.5$ & $0.434$ \\
+1M & live, no passage-side gradient (2) & $60.4 \pm 1.6$ & $58.5 \pm 2.0$ & $0.441$ \\
+1M & live $+$ InfoNCE anchor (2) & $61.4 \pm 0.2$ & $53.2$ (1) & $0.433$ (1) \\
+1M & live, no passage-side gradient $+$ InfoNCE anchor, coef.\ 0.05 (4) & $62.9 \pm 1.4$ & $\mathbf{61.9 \pm 3.3}$ & $0.438$ \\
+1M & live, no passage-side gradient $+$ InfoNCE anchor, coef.\ 0.2 (2) & $63.4 \pm 1.8$ & $63.4 \pm 3.0$ & $0.435$ \\
+1M & frozen (1) & $57.8$ & $57.0$ & $0.439$ \\
+\bottomrule
+\end{tabular}
+\end{table}

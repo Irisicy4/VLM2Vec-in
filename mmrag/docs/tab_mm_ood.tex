@@ -1,0 +1,28 @@
+\begin{table}[H]
+\centering\small
+\caption{Multimodal transfer from InfoSeek to Encyclopedic-VQA (domain shift) and to a larger
+mixed-domain index (haystack shift). Accuracy uses a frozen reader on $1{,}500$ queries; retrieval
+recall uses all queries ($2{,}701$ and $3{,}000$, respectively). Values are percentages; $\pm$
+denotes sample SD when multiple seeds are available. Haystack rows are single-seed results.}
+\label{tab:mm_ood_full}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lccccccc}
+\toprule
+model & VQA accuracy & entity $R@1$ & entity $R@5$ & entity $R@10$ & entity $R@20$ & answer $R@5$ & answer $R@10$ \\
+\midrule
+\multicolumn{8}{l}{\emph{domain shift}: InfoSeek $\rightarrow$ Encyclopedic-VQA, own corpus ($n=2{,}701$)}\\
+\midrule
+base (frozen GME-2B) & $42.07$ & $49.91$ & $76.31$ & $83.89$ & $89.86$ & $64.84$ & $74.48$ \\
+relevance-SFT, step $750$ (selected in domain) & $43.47$ & $58.02$ & $78.38$ & $84.49$ & $89.49$ & $66.73$ & $74.93$ \\
+relevance-SFT, endpoint & $39.33$ & $53.17$ & $71.05$ & $76.97$ & $83.12$ & $55.71$ & $64.54$ \\
+\textbf{ours}, indirect (3 seeds) & $\mathbf{44.67} \pm \mathbf{1.27}$ & $\mathbf{59.61} \pm \mathbf{0.87}$ & $\mathbf{80.23} \pm \mathbf{1.21}$ & $\mathbf{86.34} \pm \mathbf{1.22}$ & $\mathbf{91.36} \pm \mathbf{0.97}$ & $\mathbf{68.48} \pm \mathbf{3.55}$ & $\mathbf{76.95} \pm \mathbf{2.82}$ \\
+\midrule
+\multicolumn{8}{l}{\emph{haystack shift}: same InfoSeek queries ($n=3{,}000$), index $422$K $\rightarrow$ $2$M mixed-domain}\\
+\midrule
+base (frozen GME-2B) & $25.13$ & $6.23$ & $14.27$ & $19.30$ & $25.60$ & $9.96$ & $14.04$ \\
+relevance-SFT, matched to the $422$K condition & $36.47$ & $\mathbf{49.83}$ & $69.07$ & $75.40$ & $80.80$ & $54.49$ & $65.35$ \\
+\textbf{ours}, indirect, trained on $422$K \emph{(transfer)} & $\mathbf{41.93}$ & $46.77$ & $\mathbf{69.83}$ & $76.00$ & $82.60$ & $\mathbf{57.88}$ & $65.96$ \\
+\textbf{ours}, indirect, trained on $2$M \emph{(matched)} & $\mathbf{41.93}$ & $47.07$ & $69.67$ & $\mathbf{77.37}$ & $\mathbf{83.70}$ & $56.82$ & $\mathbf{66.24}$ \\
+\bottomrule
+\end{tabular}}
+\end{table}

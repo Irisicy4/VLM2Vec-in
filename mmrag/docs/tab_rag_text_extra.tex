@@ -1,0 +1,202 @@
+% Text-side result tables added 2026-09-15 from projects/indirect/rag (paper.md is the record).
+\subsection{Additional text-retrieval tables}
+\label{app:rag_text_tables}
+
+\begin{table}[H]
+\centering\small
+\caption{\textbf{The trained model as the whole embedding model.} $R@5$ / $R@30$ / reader cEM (\%) when the
+trained model encodes both the queries and every passage of the index (``self-consistent''), on the $1$M-passage
+multi-source corpus and on the $50$k carve-out it was trained against; the base row is the untrained
+Qwen3-Embedding-0.6B. Out of domain: mean BEIR nDCG@$10$ and HotpotQA reader accuracy (\%) for the same
+checkpoints. Indirect feedback with a frozen index consumed $39$k queries; relevance-SFT consumed the
+annotated gold passages of the eleven-source mixture. Seeds are listed individually; the live-$1$M rows carry one or two seeds, with further seeds in progress.}
+\label{tab:rag_selfconsistent}
+\begin{tabular}{llccc}
+\toprule
+index & model & self-consistent $R@5$ / $R@30$ / cEM & BEIR & HotpotQA \\
+\midrule
+1M & base encoder & 36.3 / 56.4 / 35.5 & 0.439 & 34.2 \\
+1M & indirect feedback, frozen index, 39k queries (s0 / s1) & 65.8 / 82.3 / 41.8 \quad 65.9 / 82.6 / 41.5 & 0.432 & 35.0 \\
+1M & indirect feedback, frozen index, 5k queries (s0) & 57.0 / 76.8 / 39.6 & 0.439 & --- \\
+1M & relevance-SFT (s0 / s1) & 69.5 / 84.6 / 42.1 \quad 71.1 / 86.0 / 42.5 & 0.279 / 0.277 & 36.0 / 33.4 \\
+1M & indirect feedback, live 50k carve-out, 6k queries (s0 / s1) & 44.5 / 62.9 / 36.3 \quad 47.4 / 65.9 / 36.8 & 0.439 / 0.436 & 33.8 / 34.4 \\
+1M & indirect feedback, live 1M index refreshed every 250 steps, 5k queries (s1 / s2) & 53.7 / 71.4 / 38.2 \quad 41.7 / 58.2 / 34.4 & 0.434 / 0.434 & 32.8 / 32.6 \\
+1M & \quad same, index refreshed every 500 steps (s0) & 45.0 / 62.7 / 35.2 & 0.437 & 33.0 \\
+1M & \quad same $+$ InfoNCE anchor, coef.\ 0.05 (s0) & 53.2 / 70.5 / 37.0 & 0.434 & 29.6 \\
+1M & \quad same $+$ InfoNCE anchor, coef.\ 0.05 $+$ reward filter (s0) & 54.6 / 71.2 / 38.2 & 0.431 & 29.4 \\
+1M & \quad same $+$ InfoNCE anchor, coef.\ 0.2 (s0) & 55.6 / 73.9 / 38.6 & 0.437 & 31.6 \\
+1M & \quad same, no passage-side gradient (s0 / s1) & 57.1 / 75.8 / 39.3 \quad 59.9 / 77.9 / 40.0 & 0.441 / 0.442 & 35.4 / 34.6 \\
+1M & \quad same, no passage-side gradient $+$ InfoNCE anchor, coef.\ 0.05 (s0 / s1 / s2 / s3) & 61.6 / 79.1 / 39.2 \quad 64.7 / 81.6 / 41.2 \quad 64.1 / 80.8 / 40.8 \quad 57.4 / 76.4 / 38.9 & 0.438 / 0.440 / 0.438 / 0.436 & 33.6 / 35.8 / 34.4 / 34.2 \\
+1M & \quad same, no passage-side gradient $+$ InfoNCE anchor, coef.\ 0.2 (s0 / s1) & 65.6 / 82.3 / 41.2 \quad 61.3 / 79.3 / 39.7 & 0.432 / 0.437 & 33.6 / 35.0 \\
+\midrule
+50k & base encoder & 66.9 / 82.8 / 42.9 & 0.439 & 34.2 \\
+50k & indirect feedback, live index (s0 / s1) & 69.7 / 83.9 / 42.1 \quad 71.8 / 86.6 / 42.8 & 0.439 / 0.436 & 33.8 / 34.4 \\
+50k & indirect feedback, frozen index (s0 / s1) & 76.5 / 88.1 / 44.4 \quad 74.8 / 87.1 / 44.2 & 0.442 / 0.438 & 36.0 / 34.2 \\
+50k & relevance-SFT (4 seeds) & 83.0 / 84.3 / 83.9 / 83.9 (mean 83.8) & 0.279 / 0.277 & 36.0 / 33.4 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[H]
+\centering\small
+\caption{\textbf{Per-source in-domain results on the $50$k carve-out} ($R@5$ / reader cEM, \%; $n$ evaluation
+queries per source). Indirect feedback is the live-carve-out recipe, mean $\pm$ standard deviation over four
+seeds ($R@5$) with the four-seed mean cEM; the frozen-index twin is the two-seed mean; relevance-SFT is one seed.}
+\label{tab:rag_persource}
+\begin{tabular}{lrcccc}
+\toprule
+source & $n$ & base & relevance-SFT & indirect feedback (live) & indirect feedback (frozen) $R@5$ \\
+\midrule
+NQ & 377 & 77.2 / 50.4 & 79.6 / 46.7 & $78.8 \pm 0.7$ / 48.6 & 78.6 \\
+TriviaQA & 377 & 59.7 / 63.9 & 86.7 / 70.8 & $77.6 \pm 3.3$ / 69.2 & 76.7 \\
+MS MARCO & 376 & 92.8 / 41.0 & 94.2 / 36.4 & $96.3 \pm 0.2$ / 38.2 & 96.4 \\
+MuSiQue & 246 & 50.8 / 11.4 & 90.2 / 14.2 & $74.5 \pm 4.7$ / 16.2 & 69.3 \\
+DROP & 177 & 42.9 / 26.0 & 49.7 / 25.4 & $44.3 \pm 0.9$ / 27.4 & 46.0 \\
+SQuAD & 124 & 55.6 / 43.5 & 72.6 / 51.6 & $69.2 \pm 1.0$ / 49.4 & 66.9 \\
+SciQ & 121 & 66.9 / 76.9 & 93.4 / 88.4 & $84.1 \pm 1.2$ / 80.2 & 80.2 \\
+QASC & 94 & 46.8 / 26.6 & 88.3 / 40.4 & $71.0 \pm 3.2$ / 32.4 & 62.2 \\
+OpenBookQA & 60 & 75.0 / 3.3 & 56.7 / 0.0 & $69.6 \pm 3.0$ / 0.8 & 70.8 \\
+WebQuestions & 31 & 67.7 / 71.0 & 87.1 / 71.0 & $79.0 \pm 3.6$ / 78.2 & 82.3 \\
+other & 17 & 64.7 / 11.8 & 88.2 / 11.8 & $83.8 \pm 6.4$ / 17.6 & 79.4 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[H]
+\centering\small
+\caption{\textbf{Zero-shot BEIR transfer per dataset}, nDCG@$10$ / $R@100$, every corpus encoded by the
+evaluated model; queries of these domains are never seen in training. Multi-seed rows are seed means (seed
+counts in parentheses). ``1M'' rows are trained against the $1$M-passage index; the other trained rows against
+the $50$k carve-out.}
+\label{tab:rag_beir_full}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lcccccc}
+\toprule
+model & SciFact & NFCorpus & ArguAna & FiQA & SciDocs & mean nDCG@$10$ \\
+\midrule
+base encoder & 0.694 / 0.953 & 0.358 / 0.336 & 0.484 / 0.995 & 0.429 / 0.773 & 0.228 / 0.501 & 0.439 \\
+indirect feedback, live 50k (4) & 0.702 / 0.955 & 0.358 / 0.336 & 0.472 / 0.992 & 0.437 / 0.771 & 0.225 / 0.487 & 0.439 \\
+indirect feedback, frozen 50k (2) & 0.695 / 0.950 & 0.363 / 0.335 & 0.476 / 0.994 & 0.439 / 0.778 & 0.228 / 0.489 & 0.440 \\
+indirect feedback, live 50k $+$ offline filter (2) & 0.702 / 0.952 & 0.354 / 0.331 & 0.469 / 0.992 & 0.444 / 0.770 & 0.223 / 0.472 & 0.438 \\
+relevance-SFT (2) & 0.527 / 0.881 & 0.220 / 0.249 & 0.323 / 0.941 & 0.198 / 0.467 & 0.123 / 0.329 & 0.278 \\
+1M: indirect feedback, frozen index, 39k queries & 0.705 / 0.953 & 0.359 / 0.330 & 0.457 / 0.991 & 0.420 / 0.751 & 0.218 / 0.464 & 0.432 \\
+1M: indirect feedback, frozen index, 5k queries & 0.705 / 0.957 & 0.360 / 0.326 & 0.469 / 0.994 & 0.440 / 0.767 & 0.222 / 0.479 & 0.439 \\
+1M: indirect feedback, live index every 250 steps, 5k queries & 0.698 / 0.940 & 0.350 / 0.326 & 0.470 / 0.992 & 0.432 / 0.758 & 0.219 / 0.465 & 0.434 \\
+1M: live, no passage-side gradient, 5k queries & 0.708 / 0.703 & 0.358 / 0.360 & 0.474 / 0.471 & 0.447 / 0.450 & 0.221 / 0.223 & 0.441 / 0.442 \\
+1M: live, index written by the EMA copy, 5k queries & 0.709 / 0.960 & 0.355 / 0.334 & 0.468 / 0.992 & 0.447 / 0.776 & 0.219 / 0.477 & 0.440 \\
+1M: live, reward from a 30B judge, 5k queries & 0.697 / 0.953 & 0.353 / 0.329 & 0.465 / 0.992 & 0.438 / 0.764 & 0.223 / 0.476 & 0.435 \\
+1M: live $+$ offline usable-query filter, 5k queries & 0.693 / 0.933 & 0.344 / 0.319 & 0.462 / 0.991 & 0.439 / 0.757 & 0.215 / 0.456 & 0.431 \\
+1M: live, half learning rate, 5k queries & 0.701 / 0.940 & 0.355 / 0.324 & 0.475 / 0.992 & 0.449 / 0.778 & 0.221 / 0.470 & 0.440 \\
+1M: live $+$ InfoNCE to own top-1, 5k queries & 0.705 / 0.943 & 0.345 / 0.318 & 0.468 / 0.991 & 0.431 / 0.757 & 0.218 / 0.457 & 0.433 \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+\begin{table}[H]
+\centering\small
+\caption{\textbf{Multi-hop transfer: HotpotQA distractor dev}, retrieval over the union of the questions'
+context passages encoded by the evaluated model ($1{,}000$ questions; $R@k$ counts a supporting passage in the
+top $k$; nDCG@$10$ over both supporting passages), and reader accuracy (\%, cover-EM of a frozen
+Qwen2.5-3B reader over the top $5$, $500$ questions). No model saw HotpotQA in training. Multi-seed rows are
+seed means (counts in parentheses). Rows without a prefix are Qwen3-Embedding-0.6B; the last block is the 4B backbone.}
+\label{tab:rag_hotpot}
+\begin{tabular}{lccccc}
+\toprule
+model & $R@1$ & $R@5$ & $R@10$ & nDCG@$10$ & reader acc \\
+\midrule
+base encoder & 44.1 & 77.4 & 84.4 & 79.9 & 34.2 \\
+indirect feedback, live 50k (4) & 43.1 & 75.9 & 83.5 & 78.6 & 34.7 \\
+indirect feedback, frozen 50k (2) & 43.8 & 77.0 & 84.9 & 79.8 & 35.1 \\
+indirect feedback, live 50k $+$ offline filter (2) & 42.8 & 74.4 & 81.5 & 77.0 & 33.0 \\
+relevance-SFT (2) & 38.9 & 73.7 & 81.8 & 74.6 & 34.7 \\
+1M: indirect feedback, frozen index, 39k queries & 43.0 & 75.2 & 83.5 & 78.1 & 35.0 \\
+1M: indirect feedback, frozen index, 5k queries & 43.5 & 75.9 & 84.0 & 79.1 & 35.4 \\
+1M: indirect feedback, live index every 250 steps, 5k queries (2) & 42.3 & 71.4 & 78.3 & 74.7 & 32.7 \\
+1M: live, no passage-side gradient, 5k queries (2) & 43.5 & 75.7 & 83.3 & 78.6 & 35.0 \\
+1M: live $+$ InfoNCE anchor (coef.\ 0.05), 5k queries & 42.1 & 69.6 & 76.4 & 73.5 & 29.6 \\
+1M: live $+$ InfoNCE anchor $+$ offline filter, 5k queries & 42.2 & 69.7 & 75.6 & 73.1 & 29.4 \\
+1M: live $+$ InfoNCE anchor (coef.\ 0.2), 5k queries & 42.6 & 71.3 & 78.4 & 75.0 & 31.6 \\
+1M: live, half the corpus re-encoded per refresh, 5k queries & 42.1 & 71.7 & 79.2 & 75.2 & 33.0 \\
+1M: live, no passage-side gradient $+$ InfoNCE anchor (coef.\ 0.05), 5k queries (4) & 43.4 & 76.2 & 84.3 & 79.1 & 34.5 \\
+1M: live, no passage-side gradient $+$ InfoNCE anchor (coef.\ 0.2), 5k queries (2) & 43.3 & 75.7 & 83.4 & 78.4 & 34.3 \\
+1M: live, index written by the EMA copy, 5k queries & 42.0 & 71.9 & 79.4 & 75.1 & 32.0 \\
+1M: live, reward from a 30B judge, 5k queries & 42.2 & 70.7 & 77.2 & 74.0 & 32.6 \\
+\midrule
+Qwen3-Embedding-4B: base encoder & 45.2 & 85.0 & 91.9 & 86.1 & 40.8 \\
+Qwen3-Embedding-4B: indirect feedback, live 50k (1) & 44.5 & 84.1 & 91.0 & 85.0 & 40.8 \\
+1M: live $+$ offline usable-query filter, 5k queries & 41.8 & 69.6 & 76.1 & 73.2 & 32.6 \\
+1M: live, half learning rate, 5k queries & 42.6 & 72.1 & 79.5 & 75.7 & 31.6 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[H]
+\centering\small
+\caption{\textbf{Multi-hop transfer: 2WikiMultihopQA dev}, the same protocol as Table~\ref{tab:rag_hotpot}: retrieval over the
+union of the questions' context passages encoded by the evaluated model ($1{,}000$ questions; $R@k$ counts a supporting
+passage in the top $k$; nDCG@$10$ over the supporting passages), and reader accuracy (\%, cover-EM of a frozen Qwen2.5-3B
+reader over the top $5$, $500$ questions). No model saw 2WikiMultihopQA in training. Multi-seed rows are seed means
+(counts in parentheses).}
+\label{tab:rag_2wiki}
+\begin{tabular}{lccccc}
+\toprule
+model & $R@1$ & $R@5$ & $R@10$ & nDCG@$10$ & reader acc \\
+\midrule
+base encoder & 41.8 & 70.6 & 74.2 & 76.4 & 25.4 \\
+indirect feedback, live 50k (4) & 41.9 & 70.2 & 73.1 & 75.9 & 25.5 \\
+relevance-SFT (2) & 38.6 & 64.8 & 69.6 & 70.1 & 22.0 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[H]
+\centering\small
+\caption{\textbf{The live-index carve-out recipe on a second text backbone} (in-domain columns are training-time probes: the
+trained query tower on the backbone's own base-encoded $50$K carve-out index, $2{,}000$ eleven-source queries, reader cEM in \%;
+self-consistent reads pending), after $6$K training queries under the same recipe and index refresh. BEIR is mean nDCG@$10$ over five datasets; HotpotQA is frozen-reader accuracy (\%). Seed counts in
+parentheses; dashes denote pending reads.}
+\label{tab:rag_backbone_live}
+\begin{tabular}{llcccccccc}
+\toprule
+backbone & model & $R@1$ & $R@5$ & $R@10$ & $R@30$ & $R@100$ & cEM & BEIR & HotpotQA \\
+\midrule
+Qwen3-Embedding-0.6B & base (1) & 45.0 & 66.8 & 74.4 & 82.8 & 89.9 & 43.0 & 0.439 & 34.2 \\
+ & indirect feedback, live (4) & 57.3 & 77.4 & 83.5 & 89.3 & 93.8 & 44.6 & 0.439 & 34.7 \\
+\midrule
+Qwen3-Embedding-4B & base (1) & 38.3 & 59.4 & 67.5 & 77.1 & 85.8 & 40.8 & 0.506 & 40.8 \\
+ & indirect feedback, live (1) & 53.4 & 75.6 & 81.3 & 88.3 & 93.3 & 43.6 & 0.509 & 40.8 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[H]
+\centering\small
+\caption{\textbf{Variants of the live-index recipe on the $1$M corpus} (full re-encode every $250$ steps
+unless stated; seed counts as marked). The result column is the self-consistent $R@5$ (\%; the trained model encodes both
+the queries and the $1$M index; $500$-query stride, base $38.6$) at $1$k queries with later points in brackets. The query-tower
+columns ($R@5$ against the base-encoded index at $1$k / $2$k / $5$k queries on a $500$-query stride, and the full $2{,}000$-query
+read of the $5$k endpoint) are training-time probes, shown for diagnosis only. The frozen-index control is the same recipe
+with the index never refreshed. Dashes are reads not taken.}
+\label{tab:rag_1m_variants}
+\begin{tabular}{lcccc}
+\toprule
+variant & $R@5$ at 1k / 2k / 5k & 5k, full read & self-consistent at 1k \\
+\midrule
+frozen-index control & 47.6 / 50.8 / 56.1 & 57.8 & 47.4 \\
+live, plain & 50.0 / 52.6 / 58.6 (seed 2: 46.6 / 50.8 / 53.0) & 60.8 (seed 2: 53.4) & 44.8 (44.4 at 2k, 53.8 at 5k) \\
+live $+$ InfoNCE to own top-1 (coef.\ 0.05) & 53.0 / 55.8 / 60.0 (seed 1: 52.2 / 54.8 / 59.8) & 61.6 (seed 1: 61.3) & 47.0 (46.2 at 2k, 46.6 at 3k, 48.0 at 4k, 53.0 at 5k) \\
+live, no passage-side gradient & 47.6 / 48.6 / 57.6 & 59.2 & 46.2 (47.4 at 2k, 55.2 at 5k) \\
+live, no passage-side gradient $+$ InfoNCE to own top-1 (coef.\ 0.05) & 53.0 / 54.8 / 61.0 (4 / 4 / 2 seeds; per seed at 5k: 62.6, 59.4) & --- & 50.6 (52.6 at 2k, 54.0 at 3k, 55.2 at 4k, 56.5 at 4k with $n{=}2000$; seeds 2--3 at 1k: 53.4, 49.2) \\
+live, no passage-side gradient $+$ InfoNCE to own top-1 (coef.\ 0.2) & 55.4 / 57.0 / 64.2 (1 seed) & 64.7 (1) & 52.8 (1) \\
+live $+$ InfoNCE to own top-1 (coef.\ 0.2) & 51.6 / 56.2 / 59.6 & 62.1 & --- \\
+live $+$ InfoNCE to own top-1 (coef.\ 0.05) $+$ offline usable-query filter & 53.6 / 55.8 / 59.6 & 61.4 & --- \\
+live, half the corpus re-encoded per refresh & 48.2 / 48.4 / 54.6 & 55.2 & --- \\
+live, index written by the EMA copy & 47.2 / 51.4 / 55.6 & 56.9 & 42.6 \\
+live, reward from a 30B judge of the reader & 47.0 / 49.8 / 55.2 & 56.2 & --- \\
+live $+$ offline usable-query filter & 50.4 / 54.0 / 53.8 & 55.1 & 41.6 (43.8 at 2k) \\
+live, half learning rate & 44.2 / 47.2 / 51.0 & 51.5 & --- \\
+live, re-encoded every 100 steps (2k budget) & 48.6 / 53.6 / --- & --- & 44.0 \\
+live, every 100 steps $+$ filter (2k budget) & 50.8 / 55.2 / --- & --- & 43.0 \\
+\bottomrule
+\end{tabular}
+\end{table}

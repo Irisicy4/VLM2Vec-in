@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "name": "writing-papers",
+  "owner": "warrenzhu050413",
+  "repo": "warren-claude-code-plugin-marketplace",
+  "path": "claude-context-orchestrator/snippets/local/output-formats/writing-papers",
+  "branch": "main",
+  "sha": "6a5cb8aabab4399dd26ae39f23bec6379ae0ab75",
+  "source": "manual"
+}

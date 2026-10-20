@@ -1,0 +1,31 @@
+\begin{table}[t]
+\caption{Qualitative comparison (\textsc{Qwen2.5-VL-7B}, base vs.\ Ours). Indirect-RL captions read named
+entities and on-image text (\underline{underlined}) and describe atmosphere/setting (\textbf{bold}), the concrete
+answerable detail the VQA reward selects for and that short references omit.}
+\label{tab:cap_examples}
+\begin{center}
+\small
+\begin{tabular}{p{0.14\linewidth} p{0.38\linewidth} p{0.40\linewidth}}
+\toprule
+Image & Base caption & Ours (indirect RL) \\
+\midrule
+Clock tower &
+A vibrant and whimsical clock adorns the side of a building, blending functionality with artistic flair in an
+urban setting. &
+A large, ornate clock is mounted on the side of a red brick building with a \underline{Vodafone} logo, and cars
+are parked in front under a clear blue sky. The clock has a vintage design with Roman numerals. \\
+\midrule
+Ferry &
+A ferry is docked at a port, with cars lined up in front of it, ready to board. &
+A ferry labeled \underline{`Sirenia'} is docked at a port, with several cars parked nearby under bright sunlight.
+\textbf{The scene suggests a typical ferry loading or unloading operation.} \\
+\midrule
+Resort pool &
+A serene poolside scene with palm trees and a colorful building in the background, under a bright blue sky. &
+A vibrant poolside scene features a blue swimming pool, palm trees, and a red-and-white striped building, with a
+blue frisbee on a table in the foreground. \textbf{The setting is bright and sunny, suggesting a relaxed vacation
+atmosphere.} \\
+\bottomrule
+\end{tabular}
+\end{center}
+\end{table}

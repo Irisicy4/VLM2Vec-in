@@ -1,0 +1,30 @@
+\begin{table}[t]
+\caption{Design ablations for indirect captioning (3B, detailed-caption average), reported primarily on
+reference-free metrics and length. \emph{(a)} The length-penalty target sets the operating length: a tighter
+target yields shorter, tighter captions and the best PAC-S/POLOS. \emph{(b)} Mixing FineVision into the LLaVA
+training images improves grounding metrics at equal length. \emph{(c)} Context runs: dropping multiprompt
+(single-prompt gate) and pushing to 3 epochs \emph{without} format regularization destabilizes length. Len is
+mean$\pm$std tokens.}
+\label{tab:cap_ablation2}
+\begin{center}
+\small
+\begin{tabular}{llccc}
+\toprule
+Ablation & Setting & PAC-S & POLOS & Len ($\pm$std) \\
+\midrule
+\multirow{3}{*}{(a) Length target}
+ & $w_\star=128$ & \textbf{0.735} & \textbf{0.742} & $131\pm32$ \\
+ & $w_\star=256$ & 0.733 & 0.738 & $157\pm48$ \\
+ & $w_\star=384$ & 0.729 & 0.736 & $191\pm58$ \\
+\midrule
+\multirow{2}{*}{(b) Training data}
+ & LLaVA only         & 0.729 & 0.735 & $176\pm44$ \\
+ & LLaVA + FineVision & \textbf{0.734} & \textbf{0.746} & $173\pm49$ \\
+\midrule
+\multirow{2}{*}{(c) Context}
+ & single-prompt (no multiprompt) & 0.730 & 0.733 & $153\pm44$ \\
+ & 3 epochs, no format reg.       & 0.730 & 0.742 & $223\pm84$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+\end{table}

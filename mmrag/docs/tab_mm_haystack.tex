@@ -1,0 +1,30 @@
+\begin{table}[H]
+\centering\small
+\caption{Where the top-$5$ slate lands inside the $2$M mixed-domain index, by source domain.
+Each passage of that index carries its provenance, so the stored rankings can be attributed with no
+re-scoring. A domain's \emph{lift} is its share of the returned slate divided by its share of the
+index: lift $1.00$ means a domain is retrieved exactly in proportion to its size, so it is inert
+volume rather than an attractor. All four arms are scored on the identical index and query set
+($n=3000$); every gold passage is Wikipedia. The last row repeats entity $R@5$ on this index so the
+shares are read next to the score they produce. Single seed per arm.}
+\label{tab:mm_haystack_domains}
+\begin{tabular}{l r rr rr rr rr}
+\toprule
+ & & \multicolumn{2}{c}{frozen base} & \multicolumn{2}{c}{RL, $422$K} & \multicolumn{2}{c}{RL\,+\,EMA, $422$K} & \multicolumn{2}{c}{RL, $2$M} \\
+\cmidrule(lr){3-4}\cmidrule(lr){5-6}\cmidrule(lr){7-8}\cmidrule(lr){9-10}
+source domain & \% index & \% slate & lift & \% slate & lift & \% slate & lift & \% slate & lift \\
+\midrule
+Wikipedia (holds every gold) & $23.22$ & $12.24$ & $0.53$ & $69.31$ & $2.98$ & $77.35$ & $3.33$ & $77.18$ & $3.32$ \\
+OVEN entity summaries & $34.01$ & $86.32$ & $2.54$ & $16.63$ & $0.49$ & $9.13$ & $0.27$ & $7.85$ & $0.23$ \\
+OK-VQA & $5.74$ & $0.25$ & $0.04$ & $3.95$ & $0.69$ & $3.60$ & $0.63$ & $3.41$ & $0.59$ \\
+MS MARCO & $12.34$ & $0.57$ & $0.05$ & $2.06$ & $0.17$ & $2.35$ & $0.19$ & $2.39$ & $0.19$ \\
+HotpotQA & $5.73$ & $0.60$ & $0.10$ & $7.79$ & $1.36$ & $7.33$ & $1.28$ & $8.90$ & $1.55$ \\
+Quora & $5.63$ & $0.00$ & $0.00$ & $0.23$ & $0.04$ & $0.13$ & $0.02$ & $0.17$ & $0.03$ \\
+TREC-COVID & $4.48$ & $0.01$ & $0.00$ & $0.02$ & $0.00$ & $0.04$ & $0.01$ & $0.04$ & $0.01$ \\
+Touch\'e-2020 & $3.93$ & $0.01$ & $0.00$ & $0.02$ & $0.01$ & $0.03$ & $0.01$ & $0.03$ & $0.01$ \\
+FiQA & $2.78$ & $0.00$ & $0.00$ & $0.01$ & $0.00$ & $0.01$ & $0.00$ & $0.01$ & $0.00$ \\
+\midrule
+entity $R@5$ on this index & --- & \multicolumn{2}{c}{$14.27$} & \multicolumn{2}{c}{$67.20$} & \multicolumn{2}{c}{$69.83$} & \multicolumn{2}{c}{$69.67$} \\
+\bottomrule
+\end{tabular}
+\end{table}

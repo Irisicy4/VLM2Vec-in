@@ -1,0 +1,30 @@
+\begin{table}[t]
+\caption{Direct vs.\ indirect supervision for captioning (\textsc{Qwen2.5-VL} backbones). \emph{Short}
+columns are COCO Karpathy (scored against short human references); \emph{Detailed} columns are the mean over
+DOCCI, DetailCaps-4870 and ShareGPT4V-COCO. CIDEr/METEOR are reference-overlap; CLIP-S (CLIPScore), PAC-S and
+POLOS are reference-free/learned; \textbf{Len} is mean caption length (tokens). \emph{Ours} is the indirect-RL
+captioner; \emph{+GPT-SFT} is direct SFT on a SOTA teacher's captions. Best per backbone block on each
+reference-free metric in \textbf{bold}. (An LLM-judge win-rate is omitted here: the available judge is GPT-based and
+exhibits self-preference for the GPT-distilled SFT; an independent-judge evaluation is deferred.)}
+\label{tab:cap_main}
+\begin{center}
+\small
+\begin{tabular}{llcccccc}
+\toprule
+ & & \multicolumn{2}{c}{Short (COCO)} & \multicolumn{4}{c}{Detailed (reference-free)} \\
+\cmidrule(lr){3-4}\cmidrule(lr){5-8}
+Backbone & Method & CIDEr & METEOR & CLIP-S & PAC-S & POLOS & Len \\
+\midrule
+\multirow{3}{*}{3B}
+ & Base (zero-shot)              & 0.129 & 0.247 & 0.667 & 0.710 & 0.690 & 152 \\
+ & \; + GPT-SFT (direct)         & 0.116 & 0.249 & 0.690 & \textbf{0.735} & \textbf{0.750} & 260 \\
+ & \; + Indirect RL (\textbf{Ours}) & 0.000 & 0.222 & \textbf{0.691} & 0.734 & 0.746 & 173 \\
+\midrule
+\multirow{3}{*}{7B}
+ & Base (zero-shot)              & 0.000 & 0.215 & 0.702 & 0.733 & 0.744 & 259 \\
+ & \; + GPT-SFT (direct)         & 0.131 & 0.250 & 0.697 & 0.735 & 0.754 & 243 \\
+ & \; + Indirect RL (\textbf{Ours}) & 0.000 & 0.218 & \textbf{0.713} & \textbf{0.743} & \textbf{0.762} & 192 \\
+\bottomrule
+\end{tabular}
+\end{center}
+\end{table}

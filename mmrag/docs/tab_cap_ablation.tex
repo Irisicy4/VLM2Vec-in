@@ -1,0 +1,23 @@
+\begin{table}[t]
+\caption{Format regularization is necessary for indirect captioning (3B, LLaVA-665k, detailed-caption average).
+The bare answerability reward reward-hacks and \emph{loses} to the base model on the LLM judge ($0.47\!:\!1$);
+each regularizer independently restores a win, and the combination gives a stable, length-controllable captioner.
+\textbf{Win} is LLM-judge win-rate vs.\ base; \textbf{Len} is mean$\pm$std caption tokens (lower std = fewer
+runaway generations). All rows are Qwen-RL variants compared against the Qwen base, so the GPT-judge
+self-preference that affects the direct-SFT comparison (Table~\ref{tab:cap_main}) does not apply here; an
+independent-judge refresh is nonetheless deferred.}
+\label{tab:cap_ablation}
+\begin{center}
+\small
+\begin{tabular}{lcccc}
+\toprule
+Reward configuration & PAC-S & POLOS & Win & Len ($\pm$std) \\
+\midrule
+Answerability only (no regularization) & 0.716 & 0.708 & 0.47 & $178\pm57$ \\
+\; + length penalty                    & 0.733 & 0.738 & 1.19 & $157\pm48$ \\
+\; + nonsense gate                     & 0.730 & 0.733 & 1.20 & $153\pm44$ \\
+\; + gate + length + multiprompt (\textbf{Ours}) & 0.729 & 0.735 & 1.19 & $176\pm44$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+\end{table}

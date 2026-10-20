@@ -1,0 +1,19 @@
+\begin{table}[H]
+\centering\small
+\caption{Representative text backbones under one indirect-feedback recipe. Values are
+alias-TriviaQA reader accuracy (\%). Results are single seed unless marked; the selection spans weak
+and strong retrieval initializations without reproducing the full development sweep.}
+\label{tab:rag_backbone}
+\begin{tabular}{lccc}
+\toprule
+backbone & base & indirect feedback & relevance-SFT \\
+\midrule
+MiniLM-L6 & $67.6$ & $63.8$ & $70.4$ \\
+Contriever & $63.2$ & $64.6$ & $69.0$ \\
+Qwen3-Embedding-0.6B & $69.8$ & $71.2$ & $71.6$ \\
+Qwen3-Embedding-8B & $75.6$ & $76.2$ & $73.4$ \\
+Harrier-0.6B & $73.2$ & $74.3$ (2) & $71.6$ \\
+Harrier-27B & $76.0$ & $77.6$ & --- \\
+\bottomrule
+\end{tabular}
+\end{table}
